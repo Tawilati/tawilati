@@ -6,6 +6,16 @@ Name: Tawilati (طاولتي, "my table"). Wordmark: `tawilati.` Tagline: "Good 
 
 **Status (Oct 2026):** Next.js 16 app scaffolded (`src/app/`, Tailwind 4, TypeScript, Prisma 7 with the pg adapter in `src/prisma/`, client in `src/lib/db.ts`); repo at https://github.com/Tawilati/tawilati (branch `main`). The brand kit is committed in `brand/` but not yet wired into the app (see "Moving into the app" in `brand/README.md`). Review is after **8 November 2026**.
 
+## Code layout and commands
+
+- `src/app/api/**/route.ts`: route handlers. Wrap the body in `handle()` and parse input with `parseQuery()` (`src/lib/http.ts`); thrown `HttpException`s and Zod errors become `{ "success": false, "message": "<code>", "details?" }`, the same shape as `src/proxy.ts` and `authGuard`. The route wires the service to the real repository (`new MenuService(menuRepo)`).
+- `src/proxy.ts`: JWT check on every `/api/*` route; public routes (login, register, `/api/menu`, `/api/guest-sessions`) are listed there. Staff identity arrives as `x-user-id`, `x-user-role`, `x-business-id` headers (`src/lib/auth/requestHelper.ts`, `authGuard` in `src/lib/auth/gaurd.ts`).
+- `src/validation/`: Zod schemas. `src/service/`: business rules, classes taking their repository in the constructor and importing it as a type only (so unit tests never load Prisma). `src/repository/`: Prisma only, singleton classes (`XRepo.getInstance()`) implementing an interface the service depends on.
+- Errors: `src/utils/exceptions/http/` (`HttpException(status, message)`; for API errors the message is the contract code, e.g. `new NotFoundException("invalid_qr")`, `new ConflictException("table_disabled")`).
+- Path alias `@/` → `src/`. Ids are UUID strings.
+- Tests: `*.test.ts` are unit tests (`npm test`, services with fake repositories); `*.int.test.ts` hit the database at `DATABASE_URL` (`npm run test:integration`), create their own businesses and delete them afterwards.
+- Database: Postgres in Docker on port 5434 (5432 is taken by a local Windows Postgres on Souad's machine). `npx prisma migrate dev`, `npx prisma generate` (client in `src/app/generated/prisma`, gitignored), `npm run db:seed` (demo café, re-runnable, prints the menu links). Prisma config is `prisma7.config.ts`. After merging `main`, verify migrations with `npx prisma migrate reset --force` then `npx prisma migrate diff --from-config-datasource --to-schema src/prisma/schema.prisma --script` (must print an empty migration).
+
 ## Core flow (build first)
 
 Table scans and orders → kitchen sees it live → waiter closes the bill.
@@ -39,27 +49,32 @@ Stretch: split the bill by person. Scored extras: pricing page with test-mode ch
 - **Tenant isolation:** every query filters by `session.businessId`. Never take `businessId` from the request body (ignore it if sent). Cross-tenant access returns 403/404.
 - Role checks server-side in every endpoint before the service layer. Roles: `OWNER`, `WAITER`, `KITCHEN`.
 - Staff auth: signed JWT in an HttpOnly, Secure, SameSite=Lax cookie holding `userId`, `businessId`, `role`. Every protected request re-checks `User.isActive` in the DB (deactivation must take effect immediately).
-- Guest auth: `GuestSession.credential` (32 random bytes hex) issued by `POST /api/guest-sessions`, stored in `sessionStorage`, valid while `revokedAt IS NULL AND expiresAt > now()`; `expiresAt = Order.openedAt + 4h`. Closing the tab revokes all its sessions.
+- Guest auth: `GuestSession.token` (32 random bytes hex) issued by `POST /api/guest-sessions`, stored in `sessionStorage`, valid while `revokedAt IS NULL AND expiresAt > now()`; `expiresAt = TableSession.openedAt + 4h`. Closing the tab revokes all its sessions.
 - Money: `Decimal`, never float. `priceLBP = round(priceUSD × Business.exchangeRate)`, computed when an item is created or its USD price is edited; never recomputed on read. Order lines snapshot `priceUSD`, `priceLBP`, `rateSnapshot`.
 - Passwords: bcrypt cost ≥ 10 (12 used in the spec). Emails normalised with `trim().toLowerCase()` before lookup and insert.
 - Invalid login (unknown email, wrong password, deactivated) always returns the same generic 401.
 
-## Data model (from the ERD)
+## Data model (`src/prisma/schema.prisma`, matches the team's latest ERD)
+
+The schema is the source of truth; this table summarises it. Ids are UUID strings.
 
 | Model | Fields | Constraints |
 |---|---|---|
-| Business | id, name, exchangeRate Decimal(10,4), timezone, createdAt | rate > 0; timezone in allowlist (Asia/Beirut, Asia/Dubai, Europe/Paris, UTC) |
-| User | id, businessId, name, email, passwordHash, role, isActive, createdAt | email unique globally (one email = one account) |
+| Business | id, name, slug, exchangeRate Decimal(10,4), timezone, createdAt | name unique; slug unique, set once at sign-up with `makeSlug(name, "cafe")` and never changed; rate > 0; timezone in allowlist (Asia/Beirut, Asia/Dubai, Europe/Paris, UTC) |
+| User | id, businessId, name, email, passwordHash, role, isActive, isVerified, createdAt | email unique globally (one email = one account) |
 | MenuCategory | id, businessId, name, createdAt | unique (businessId, name); delete blocked while it has items (409) |
-| MenuItem | id, businessId, categoryId, name, priceUSD Decimal(10,2), priceLBP Decimal(12,2), soldOut, archivedAt, createdAt, updatedAt | category must be same business; archive is soft (archivedAt) |
-| Table | id, businessId, label, qrToken, isDisabled, createdAt | unique (businessId, label); qrToken unique, 32 random bytes hex, never rotates |
-| Order (the tab) | id, businessId, tableId, status, totalUSD, totalLBP, amountPaidUSD, amountPaidLBP, openedAt, closedAt | at most one open tab per table (see open issue 1) |
-| Submission | id, businessId, orderId, idempotencyKey, payloadHash, createdAt | unique (businessId, idempotencyKey) |
-| OrderLine | id, orderId, submissionId, menuItemId, quantity, priceUSD, priceLBP, rateSnapshot | quantity ≥ 1; FK to MenuItem is RESTRICT |
-| GuestSession | id, orderId, credential, expiresAt, revokedAt, createdAt | credential unique |
-| Payment | id, orderId, amountUSD, amountLBP, method, recordedByUserId, idempotencyKey, createdAt | unique (orderId, idempotencyKey); method ∈ CASH, CARD_EXTERNAL |
+| MenuItem | id, businessId, categoryId, name, priceUSD Decimal(10,2), priceLBP Decimal(12,2), soldOut, archivedAt, createdAt, updatedAt | category must be same business; archive is soft (archivedAt); FK to category is RESTRICT |
+| DiningTable | id, businessId, label, slug, qrToken Char(64), isDisabled, createdAt | unique (businessId, label) and (businessId, slug); slug set once with `makeSlug(label, "table")`, never changed; qrToken unique, 32 random bytes hex, never rotates |
+| TableSession (the tab) | id, businessId, tableId, status (OPEN/CLOSED), activeTableId, openedAt, closedAt, totalUSD, totalLBP, amountPaidUSD, amountPaidLBP | `activeTableId` is unique: set to tableId while open, null on close → at most one open tab per table (replaces the partial index of open issue 1) |
+| GuestSession | id, sessionId → TableSession, token Char(64), expiresAt, revokedAt, createdAt | token unique |
+| DiningOrder (one round) | id, businessId, sessionId, tableId, guestSessionId, status, totalUSD, totalLBP, createdAt | one per submitted round; carries the kitchen status |
+| Submission | id, businessId, idempotencyKey, payloadHash, orderId → DiningOrder, createdAt | unique (businessId, idempotencyKey) |
+| OrderLine | id, orderId → DiningOrder, menuItemId, qty, priceUSD, priceLBP, rateSnapshot, createdAt | qty ≥ 1; FK to MenuItem is RESTRICT |
+| Payment | id, sessionId → TableSession, amountUSD, amountLBP, method (CASH/EXTERNAL_CARD), recordedById, createdAt | no idempotency key yet (the spec asks for unique (orderId, idempotencyKey)) |
 
-Order status: `OPEN → PREPARING → READY → SERVED → CLOSED`, strictly in that order; anything else is 400 `invalid_transition` with no write. Kitchen moves OPEN→PREPARING→READY; waiter moves READY→SERVED; close (SERVED→CLOSED) sets `closedAt` and revokes guest sessions in one transaction. Closed orders are immutable. UI label for OPEN in the kitchen is "New".
+**Customer menu link (what the QR code encodes):** `/menu/{business.slug}/{table.slug}?t={qrToken}`, e.g. `/menu/tawilati-demo-cafe/t1?t=1e64…`. The names make the address bar readable; the token is what authorises the table (without it anyone could order to any table by typing a URL). Slugs never follow renames, so printed QR codes keep working. Sign-up must reject a taken name or slug with 409 `business_name_taken`. Slug helpers: `src/utils/slug.ts`.
+
+Round status (`DiningOrder.status`): `NEW → PREPARING → READY → SERVED`, strictly in that order (plus `CANCELLED`); anything else is 400 `invalid_transition` with no write. Kitchen moves NEW→PREPARING→READY; waiter moves READY→SERVED. Because status is per round, a second round on a tab shows up in the kitchen as its own NEW ticket (settles open issue 2). Closing the tab sets `TableSession.status = CLOSED`, `closedAt`, clears `activeTableId` and revokes its guest sessions in one transaction. Closed tabs are immutable. UI label for NEW in the kitchen is "New".
 
 ## Order submission (POST /api/orders, guest)
 
@@ -76,19 +91,19 @@ Order status: `OPEN → PREPARING → READY → SERVED → CLOSED`, strictly in 
 | Menu items | POST, GET, PATCH /:id, POST /:id/archive, POST /:id/unarchive under /api/menu-items | GET staff, rest OWNER |
 | Sold out | PATCH /api/menu-items/:id/sold-out | OWNER, KITCHEN |
 | Tables | POST, GET, PATCH /:id, POST /:id/disable, POST /:id/enable, GET /:id/qr (PNG) under /api/tables | GET staff, rest OWNER |
-| Guest | GET /api/menu?b=&t= (public, resolves QR); POST /api/guest-sessions (public); POST /api/orders, GET /api/orders/me (guest) | |
+| Guest | GET /api/menu?b={business slug}&t={qrToken} (public, resolves QR); POST /api/guest-sessions (public); POST /api/orders, GET /api/orders/me (guest) | |
 | Kitchen | GET /api/kitchen/orders | KITCHEN |
 | Status | PATCH /api/orders/:id/status | KITCHEN, WAITER |
 | Waiter | GET /api/waiter/tables | WAITER |
 | Bill | GET /api/orders/:id/bill; POST /api/orders/:id/payments; POST /api/orders/:id/close | WAITER, OWNER |
 | Reports | GET /api/reports/daily?date=YYYY-MM-DD (restaurant-local day) | OWNER |
 
-Error codes used in the spec: `email_already_in_use` 409, `invalid_credentials` 401, `invalid_role` 400, `invalid_exchange_rate` 400, `invalid_timezone` 400, `validation_error` 400, `invalid_qr` 404, `invalid_table` 404, `table_disabled` 409, `idempotency_key_mismatch` 409, `item_sold_out` 409, `item_archived` 409, `item_not_found` 404, `tab_not_open` 409, `invalid_transition` 400, `tab_not_settleable` 409, `amount_exceeds_outstanding` 409, `not_found` 404.
+Error codes used in the spec: `email_already_in_use` 409, `invalid_credentials` 401, `business_name_taken` 409, `invalid_role` 400, `invalid_exchange_rate` 400, `invalid_timezone` 400, `validation_error` 400, `invalid_qr` 404, `invalid_table` 404, `table_disabled` 409, `idempotency_key_mismatch` 409, `item_sold_out` 409, `item_archived` 409, `item_not_found` 404, `tab_not_open` 409, `invalid_transition` 400, `tab_not_settleable` 409, `amount_exceeds_outstanding` 409, `not_found` 404.
 
 ## Open issues in the spec (decide before coding)
 
-1. **Bug:** the "one open tab per table" partial unique index is `WHERE status = 'OPEN'`, and guest-session lookup uses `status = 'OPEN'`. Once a tab moves to PREPARING, a second scan would open a second tab. Use `WHERE status <> 'CLOSED'` (or `closedAt IS NULL`) in both. Prisma can't express partial indexes: add it in a raw SQL migration.
-2. Status lives on the Order (tab), but a tab gets more submissions after the first (E-09). Decide what the kitchen sees when a second round arrives on a tab that is already READY or SERVED (per-submission status, or reset the tab to OPEN).
+1. **(Settled by the schema's `TableSession.activeTableId` unique column.)** **Bug:** the "one open tab per table" partial unique index is `WHERE status = 'OPEN'`, and guest-session lookup uses `status = 'OPEN'`. Once a tab moves to PREPARING, a second scan would open a second tab. Use `WHERE status <> 'CLOSED'` (or `closedAt IS NULL`) in both. Prisma can't express partial indexes: add it in a raw SQL migration.
+2. **(Settled: status is per `DiningOrder` round.)** Status lives on the Order (tab), but a tab gets more submissions after the first (E-09). Decide what the kitchen sees when a second round arrives on a tab that is already READY or SERVED (per-submission status, or reset the tab to OPEN).
 3. Live updates: the kitchen and waiter sequence diagrams poll every 2–3 s; the order flow says "Broadcast SSE to kitchen". Pick one and document the reasoning in the README.
 4. JWT lifetime: 2 h in the A-03 note, 24 h (`Max-Age=86400`) in the register/login diagrams.
 5. Default exchange rate at sign-up is 1500 in the diagram; the real rate is about 89,500 LBP per USD.

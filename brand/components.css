@@ -1,0 +1,276 @@
+/*
+ * Tawilati UI components. Framework-agnostic reference styles built on tokens.css.
+ * Port these to the app's component library; keep the token names.
+ *
+ * Icons: <span class="tw-icon" style="--icon: url(icons/home.svg)"></span>
+ * renders an icon file in the current text colour (CSS mask).
+ */
+
+/* ---------- Icon ---------- */
+.tw-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+.tw-icon--lg { width: 24px; height: 24px; }
+
+/* ---------- Buttons ---------- */
+.tw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 0 var(--space-5);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.tw-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.tw-btn:disabled,
+.tw-btn[aria-disabled="true"] {
+  background: var(--status-served-bg);
+  border-color: var(--status-served-bg);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+.tw-btn--sm { min-height: 40px; padding: 0 var(--space-4); font-size: var(--text-small); }
+.tw-btn--block { width: 100%; }
+
+/* Primary: Forest Green. White text 9.5:1 */
+.tw-btn--primary { background: var(--brand-primary); color: var(--on-primary); }
+.tw-btn--primary:hover { background: var(--brand-primary-hover); }
+.tw-btn--primary:active { background: var(--brand-primary-active); }
+
+/* Secondary: Sage fill. Charcoal text 5.6:1 */
+.tw-btn--secondary { background: var(--brand-secondary); color: var(--text-primary); }
+.tw-btn--secondary:hover { background: #7E9D7E; }
+.tw-btn--secondary:active { background: #7A997A; }
+
+/* Accent: Amber fill. Charcoal text 6.8:1. Promotions and highlights only, never the main CTA */
+.tw-btn--accent { background: var(--brand-accent); color: var(--text-primary); }
+.tw-btn--accent:hover { background: #DB9649; }
+.tw-btn--accent:active { background: #CF8A3E; }
+
+/* Ghost: outlined Forest Green */
+.tw-btn--ghost { background: transparent; border-color: var(--brand-primary); color: var(--brand-primary); }
+.tw-btn--ghost:hover { background: var(--brand-primary-tint); }
+.tw-btn--ghost:active { background: #D3E2D7; }
+
+/* Loading: keep the label for width, show a spinner */
+.tw-btn[aria-busy="true"] { position: relative; color: transparent; pointer-events: none; }
+.tw-btn[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-color: var(--on-primary) var(--on-primary) transparent transparent;
+  border-radius: 50%;
+  animation: tw-spin 700ms linear infinite;
+}
+.tw-btn--secondary[aria-busy="true"]::after,
+.tw-btn--accent[aria-busy="true"]::after,
+.tw-btn--ghost[aria-busy="true"]::after { border-color: var(--text-primary) var(--text-primary) transparent transparent; }
+@keyframes tw-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tw-btn[aria-busy="true"]::after { animation-duration: 2s; } }
+
+/* ---------- Text field ---------- */
+.tw-field { display: flex; flex-direction: column; gap: var(--space-2); }
+.tw-field__label { font-size: var(--text-small); font-weight: 600; color: var(--text-primary); }
+.tw-field__control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.tw-field__control:focus-within { border-color: var(--brand-primary); box-shadow: 0 0 0 3px var(--brand-primary-tint); }
+.tw-field__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  color: var(--text-primary);
+}
+.tw-field__input::placeholder { color: var(--text-muted); }
+.tw-field__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-right: calc(var(--space-2) * -1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.tw-field__action:focus-visible { outline: 2px solid var(--focus-ring); }
+.tw-field__hint { font-size: var(--text-small); color: var(--text-muted); }
+.tw-field--error .tw-field__control { border-color: var(--color-error); }
+.tw-field--error .tw-field__hint { color: var(--color-error); }
+
+/* ---------- Toast / inline alert ---------- */
+.tw-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.tw-toast__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: var(--on-primary);
+}
+.tw-toast__title { margin: 0; font-size: var(--text-body); font-weight: 600; color: var(--brand-primary); }
+.tw-toast__body { margin: 2px 0 0; font-size: var(--text-small); color: var(--text-muted); }
+.tw-toast--error .tw-toast__mark { background: var(--color-error); }
+.tw-toast--error .tw-toast__title { color: var(--color-error); }
+
+/* ---------- Menu item card (guest menu) ---------- */
+.tw-item {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+.tw-item__photo {
+  width: 104px;
+  height: 104px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  background: var(--surface-muted);
+}
+.tw-item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.tw-item__name { margin: 0; font-size: var(--text-body); font-weight: 600; color: var(--text-primary); }
+.tw-item__desc { margin: 0; font-size: var(--text-small); color: var(--text-muted); }
+.tw-item__foot { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); margin-top: auto; flex-wrap: wrap; }
+.tw-price { display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
+.tw-price__usd { font-size: var(--text-h3); font-weight: 700; color: var(--text-primary); }
+.tw-price__lbp { font-size: var(--text-small); color: var(--text-muted); }
+.tw-item--soldout .tw-item__photo { filter: grayscale(1); opacity: 0.6; }
+.tw-item--soldout .tw-item__name,
+.tw-item--soldout .tw-price__usd { color: var(--text-muted); }
+
+/* ---------- Quantity stepper ---------- */
+.tw-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px;
+  background: var(--surface-muted);
+  border-radius: var(--radius-pill);
+}
+.tw-stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.tw-stepper__btn:hover { background: var(--border-subtle); }
+.tw-stepper__btn:focus-visible { outline: 2px solid var(--focus-ring); }
+.tw-stepper__btn:disabled { color: var(--text-disabled); cursor: not-allowed; background: transparent; }
+.tw-stepper__value { min-width: 24px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Round add button used before the item is in the cart */
+.tw-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: var(--on-primary);
+  cursor: pointer;
+}
+.tw-add:hover { background: var(--brand-primary-hover); }
+.tw-add:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- Sidebar navigation ---------- */
+.tw-nav { display: flex; flex-direction: column; gap: var(--space-1); }
+.tw-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.tw-nav__item:hover { background: var(--surface-muted); }
+.tw-nav__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.tw-nav__item[aria-current="page"] { background: var(--brand-secondary-tint); color: var(--brand-primary); font-weight: 600; }
+
+/* ---------- Status badge ---------- */
+.tw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.tw-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.tw-badge--new { background: var(--status-new-bg); color: var(--status-new-fg); }
+.tw-badge--preparing { background: var(--status-preparing-bg); color: var(--status-preparing-fg); }
+.tw-badge--ready { background: var(--status-ready-bg); color: var(--status-ready-fg); }
+.tw-badge--served { background: var(--status-served-bg); color: var(--status-served-fg); }
+.tw-badge--closed { background: var(--status-closed-bg); color: var(--status-closed-fg); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.tw-badge--soldout { background: var(--status-soldout-bg); color: var(--status-soldout-fg); }
+
+/* ---------- Card ---------- */
+.tw-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+}

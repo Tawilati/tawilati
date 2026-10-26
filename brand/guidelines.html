@@ -1,0 +1,777 @@
+<title>Tawilati Brand Guidelines</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  /* Layout: a printed brand book on screen. Sticky contents rail on the left, one long column of
+     chapters on the right; every example renders from the real tokens, components and asset files.
+     Single light theme on purpose: the book shows the brand on its own cream ground. */
+  :root {
+    --book-ground: var(--brand-background);
+    --book-paper: var(--surface-primary);
+    --book-ink: var(--text-primary);
+    --book-quiet: var(--text-muted);
+    --book-rule: var(--border-subtle);
+    --book-green: var(--brand-primary);
+    --dont: #B3392B;
+    --rail-w: 220px;
+    --col-max: 1040px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--book-ground);
+    color: var(--book-ink);
+    font-family: var(--font-ui);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 96px;
+  }
+  .book { max-width: calc(var(--rail-w) + var(--col-max) + 64px); margin: 0 auto; display: flex; gap: 64px; align-items: flex-start; }
+
+  /* Contents rail */
+  .rail { width: var(--rail-w); flex-shrink: 0; position: sticky; top: env(safe-area-inset-top, 0px); padding-block: 40px; }
+  .rail img { width: 150px; display: block; margin-bottom: 28px; }
+  .rail p { margin: 0 0 10px; font-size: var(--text-label); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--book-quiet); }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: ch; }
+  .rail li { counter-increment: ch; }
+  .rail a { display: flex; gap: 10px; padding: 7px 10px; border-radius: var(--radius-sm); color: var(--book-ink); text-decoration: none; font-size: var(--text-small); font-weight: 500; }
+  .rail a::before { content: counter(ch, decimal-leading-zero); color: var(--book-quiet); font-variant-numeric: tabular-nums; font-weight: 500; }
+  .rail a:hover { background: var(--surface-muted); }
+  .rail a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+  .chapters { flex: 1; min-width: 0; max-width: var(--col-max); display: flex; flex-direction: column; gap: 96px; padding-top: 40px; }
+
+  @media (max-width: 960px) {
+    .book { flex-direction: column; gap: 0; }
+    .rail { position: static; width: 100%; padding-block: 24px 8px; }
+    .rail ol { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+    .rail a { padding: 6px 10px; background: var(--book-paper); border: 1px solid var(--book-rule); }
+    .chapters { padding-top: 32px; gap: 72px; }
+  }
+
+  /* Chapter typography */
+  .chapter { display: flex; flex-direction: column; gap: 32px; scroll-margin-top: 24px; }
+  .eyebrow { margin: 0; font-size: var(--text-label); font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--book-quiet); font-variant-numeric: tabular-nums; }
+  .chapter > header { display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; border-bottom: 1px solid var(--book-rule); }
+  h1, h2 { font-family: var(--font-brand); font-weight: 700; color: var(--book-green); margin: 0; line-height: var(--leading-tight); text-wrap: balance; }
+  h2 { font-size: var(--text-h1); }
+  h3 { margin: 0; font-size: var(--text-h3); font-weight: 600; line-height: 1.3; color: var(--book-ink); }
+  h4 { margin: 0; font-size: var(--text-label); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--book-quiet); }
+  p { margin: 0; }
+  .lede { max-width: 64ch; font-size: 18px; color: var(--book-ink); }
+  .note { max-width: 64ch; color: var(--book-quiet); font-size: var(--text-small); }
+  .block { display: flex; flex-direction: column; gap: 16px; }
+  .block > p { max-width: 64ch; }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88em; background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: 5px; padding: 1px 5px; }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 860px) { .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); } }
+
+  .plate { background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: var(--radius-lg); padding: 28px; display: flex; flex-direction: column; gap: 16px; }
+  .plate--green { background: var(--brand-primary); border-color: var(--brand-primary); color: var(--text-inverse); }
+  .plate--cream { background: var(--book-ground); }
+  .plate__stage { min-height: 160px; display: flex; align-items: center; justify-content: center; }
+  .caption { font-size: var(--text-small); color: var(--book-quiet); }
+  .plate--green .caption { color: #CFDCD3; }
+  .caption b { color: var(--book-ink); font-weight: 600; }
+  .plate--green .caption b { color: var(--text-inverse); }
+
+  /* 01 Cover */
+  .cover { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 48px; align-items: end; padding-bottom: 40px; border-bottom: 1px solid var(--book-rule); }
+  .cover img { width: 100%; max-width: 560px; }
+  .cover dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 20px; font-size: var(--text-small); }
+  .cover dt { color: var(--book-quiet); }
+  .cover dd { margin: 0; font-weight: 500; }
+  @media (max-width: 760px) { .cover { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+
+  .traits { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .traits div { padding: 18px; background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 6px; }
+  .traits strong { font-family: var(--font-brand); font-size: 20px; color: var(--book-green); font-weight: 700; }
+  .traits span { font-size: var(--text-small); color: var(--book-quiet); }
+  @media (max-width: 960px) { .traits { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 480px) { .traits { grid-template-columns: minmax(0, 1fr); } }
+
+  .lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 640px) { .lists { grid-template-columns: minmax(0, 1fr); } }
+  .lists ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+  /* 02 Logo */
+  .equation { display: flex; align-items: center; justify-content: center; gap: 28px; flex-wrap: wrap; }
+  .equation figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+  .equation .op { font-size: 28px; color: var(--book-quiet); }
+  .clear { display: inline-block; max-width: 100%; padding: 34px; border: 1.5px dashed var(--dont); border-radius: 4px; position: relative; background: var(--book-paper); }
+  .clear img { display: block; width: 300px; max-width: 100%; height: auto; }
+  .clear span { position: absolute; font-size: 12px; font-weight: 700; color: var(--dont); }
+  .clear .t { top: 8px; left: 50%; transform: translateX(-50%); }
+  .clear .l { left: 10px; top: 50%; transform: translateY(-50%); }
+  .sizes { display: flex; align-items: flex-end; gap: 40px; flex-wrap: wrap; }
+  .sizes figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .dont { position: relative; background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column; }
+  .dont__stage { height: 140px; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 16px; }
+  .dont__stage img { height: 52px; }
+  .dont p { padding: 12px 16px; border-top: 1px solid var(--book-rule); font-size: var(--text-small); display: flex; gap: 8px; align-items: center; }
+  .dont p::before { content: ""; width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%; background: var(--dont) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7 7 17'/%3E%3C/svg%3E") center / 12px no-repeat; }
+
+  /* 03 Colour */
+  .swatches { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 960px) { .swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 420px) { .swatches { grid-template-columns: minmax(0, 1fr); } }
+  .swatch { border-radius: var(--radius-lg); overflow: hidden; background: var(--book-paper); border: 1px solid var(--book-rule); display: flex; flex-direction: column; }
+  .swatch__chip { height: 130px; padding: 14px; display: flex; align-items: flex-end; font-family: var(--font-brand); font-size: 22px; font-weight: 700; }
+  .swatch dl { margin: 0; padding: 14px; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .swatch dt { color: var(--book-quiet); }
+  .swatch dd { margin: 0; font-weight: 500; }
+  .swatch .use { grid-column: 1 / -1; color: var(--book-quiet); margin-top: 6px; }
+  .mix { display: flex; height: 56px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--book-rule); }
+  .mix span { display: flex; align-items: center; padding: 0 12px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+  .table-wrap { overflow-x: auto; background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: var(--radius-lg); }
+  table { width: 100%; border-collapse: collapse; font-size: var(--text-small); min-width: 560px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--book-rule); vertical-align: middle; }
+  th { font-size: var(--text-label); letter-spacing: 0.1em; text-transform: uppercase; color: var(--book-quiet); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .sample { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 34px; border-radius: 6px; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(32, 43, 38, 0.08); }
+  .pass { color: var(--color-success); font-weight: 600; }
+  .fail { color: var(--dont); font-weight: 600; }
+
+  /* 04 Type */
+  .specimen { display: flex; flex-direction: column; gap: 14px; }
+  .specimen .big { font-size: 96px; line-height: 1; color: var(--book-green); }
+  .scale-row { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--book-rule); }
+  .scale-row:last-child { border-bottom: 0; }
+  .scale-row small { font-size: 12px; color: var(--book-quiet); font-variant-numeric: tabular-nums; line-height: 1.4; }
+  @media (max-width: 560px) { .scale-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+
+  /* 05 Icons */
+  .icon-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 760px) { .icon-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 420px) { .icon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .icon-cell { background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: var(--radius-md); padding: 20px 12px 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--book-green); text-align: center; }
+  .icon-cell .tw-icon { width: 40px; height: 40px; }
+  .icon-cell span:last-child { color: var(--book-ink); font-size: var(--text-small); font-weight: 500; }
+  .icon-cell code { font-size: 11px; color: var(--book-quiet); }
+  .ui-icons { display: flex; flex-wrap: wrap; gap: 10px; }
+  .ui-icons span { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: var(--radius-sm); color: var(--book-ink); }
+
+  /* 06 Components */
+  .demo-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .sidebar-demo { width: 240px; max-width: 100%; padding: 18px 12px; background: var(--book-ground); border: 1px solid var(--book-rule); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 18px; }
+  .sidebar-demo img { width: 128px; margin-left: 10px; }
+  .photo { display: flex; align-items: center; justify-content: center; color: var(--brand-secondary-ink); background: var(--brand-secondary-tint); }
+  .photo .tw-icon { width: 30px; height: 30px; }
+
+  /* 07 Applications */
+  .tent-scene { background: linear-gradient(#EDE6D6, #E3D8C2); border-radius: var(--radius-lg); padding: 40px 20px 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-height: 520px; }
+  .tent { width: 250px; max-width: 100%; background: var(--book-ground); border-radius: 10px 10px 4px 4px; padding: 28px 24px 26px; display: flex; flex-direction: column; align-items: center; gap: 18px; box-shadow: 0 18px 30px rgba(32, 43, 38, 0.18); text-align: center; }
+  .tent img.logo { width: 150px; }
+  .tent .qr { position: relative; width: 150px; height: 150px; background: #FFFFFF; padding: 10px; border-radius: 8px; }
+  .tent .qr svg { width: 100%; height: 100%; display: block; }
+  .tent .qr img { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; transform: translate(-50%, -50%); background: #FFFFFF; padding: 4px; border-radius: 8px; }
+  .tent p { font-family: var(--font-brand); font-size: 19px; line-height: 1.3; color: var(--book-ink); }
+  .tent .table-no { font-family: var(--font-ui); font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand-secondary-ink); }
+  .stand { width: 290px; max-width: 100%; height: 26px; background: #B98B5E; border-radius: 6px 6px 0 0; }
+
+  .phone { width: 330px; max-width: 100%; margin: 0 auto; border: 10px solid #1B2420; border-radius: 42px; background: var(--book-ground); overflow: hidden; display: flex; flex-direction: column; }
+  .phone__top { display: flex; align-items: center; justify-content: space-between; padding: 26px 18px 12px; }
+  .phone__top img { width: 120px; }
+  .phone__table { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: var(--radius-pill); background: var(--brand-secondary-tint); color: var(--brand-primary); }
+  .chips { display: flex; gap: 8px; padding: 0 18px 14px; overflow-x: auto; }
+  .chip { flex-shrink: 0; min-height: 36px; padding: 0 14px; border-radius: var(--radius-pill); border: 1px solid var(--book-rule); background: var(--book-paper); font: inherit; font-size: 13px; font-weight: 500; color: var(--book-ink); }
+  .chip[aria-pressed="true"] { background: var(--brand-primary); border-color: var(--brand-primary); color: var(--on-primary); }
+  .phone__list { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .phone__list .tw-item__photo { width: 84px; height: 84px; }
+  .phone__bar { padding: 12px; background: var(--book-paper); border-top: 1px solid var(--book-rule); }
+  .phone__bar .tw-btn { justify-content: space-between; }
+
+  .ticket { background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: var(--radius-lg); box-shadow: var(--shadow-raised); overflow: hidden; }
+  .ticket__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--book-rule); }
+  .ticket__head strong { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ticket__meta { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--book-quiet); }
+  .ticket ul { list-style: none; margin: 0; padding: 12px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .ticket li { display: flex; gap: 12px; font-size: 17px; }
+  .ticket li b { min-width: 28px; font-variant-numeric: tabular-nums; }
+  .ticket li em { display: block; font-style: normal; font-size: 13px; color: var(--brand-accent-ink); font-weight: 600; }
+  .ticket__foot { padding: 0 20px 20px; }
+
+  .icons-row { display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap; }
+  .icons-row figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .browser-tab { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--book-paper); border: 1px solid var(--book-rule); border-radius: 10px 10px 0 0; font-size: 13px; }
+  .browser-tab img { width: 16px; height: 16px; }
+
+  /* 09 Voice */
+  .voice td:first-child { color: var(--book-quiet); }
+  .voice td:last-child { font-weight: 600; color: var(--book-green); }
+
+  /* Print / PDF: A4, one chapter per page run, no contents rail */
+  @media print {
+    @page { size: A4; margin: 14mm 14mm 16mm; }
+    html, body { background: var(--book-ground); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { padding: 0; font-size: 14px; }
+    .rail { display: none; }
+    .book { display: block; max-width: none; }
+    .chapters { display: block; padding-top: 0; }
+    .chapter { break-before: page; gap: 22px; }
+    .chapter:first-child { break-before: auto; }
+    .chapter > header, .plate, .swatch, .dont, .icon-cell, .tw-item, .ticket, .phone, .tent-scene,
+    .table-wrap, .scale-row, .traits div, .lists > div, .block > h3 { break-inside: avoid; }
+    .block > h3 { break-after: avoid; }
+    .table-wrap { overflow: visible; }
+    table { min-width: 0; }
+    .tw-btn[aria-busy="true"]::after { animation: none; }
+  }
+</style>
+
+<div class="book">
+  <nav class="rail" aria-label="Contents">
+    <img src="logo/tawilati-horizontal.svg" alt="tawilati.">
+    <p>Contents</p>
+    <ol>
+      <li><a href="#brand">The brand</a></li>
+      <li><a href="#logo">Logo</a></li>
+      <li><a href="#colour">Colour</a></li>
+      <li><a href="#type">Typography</a></li>
+      <li><a href="#icons">Iconography</a></li>
+      <li><a href="#components">UI components</a></li>
+      <li><a href="#applications">Applications</a></li>
+      <li><a href="#imagery">Imagery</a></li>
+      <li><a href="#voice">Voice</a></li>
+      <li><a href="#assets">Asset files</a></li>
+    </ol>
+  </nav>
+
+  <main class="chapters">
+
+    <!-- 01 -->
+    <section class="chapter" id="brand" aria-labelledby="brand-h">
+      <div class="cover">
+        <img src="logo/tawilati-horizontal-tagline.svg" alt="tawilati. Good food, smoother service.">
+        <dl>
+          <dt>Document</dt><dd>Brand guidelines</dd>
+          <dt>Version</dt><dd>1.0 · October 2026</dd>
+          <dt>Product</dt><dd>QR ordering and restaurant operations</dd>
+          <dt>For</dt><dd>Everyone designing, building or writing for Tawilati</dd>
+        </dl>
+      </div>
+      <header>
+        <p class="eyebrow">01 · The brand</p>
+        <h2 id="brand-h">A hospitality brand, powered by quiet technology</h2>
+      </header>
+      <p class="lede">Tawilati connects guests, owners, kitchen staff and waiters around one table. A guest scans the QR code, orders from their phone and follows the order. The restaurant team runs menus, tables, the kitchen queue and the bill from the same system. The brand should feel like a well-run café: warm, calm and confident, with the technology in the background.</p>
+      <div class="traits">
+        <div><strong>Elegant</strong><span>Simple forms, generous space, nothing extra.</span></div>
+        <div><strong>Warm</strong><span>Cream, forest green and amber. Café materials, not chrome.</span></div>
+        <div><strong>Trustworthy</strong><span>Clear prices, clear status, a bill that adds up.</span></div>
+        <div><strong>Connected</strong><span>Guest, kitchen and waiter see the same order.</span></div>
+        <div><strong>Approachable</strong><span>Anyone can use it without instructions.</span></div>
+      </div>
+      <div class="lists">
+        <div class="plate">
+          <h4>Tawilati looks like</h4>
+          <ul>
+            <li>A carefully designed hospitality brand</li>
+            <li>Modern software that stays out of the way</li>
+            <li>Timeless rather than trendy</li>
+          </ul>
+        </div>
+        <div class="plate">
+          <h4>Tawilati never looks like</h4>
+          <ul>
+            <li>A generic AI startup or futuristic tech platform</li>
+            <li>A traditional restaurant website</li>
+            <li>A template with gradients, glow or glassmorphism</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section class="chapter" id="logo" aria-labelledby="logo-h">
+      <header>
+        <p class="eyebrow">02 · Logo</p>
+        <h2 id="logo-h">The cup and the signal</h2>
+      </header>
+      <div class="block">
+        <p class="lede">The mark puts a Wi-Fi signal over a coffee cup. The cup stands for hospitality and the dining experience. The amber signal stands for the connection between guests and the restaurant. Together they say: good service, made smoother by technology.</p>
+        <div class="plate">
+          <div class="equation">
+            <figure><img src="logo/tawilati-icon.svg" alt="" style="height: 88px; clip-path: inset(40% 0 0 0);"><figcaption class="caption">The cup · hospitality</figcaption></figure>
+            <span class="op" aria-hidden="true">+</span>
+            <figure><img src="logo/tawilati-icon.svg" alt="" style="height: 88px; clip-path: inset(0 0 60% 0);"><figcaption class="caption">The signal · connection</figcaption></figure>
+            <span class="op" aria-hidden="true">=</span>
+            <figure><img src="logo/tawilati-icon.svg" alt="The Tawilati mark" style="height: 88px;"><figcaption class="caption"><b>tawilati.</b></figcaption></figure>
+          </div>
+        </div>
+      </div>
+
+      <div class="block">
+        <h3>Lockups</h3>
+        <p>Use the horizontal logo by default. Use the stacked logo where space is tall or centred, such as table cards and print. Use the icon alone only where the name already appears nearby or space is very small.</p>
+        <div class="grid-2">
+          <div class="plate"><div class="plate__stage"><img src="logo/tawilati-horizontal-tagline.svg" alt="Horizontal logo with tagline" style="width: 100%; max-width: 380px;"></div><p class="caption"><b>Horizontal</b> · landing pages, desktop navigation, documents</p></div>
+          <div class="plate"><div class="plate__stage"><img src="logo/tawilati-stacked-tagline.svg" alt="Stacked logo with tagline" style="height: 150px;"></div><p class="caption"><b>Stacked</b> · QR table cards, print, promotional assets</p></div>
+          <div class="plate plate--green"><div class="plate__stage"><img src="logo/tawilati-horizontal-tagline-reverse.svg" alt="Reverse horizontal logo" style="width: 100%; max-width: 380px;"></div><p class="caption"><b>Reverse</b> · cream lettering and cup, amber signal, on Forest Green only</p></div>
+          <div class="plate"><div class="plate__stage" style="gap: 28px;"><img src="logo/tawilati-icon.svg" alt="Icon" style="height: 96px;"><img src="logo/app-icon.svg" alt="App icon" style="height: 96px;"></div><p class="caption"><b>Icon</b> · compact navigation, app icon, favicon</p></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="block">
+          <h3>Clear space</h3>
+          <p>Keep a margin at least the height of the cup (<b>x</b>) on every side. Nothing else enters that space: no text, edges or other logos.</p>
+          <div><span class="clear"><span class="t">x</span><span class="l">x</span><img src="logo/tawilati-horizontal.svg" alt="Horizontal logo with its clear space marked"></span></div>
+        </div>
+        <div class="block">
+          <h3>Minimum sizes</h3>
+          <p>Below these sizes the signal arcs merge. Under 24 px use <code>favicon.svg</code>, which has two arcs and heavier lines.</p>
+          <div class="sizes">
+            <figure><img src="logo/favicon.svg" alt="Favicon at 16 pixels" style="width: 16px;"><figcaption class="caption">Favicon<br>16 px</figcaption></figure>
+            <figure><img src="logo/tawilati-icon.svg" alt="Icon at 24 pixels" style="height: 24px;"><figcaption class="caption">Icon<br>24 px</figcaption></figure>
+            <figure><img src="logo/tawilati-horizontal.svg" alt="Horizontal logo at 120 pixels wide" style="width: 120px;"><figcaption class="caption">Horizontal<br>120 px wide</figcaption></figure>
+            <figure><img src="logo/tawilati-horizontal-tagline.svg" alt="Tagline logo at 200 pixels wide" style="width: 200px;"><figcaption class="caption">With tagline<br>200 px wide</figcaption></figure>
+          </div>
+        </div>
+      </div>
+
+      <div class="block">
+        <h3>Misuse</h3>
+        <p>Always use the supplied SVG files. Never redraw, edit or decorate the logo.</p>
+        <div class="grid-3">
+          <div class="dont"><div class="dont__stage"><img src="logo/tawilati-horizontal.svg" alt="" style="transform: scaleX(1.45);"></div><p>Don't stretch or squash it</p></div>
+          <div class="dont"><div class="dont__stage"><img src="logo/tawilati-horizontal.svg" alt="" style="transform: rotate(-14deg);"></div><p>Don't rotate it</p></div>
+          <div class="dont"><div class="dont__stage"><img src="logo/tawilati-horizontal.svg" alt="" style="filter: hue-rotate(150deg) saturate(1.6);"></div><p>Don't recolour it outside the palette</p></div>
+          <div class="dont"><div class="dont__stage"><img src="logo/tawilati-horizontal.svg" alt="" style="filter: drop-shadow(4px 6px 3px rgba(0,0,0,0.45));"></div><p>Don't add shadows, gradients or 3D</p></div>
+          <div class="dont"><div class="dont__stage" style="background: var(--brand-secondary);"><img src="logo/tawilati-horizontal.svg" alt=""></div><p>Don't place it on low-contrast colours</p></div>
+          <div class="dont"><div class="dont__stage" style="gap: 10px; color: var(--brand-primary);"><span class="tw-icon" style="--icon: url(icons/ui/utensils.svg); width: 40px; height: 40px;"></span><span style="font-size: 34px; font-weight: 700;">tawilati</span></div><p>Don't swap the mark or the typeface</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section class="chapter" id="colour" aria-labelledby="colour-h">
+      <header>
+        <p class="eyebrow">03 · Colour</p>
+        <h2 id="colour-h">Five colours, mostly cream</h2>
+      </header>
+      <div class="swatches">
+        <div class="swatch"><div class="swatch__chip" style="background: #254D3B; color: #F8F5EC;">Forest Green</div><dl><dt>HEX</dt><dd>#254D3B</dd><dt>RGB</dt><dd>37 77 59</dd><dd class="use">Primary. Buttons, navigation, active states, key headings.</dd></dl></div>
+        <div class="swatch"><div class="swatch__chip" style="background: #8BA88B; color: #202B26;">Sage</div><dl><dt>HEX</dt><dd>#8BA88B</dd><dt>RGB</dt><dd>139 168 139</dd><dd class="use">Secondary. Soft accents, tints, secondary buttons.</dd></dl></div>
+        <div class="swatch"><div class="swatch__chip" style="background: #F8F5EC; color: #202B26; border-bottom: 1px solid var(--book-rule);">Cream</div><dl><dt>HEX</dt><dd>#F8F5EC</dd><dt>RGB</dt><dd>248 245 236</dd><dd class="use">Background. Pages, guest screens, large surfaces.</dd></dl></div>
+        <div class="swatch"><div class="swatch__chip" style="background: #E5A45B; color: #202B26;">Amber</div><dl><dt>HEX</dt><dd>#E5A45B</dd><dt>RGB</dt><dd>229 164 91</dd><dd class="use">Accent, used sparingly. Logo signal, the period, highlights.</dd></dl></div>
+        <div class="swatch"><div class="swatch__chip" style="background: #202B26; color: #F8F5EC;">Charcoal</div><dl><dt>HEX</dt><dd>#202B26</dd><dt>RGB</dt><dd>32 43 38</dd><dd class="use">Text. Body copy, labels, tables, headings.</dd></dl></div>
+      </div>
+
+      <div class="block">
+        <h3>Balance</h3>
+        <p>Most of any screen is cream or white. Green and charcoal carry the structure, sage softens it, and amber appears only in small doses.</p>
+        <div class="mix" role="img" aria-label="Colour balance: 60 percent cream, 25 percent forest green and charcoal, 10 percent sage, 5 percent amber">
+          <span style="width: 60%; background: #F8F5EC;"></span>
+          <span style="width: 15%; background: #254D3B;"></span>
+          <span style="width: 10%; background: #202B26;"></span>
+          <span style="width: 10%; background: #8BA88B;"></span>
+          <span style="width: 5%; background: #E5A45B;"></span>
+        </div>
+        <p class="caption">60% cream and white · 25% forest green and charcoal · 10% sage · 5% amber</p>
+      </div>
+
+      <div class="block">
+        <h3>Text colours and contrast</h3>
+        <p>Text must reach 4.5 : 1 against its background (WCAG AA). Amber and sage are too light for text on cream, so each has a darker text version. Use amber and sage as fills, borders and decoration; use the ink versions when the colour has to be a word.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Sample</th><th>Pair</th><th>Token</th><th>Ratio</th><th>Text use</th></tr></thead>
+            <tbody>
+              <tr><td><span class="sample" style="background: #F8F5EC; color: #202B26;">Aa</span></td><td>Charcoal on Cream</td><td><code>--text-primary</code></td><td class="num">13.42 : 1</td><td class="pass">Pass</td></tr>
+              <tr><td><span class="sample" style="background: #F8F5EC; color: #254D3B;">Aa</span></td><td>Forest Green on Cream</td><td><code>--brand-primary</code></td><td class="num">8.74 : 1</td><td class="pass">Pass</td></tr>
+              <tr><td><span class="sample" style="background: #254D3B; color: #FFFFFF;">Aa</span></td><td>White on Forest Green</td><td><code>--on-primary</code></td><td class="num">9.53 : 1</td><td class="pass">Pass</td></tr>
+              <tr><td><span class="sample" style="background: #F8F5EC; color: #5B6660;">Aa</span></td><td>Muted on Cream</td><td><code>--text-muted</code></td><td class="num">5.48 : 1</td><td class="pass">Pass</td></tr>
+              <tr><td><span class="sample" style="background: #E5A45B; color: #202B26;">Aa</span></td><td>Charcoal on Amber</td><td>accent button</td><td class="num">6.82 : 1</td><td class="pass">Pass</td></tr>
+              <tr><td><span class="sample" style="background: #F8F5EC; color: #8A5A1F;">Aa</span></td><td>Amber ink on Cream</td><td><code>--brand-accent-ink</code></td><td class="num">5.41 : 1</td><td class="pass">Pass</td></tr>
+              <tr><td><span class="sample" style="background: #F8F5EC; color: #536F53;">Aa</span></td><td>Sage ink on Cream</td><td><code>--brand-secondary-ink</code></td><td class="num">5.11 : 1</td><td class="pass">Pass</td></tr>
+              <tr><td><span class="sample" style="background: #F8F5EC; color: #E5A45B;">Aa</span></td><td>Amber on Cream</td><td><code>--brand-accent</code></td><td class="num">1.97 : 1</td><td class="fail">Decoration only</td></tr>
+              <tr><td><span class="sample" style="background: #F8F5EC; color: #8BA88B;">Aa</span></td><td>Sage on Cream</td><td><code>--brand-secondary</code></td><td class="num">2.39 : 1</td><td class="fail">Decoration only</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="block">
+        <h3>Order status</h3>
+        <p>Order states have their own colours so the kitchen and waiters can tell them apart at a glance. Every badge also carries its word; colour is never the only signal.</p>
+        <div class="demo-row">
+          <span class="tw-badge tw-badge--new">New</span>
+          <span class="tw-badge tw-badge--preparing">Preparing</span>
+          <span class="tw-badge tw-badge--ready">Ready</span>
+          <span class="tw-badge tw-badge--served">Served</span>
+          <span class="tw-badge tw-badge--closed">Closed</span>
+          <span class="tw-badge tw-badge--soldout">Sold out</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section class="chapter" id="type" aria-labelledby="type-h">
+      <header>
+        <p class="eyebrow">04 · Typography</p>
+        <h2 id="type-h">A serif for the welcome, a sans for the work</h2>
+      </header>
+      <div class="grid-2">
+        <div class="plate specimen">
+          <h4>Brand · Playfair Display</h4>
+          <span class="big" style="font-family: var(--font-brand); font-weight: 700;">Aa</span>
+          <p style="font-family: var(--font-brand); font-size: 28px; line-height: 1.2; color: var(--book-green); font-weight: 600;">A smoother way to serve.</p>
+          <p class="caption">The wordmark, landing-page heroes, marketing titles and promotional headlines. Never body text or app UI.</p>
+        </div>
+        <div class="plate specimen">
+          <h4>Interface · Inter</h4>
+          <span class="big" style="font-family: var(--font-ui); font-weight: 600;">Aa</span>
+          <p style="font-size: 20px; font-weight: 600;">Table 12 · 3 items · $14.50</p>
+          <p class="caption">Everything inside the product: dashboards, navigation, buttons, forms, tables, menu items, prices, kitchen tickets and notifications.</p>
+        </div>
+      </div>
+      <div class="plate">
+        <h4>Type scale</h4>
+        <div>
+          <div class="scale-row"><small>Display<br>Playfair 700 · 56</small><span style="font-family: var(--font-brand); font-weight: 700; font-size: 56px; line-height: 1.1; color: var(--book-green);">A smoother way to serve.</span></div>
+          <div class="scale-row"><small>H1 marketing<br>Playfair 700 · 40</small><span style="font-family: var(--font-brand); font-weight: 700; font-size: 40px; line-height: 1.15; color: var(--book-green);">From the first scan to the final bill</span></div>
+          <div class="scale-row"><small>H2 app<br>Inter 600 · 28</small><span style="font-weight: 600; font-size: 28px; line-height: 1.25;">Today's orders</span></div>
+          <div class="scale-row"><small>H3 app<br>Inter 600 · 20</small><span style="font-weight: 600; font-size: 20px;">Main dishes</span></div>
+          <div class="scale-row"><small>Body<br>Inter 400 · 16 / 1.55</small><span>Crisp romaine, parmesan and our signature dressing.</span></div>
+          <div class="scale-row"><small>Small<br>Inter 400 · 14</small><span style="font-size: 14px; color: var(--book-quiet);">Your order has been sent to the kitchen.</span></div>
+          <div class="scale-row"><small>Label<br>Inter 600 · 12 · +0.12em</small><span style="font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--book-quiet);">Table 12 · Waiting</span></div>
+        </div>
+      </div>
+      <div class="lists">
+        <div class="plate"><h4>Do</h4><ul><li>Keep to the scale above and two or three weights.</li><li>Set prices, table numbers and order numbers with tabular figures.</li><li>Use uppercase only for small labels.</li></ul></div>
+        <div class="plate"><h4>Don't</h4><ul><li>Use Playfair Display inside dashboards, tickets or forms.</li><li>Set paragraphs in uppercase.</li><li>Add a third typeface.</li></ul></div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section class="chapter" id="icons" aria-labelledby="icons-h">
+      <header>
+        <p class="eyebrow">05 · Iconography</p>
+        <h2 id="icons-h">Clean line icons</h2>
+      </header>
+      <p class="lede">Icons follow Lucide: a 24 px grid, 2 px strokes, rounded ends and corners. Four icons that Lucide lacks (menu, tables, kitchen, reports) are drawn to the same rules. Colour icons Forest Green or Charcoal.</p>
+      <div class="icon-grid">
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/home.svg);"></span><span>Home</span><code>home.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/menu.svg);"></span><span>Menu</span><code>menu.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/tables.svg);"></span><span>Tables</span><code>tables.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/orders.svg);"></span><span>Orders</span><code>orders.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/kitchen.svg);"></span><span>Kitchen</span><code>kitchen.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/staff.svg);"></span><span>Staff</span><code>staff.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/reports.svg);"></span><span>Reports</span><code>reports.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/settings.svg);"></span><span>Settings</span><code>settings.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/qr.svg);"></span><span>QR</span><code>qr.svg</code></div>
+        <div class="icon-cell"><span class="tw-icon" style="--icon: url(icons/payment.svg);"></span><span>Payment</span><code>payment.svg</code></div>
+      </div>
+      <div class="block">
+        <h3>Interface icons</h3>
+        <p>Supporting icons for fields, alerts and controls, all from Lucide.</p>
+        <div class="ui-icons">
+          <span title="mail"><i class="tw-icon" style="--icon: url(icons/ui/mail.svg);"></i></span>
+          <span title="lock"><i class="tw-icon" style="--icon: url(icons/ui/lock.svg);"></i></span>
+          <span title="eye"><i class="tw-icon" style="--icon: url(icons/ui/eye.svg);"></i></span>
+          <span title="check"><i class="tw-icon" style="--icon: url(icons/ui/check.svg);"></i></span>
+          <span title="circle-alert"><i class="tw-icon" style="--icon: url(icons/ui/circle-alert.svg);"></i></span>
+          <span title="arrow-right"><i class="tw-icon" style="--icon: url(icons/ui/arrow-right.svg);"></i></span>
+          <span title="minus"><i class="tw-icon" style="--icon: url(icons/ui/minus.svg);"></i></span>
+          <span title="plus"><i class="tw-icon" style="--icon: url(icons/ui/plus.svg);"></i></span>
+          <span title="x"><i class="tw-icon" style="--icon: url(icons/ui/x.svg);"></i></span>
+          <span title="search"><i class="tw-icon" style="--icon: url(icons/ui/search.svg);"></i></span>
+          <span title="bell"><i class="tw-icon" style="--icon: url(icons/ui/bell.svg);"></i></span>
+          <span title="clock"><i class="tw-icon" style="--icon: url(icons/ui/clock.svg);"></i></span>
+          <span title="receipt"><i class="tw-icon" style="--icon: url(icons/ui/receipt-text.svg);"></i></span>
+          <span title="log-out"><i class="tw-icon" style="--icon: url(icons/ui/log-out.svg);"></i></span>
+        </div>
+      </div>
+      <p class="note">The Tawilati mark is not an icon. Never replace it with a library cup or Wi-Fi icon, and never put library icons inside the logo.</p>
+    </section>
+
+    <!-- 06 -->
+    <section class="chapter" id="components" aria-labelledby="components-h">
+      <header>
+        <p class="eyebrow">06 · UI components</p>
+        <h2 id="components-h">Calm, clear controls</h2>
+      </header>
+      <p class="lede">Components use white cards on cream, light borders, soft 10 to 16 px corners and almost no shadow. Forest Green marks the one action that matters most on each screen.</p>
+
+      <div class="block">
+        <h3>Buttons</h3>
+        <div class="plate">
+          <div class="demo-row">
+            <button class="tw-btn tw-btn--primary" type="button">Primary button <span class="tw-icon" style="--icon: url(icons/ui/arrow-right.svg);"></span></button>
+            <button class="tw-btn tw-btn--secondary" type="button">Secondary button</button>
+            <button class="tw-btn tw-btn--accent" type="button">Accent button</button>
+            <button class="tw-btn tw-btn--ghost" type="button">Ghost button</button>
+          </div>
+          <div class="demo-row">
+            <button class="tw-btn tw-btn--primary" type="button" disabled>Disabled</button>
+            <button class="tw-btn tw-btn--primary" type="button" aria-busy="true">Sending order</button>
+            <button class="tw-btn tw-btn--ghost tw-btn--sm" type="button">Small ghost</button>
+          </div>
+          <p class="caption"><b>Primary</b> for the main action (Submit order, Close tab). <b>Secondary</b> for supporting actions. <b>Accent</b> only for promotions and highlights, never as the main call to action. <b>Ghost</b> for cancel and back. Buttons are at least 48 px tall for touch.</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="block">
+          <h3>Text fields</h3>
+          <div class="plate stack">
+            <div class="tw-field">
+              <label class="tw-field__label" for="demo-email">Email</label>
+              <div class="tw-field__control"><span class="tw-icon" style="--icon: url(icons/ui/mail.svg);"></span><input class="tw-field__input" id="demo-email" type="email" placeholder="Email address" autocomplete="off"></div>
+            </div>
+            <div class="tw-field">
+              <label class="tw-field__label" for="demo-password">Password</label>
+              <div class="tw-field__control"><span class="tw-icon" style="--icon: url(icons/ui/lock.svg);"></span><input class="tw-field__input" id="demo-password" type="password" placeholder="Password" autocomplete="off"><button class="tw-field__action" type="button" aria-label="Show password"><span class="tw-icon" style="--icon: url(icons/ui/eye.svg);"></span></button></div>
+            </div>
+            <div class="tw-field tw-field--error">
+              <label class="tw-field__label" for="demo-rate">Exchange rate (LBP per USD)</label>
+              <div class="tw-field__control"><input class="tw-field__input" id="demo-rate" type="text" value="0" aria-describedby="demo-rate-hint"></div>
+              <p class="tw-field__hint" id="demo-rate-hint">Enter a rate above 0, for example 89,500.</p>
+            </div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Messages</h3>
+          <div class="plate stack">
+            <div class="tw-toast" role="status">
+              <span class="tw-toast__mark"><span class="tw-icon" style="--icon: url(icons/ui/check.svg);"></span></span>
+              <div><p class="tw-toast__title">Order submitted!</p><p class="tw-toast__body">Your order has been sent to the kitchen.</p></div>
+            </div>
+            <div class="tw-toast tw-toast--error" role="status">
+              <span class="tw-toast__mark"><span class="tw-icon" style="--icon: url(icons/ui/circle-alert.svg);"></span></span>
+              <div><p class="tw-toast__title">Lahm bi ajine is sold out</p><p class="tw-toast__body">We removed it from your order. Everything else was sent.</p></div>
+            </div>
+            <div class="tw-card" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+              <div><p style="font-weight: 600;">Table 12</p><p class="caption">Opened 13:20 · 3 items</p></div>
+              <span class="tw-badge tw-badge--ready">Ready</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="block">
+          <h3>Menu item</h3>
+          <div class="plate plate--cream stack">
+            <article class="tw-item">
+              <div class="tw-item__photo photo" role="img" aria-label="Food photo"><span class="tw-icon" style="--icon: url(icons/ui/utensils.svg);"></span></div>
+              <div class="tw-item__body">
+                <h3 class="tw-item__name">Grilled chicken</h3>
+                <p class="tw-item__desc">Freshly grilled with herbs</p>
+                <div class="tw-item__foot">
+                  <div class="tw-price"><span class="tw-price__usd">$8.50</span><span class="tw-price__lbp">LBP 760,750</span></div>
+                  <div class="tw-stepper"><button class="tw-stepper__btn" type="button" aria-label="Remove one"><span class="tw-icon" style="--icon: url(icons/ui/minus.svg);"></span></button><span class="tw-stepper__value" aria-live="polite">1</span><button class="tw-stepper__btn" type="button" aria-label="Add one"><span class="tw-icon" style="--icon: url(icons/ui/plus.svg);"></span></button></div>
+                </div>
+              </div>
+            </article>
+            <article class="tw-item tw-item--soldout">
+              <div class="tw-item__photo photo" role="img" aria-label="Food photo"><span class="tw-icon" style="--icon: url(icons/ui/utensils.svg);"></span></div>
+              <div class="tw-item__body">
+                <h3 class="tw-item__name">Lahm bi ajine</h3>
+                <p class="tw-item__desc">Spiced lamb flatbread</p>
+                <div class="tw-item__foot">
+                  <div class="tw-price"><span class="tw-price__usd">$4.00</span><span class="tw-price__lbp">LBP 358,000</span></div>
+                  <span class="tw-badge tw-badge--soldout">Sold out</span>
+                </div>
+              </div>
+            </article>
+            <p class="caption">Prices always show USD first, then LBP at the restaurant's current rate. Sold-out items stay visible, greyed, with the badge in place of the add control.</p>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Sidebar navigation</h3>
+          <div class="plate plate--cream" style="align-items: flex-start;">
+            <nav class="sidebar-demo" aria-label="Example sidebar">
+              <img src="logo/tawilati-horizontal.svg" alt="tawilati.">
+              <div class="tw-nav">
+                <a class="tw-nav__item" href="#components" aria-current="page"><span class="tw-icon" style="--icon: url(icons/home.svg);"></span>Dashboard</a>
+                <a class="tw-nav__item" href="#components"><span class="tw-icon" style="--icon: url(icons/menu.svg);"></span>Menu</a>
+                <a class="tw-nav__item" href="#components"><span class="tw-icon" style="--icon: url(icons/tables.svg);"></span>Tables</a>
+                <a class="tw-nav__item" href="#components"><span class="tw-icon" style="--icon: url(icons/orders.svg);"></span>Orders</a>
+                <a class="tw-nav__item" href="#components"><span class="tw-icon" style="--icon: url(icons/kitchen.svg);"></span>Kitchen</a>
+                <a class="tw-nav__item" href="#components"><span class="tw-icon" style="--icon: url(icons/reports.svg);"></span>Reports</a>
+                <a class="tw-nav__item" href="#components"><span class="tw-icon" style="--icon: url(icons/staff.svg);"></span>Staff</a>
+                <a class="tw-nav__item" href="#components"><span class="tw-icon" style="--icon: url(icons/settings.svg);"></span>Settings</a>
+              </div>
+            </nav>
+            <p class="caption">The current page gets a sage tint and Forest Green text. Owners see every item; waiter and kitchen accounts see only the screens their role allows.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section class="chapter" id="applications" aria-labelledby="applications-h">
+      <header>
+        <p class="eyebrow">07 · Applications</p>
+        <h2 id="applications-h">From the table to the kitchen</h2>
+      </header>
+      <div class="grid-3">
+        <div class="block">
+          <div class="tent-scene">
+            <div class="tent">
+              <img class="logo" src="logo/tawilati-stacked-tagline.svg" alt="tawilati. Good food, smoother service.">
+              <div class="qr"><svg id="qr" viewBox="0 0 25 25" shape-rendering="crispEdges" role="img" aria-label="Sample QR code"></svg><img src="logo/tawilati-icon.svg" alt=""></div>
+              <p>Scan to view<br>our menu</p>
+              <span class="table-no">Table 12</span>
+            </div>
+            <div class="stand"></div>
+          </div>
+          <p class="caption"><b>QR table card.</b> Stacked logo, one instruction, the table number. Print on cream card stock.</p>
+        </div>
+        <div class="block">
+          <div class="phone">
+            <div class="phone__top"><img src="logo/tawilati-horizontal.svg" alt="tawilati."><span class="phone__table">Table 12</span></div>
+            <div class="chips" role="group" aria-label="Menu categories">
+              <button class="chip" type="button" aria-pressed="true">All</button>
+              <button class="chip" type="button" aria-pressed="false">Main dishes</button>
+              <button class="chip" type="button" aria-pressed="false">Drinks</button>
+              <button class="chip" type="button" aria-pressed="false">Desserts</button>
+            </div>
+            <div class="phone__list">
+              <article class="tw-item">
+                <div class="tw-item__photo photo" role="img" aria-label="Food photo"><span class="tw-icon" style="--icon: url(icons/ui/utensils.svg);"></span></div>
+                <div class="tw-item__body">
+                  <h3 class="tw-item__name">Grilled chicken</h3>
+                  <p class="tw-item__desc">Fresh herbs, lemon and olive oil</p>
+                  <div class="tw-item__foot"><div class="tw-price"><span class="tw-price__usd">$8.50</span><span class="tw-price__lbp">LBP 760,750</span></div><button class="tw-add" type="button" aria-label="Add grilled chicken"><span class="tw-icon" style="--icon: url(icons/ui/plus.svg);"></span></button></div>
+                </div>
+              </article>
+              <article class="tw-item">
+                <div class="tw-item__photo photo" role="img" aria-label="Food photo"><span class="tw-icon" style="--icon: url(icons/ui/utensils.svg);"></span></div>
+                <div class="tw-item__body">
+                  <h3 class="tw-item__name">Caesar salad</h3>
+                  <p class="tw-item__desc">Crisp romaine, parmesan and our signature dressing</p>
+                  <div class="tw-item__foot"><div class="tw-price"><span class="tw-price__usd">$6.00</span><span class="tw-price__lbp">LBP 537,000</span></div><button class="tw-add" type="button" aria-label="Add Caesar salad"><span class="tw-icon" style="--icon: url(icons/ui/plus.svg);"></span></button></div>
+                </div>
+              </article>
+            </div>
+            <div class="phone__bar"><button class="tw-btn tw-btn--primary tw-btn--block" type="button"><span>View order · 2 items</span><span>$14.50</span></button></div>
+          </div>
+          <p class="caption"><b>Guest menu.</b> Mobile first, the table always visible, the running total one tap away.</p>
+        </div>
+        <div class="block">
+          <article class="ticket">
+            <div class="ticket__head">
+              <div><strong>Table 12</strong><div class="ticket__meta"><span class="tw-icon" style="--icon: url(icons/ui/clock.svg); width: 16px; height: 16px;"></span>2 min ago · 13:42</div></div>
+              <span class="tw-badge tw-badge--new">New</span>
+            </div>
+            <ul>
+              <li><b>1×</b><span>Grilled chicken</span></li>
+              <li><b>1×</b><span>Caesar salad<em>Dressing on the side</em></span></li>
+              <li><b>2×</b><span>Fresh lemonade</span></li>
+            </ul>
+            <div class="ticket__foot"><button class="tw-btn tw-btn--primary tw-btn--block" type="button">Start preparing</button></div>
+          </article>
+          <p class="caption"><b>Kitchen ticket.</b> Large table number, quantities first, notes in amber ink, one big action. No decoration.</p>
+          <div class="plate" style="gap: 20px;">
+            <div class="icons-row">
+              <figure><img src="logo/app-icon.svg" alt="App icon, dark" style="width: 76px;"><figcaption class="caption">App icon</figcaption></figure>
+              <figure><img src="logo/app-icon-light.svg" alt="App icon, light" style="width: 76px; border-radius: 17px; box-shadow: 0 0 0 1px var(--book-rule);"><figcaption class="caption">Light</figcaption></figure>
+            </div>
+            <span class="browser-tab"><img src="logo/favicon.svg" alt="">Tawilati · Orders</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section class="chapter" id="imagery" aria-labelledby="imagery-h">
+      <header>
+        <p class="eyebrow">08 · Imagery</p>
+        <h2 id="imagery-h">Real tables, real food</h2>
+      </header>
+      <p class="lede">Photography should feel like a good afternoon in a café: natural light, warm wood, real plates and a little greenery. Food photos on the menu are square, shot from slightly above, on a calm background.</p>
+      <div class="lists">
+        <div class="plate"><h4>Use</h4><ul><li>Authentic restaurant interiors in natural light</li><li>Warm wooden textures and elegant table settings</li><li>High-quality, honest food photography</li><li>Subtle greenery and neutral materials</li></ul></div>
+        <div class="plate"><h4>Avoid</h4><ul><li>Robots, holograms and futuristic imagery</li><li>Generic AI graphics or illustrations</li><li>Oversaturated stock photos</li><li>Busy backgrounds that compete with the food</li></ul></div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section class="chapter" id="voice" aria-labelledby="voice-h">
+      <header>
+        <p class="eyebrow">09 · Voice</p>
+        <h2 id="voice-h">Say it the way a good waiter would</h2>
+      </header>
+      <p class="lede">Clear, friendly, professional, confident, helpful and simple. Write what the person needs to know or do next. Skip technical terms and error codes.</p>
+      <div class="table-wrap voice">
+        <table>
+          <thead><tr><th>Instead of</th><th>Write</th></tr></thead>
+          <tbody>
+            <tr><td>Advanced AI-powered restaurant digitization ecosystem</td><td>Everything your restaurant needs to serve more smoothly.</td></tr>
+            <tr><td>Initiate digital menu interaction</td><td>Scan to view the menu.</td></tr>
+            <tr><td>Transaction completed successfully</td><td>Payment recorded successfully.</td></tr>
+            <tr><td>409 table_disabled</td><td>This table isn't taking orders right now. Please ask a member of staff.</td></tr>
+            <tr><td>Error: item_sold_out</td><td>Lahm bi ajine is sold out. We removed it from your order.</td></tr>
+            <tr><td>Session expired, re-authenticate</td><td>You've been signed out. Sign in again to continue.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="chapter" id="assets" aria-labelledby="assets-h">
+      <header>
+        <p class="eyebrow">10 · Asset files</p>
+        <h2 id="assets-h">Everything in the brand folder</h2>
+      </header>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Path</th><th>Contains</th></tr></thead>
+          <tbody>
+            <tr><td><code>logo/</code></td><td>Horizontal, stacked, icon and wordmark SVGs, light and reverse, with and without tagline; app icons; favicon</td></tr>
+            <tr><td><code>icons/</code></td><td>The ten navigation icons; <code>icons/ui/</code> holds the interface icons</td></tr>
+            <tr><td><code>tokens.css</code></td><td>Colour, status, type scale, spacing, radius and shadow tokens</td></tr>
+            <tr><td><code>components.css</code></td><td>Reference styles for buttons, fields, messages, menu items, stepper, sidebar, badges and cards</td></tr>
+            <tr><td><code>brand-guidelines.md</code></td><td>The written guidelines and implementation rules</td></tr>
+            <tr><td><code>reference/brand-board.png</code></td><td>The approved brand board, the source of truth for the logo</td></tr>
+            <tr><td><code>tools/</code></td><td>Scripts that regenerate the logo and icon files</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Fonts: Playfair Display and Inter, both free from Google Fonts (SIL Open Font License). Icons derived from Lucide (ISC License).</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Decorative sample QR for the table card: three finder patterns plus fixed pseudo-random modules.
+  (function () {
+    var svg = document.getElementById('qr');
+    if (!svg) return;
+    var n = 25, out = '';
+    function finder(r, c) { return (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7); }
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var dark;
+        if (finder(r, c)) {
+          var lr = r >= n - 7 ? r - (n - 7) : r, lc = c >= n - 7 ? c - (n - 7) : c;
+          dark = lr === 0 || lr === 6 || lc === 0 || lc === 6 || (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4);
+        } else if ((r === 7 && (c < 8 || c >= n - 8)) || (c === 7 && (r < 8 || r >= n - 8)) || (c === n - 8 && r < 8) || (r === n - 8 && c < 8)) {
+          dark = false;
+        } else if (r >= 9 && r <= 15 && c >= 9 && c <= 15) {
+          dark = false;
+        } else {
+          var h = ((r * 73856093) ^ (c * 19349663) ^ (r * c * 83492791)) >>> 0;
+          dark = (h % 100) < 47;
+        }
+        if (dark) out += '<rect x="' + c + '" y="' + r + '" width="1" height="1" fill="#202B26"/>';
+      }
+    }
+    svg.innerHTML = out;
+  })();
+</script>

@@ -1,0 +1,94 @@
+/*
+ * Tawilati design tokens.
+ * The five brand colours are fixed by the brand guidelines (brand-guidelines.md §3).
+ * Everything below them is derived for UI use; contrast ratios are WCAG 2.x against
+ * the surface noted.
+ */
+:root {
+  /* Brand palette */
+  --brand-primary: #254D3B;      /* Forest Green — CTAs, nav, active states */
+  --brand-secondary: #8BA88B;    /* Sage — decorative accents, never text on light */
+  --brand-background: #F8F5EC;   /* Cream — page background */
+  --brand-accent: #E5A45B;       /* Amber — logo signal, period, small highlights */
+  --brand-text: #202B26;         /* Charcoal — body text */
+
+  /* Primary states */
+  --brand-primary-hover: #1D3E2F;
+  --brand-primary-active: #173225;
+  --brand-primary-tint: #E3ECE5;   /* selected rows, subtle fills */
+  --on-primary: #FFFFFF;           /* 9.5:1 on --brand-primary */
+
+  /* Readable variants of the soft brand colours (use these for text) */
+  --brand-secondary-ink: #536F53;  /* 5.1:1 on cream */
+  --brand-secondary-tint: #E8EFE8;
+  --brand-accent-ink: #8A5A1F;     /* 5.4:1 on cream */
+  --brand-accent-tint: #FBEBD6;
+
+  /* Surfaces */
+  --surface-primary: #FFFFFF;
+  --surface-secondary: #F8F5EC;
+  --surface-muted: #F1EDE2;
+  --surface-inverse: #254D3B;
+
+  /* Text */
+  --text-primary: #202B26;         /* 13.4:1 on cream */
+  --text-muted: #5B6660;           /* 5.5:1 on cream */
+  --text-disabled: #8C948F;
+  --text-inverse: #F8F5EC;
+
+  /* Lines */
+  --border-subtle: #E4DED0;
+  --border-strong: #CFC7B6;
+  --focus-ring: #254D3B;           /* 2px ring + 2px offset */
+
+  /* Feedback */
+  --color-success: #2E7D4F;
+  --color-success-tint: #DCEBDD;
+  --color-warning: #8A5A00;
+  --color-warning-tint: #FBEBD6;
+  --color-error: #B3392B;          /* white text 5.9:1 */
+  --color-error-tint: #F6DCD8;
+  --color-info: #2F6A9E;
+  --color-info-tint: #DDE8F3;
+
+  /* Order status (always paired with a text label) */
+  --status-new-bg: #FBEBD6;       --status-new-fg: #7A4A12;
+  --status-preparing-bg: #DDE8F3; --status-preparing-fg: #1E4E7C;
+  --status-ready-bg: #DCEBDD;     --status-ready-fg: #1F5A36;
+  --status-served-bg: #E9E6DD;    --status-served-fg: #4A524D;
+  --status-closed-bg: transparent; --status-closed-fg: #5B6660;
+  --status-soldout-bg: #F6DCD8;   --status-soldout-fg: #8E2F25;
+
+  /* Type */
+  --font-brand: "Playfair Display", Georgia, serif;
+  --font-ui: "Inter", Arial, sans-serif;
+
+  /* Type scale (px). Display and H1 use --font-brand; everything else --font-ui */
+  --text-display: 56px;
+  --text-h1: 40px;
+  --text-h2: 28px;
+  --text-h3: 20px;
+  --text-body: 16px;
+  --text-small: 14px;
+  --text-label: 12px;            /* uppercase, letter-spacing 0.12em */
+  --leading-tight: 1.15;
+  --leading-body: 1.55;
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Shape and depth */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(32, 43, 38, 0.06), 0 1px 1px rgba(32, 43, 38, 0.04);
+  --shadow-raised: 0 6px 16px rgba(32, 43, 38, 0.08);
+}

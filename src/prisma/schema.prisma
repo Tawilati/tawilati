@@ -39,8 +39,6 @@ enum PaymentMethod {
 
 model Business {
   id           String    @id @default(uuid())
-  name         String   @db.VarChar(100)
-  id           Int      @id @default(autoincrement())
   name         String   @unique @db.VarChar(100)
   // URL name, made from `name` once at sign-up and never changed, so printed QR links keep working.
   slug         String   @unique @db.VarChar(60)

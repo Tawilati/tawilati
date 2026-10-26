@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SLUG_MAX_LENGTH, SLUG_PATTERN } from "@/src/server/slug";
+import { SLUG_MAX_LENGTH, SLUG_PATTERN } from "@/utils/slug";
 
 // GET /api/menu?b={businessSlug}&t={qrToken}
 export const publicMenuQuerySchema = z

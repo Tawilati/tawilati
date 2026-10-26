@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
-import { handle, parseQuery } from "@/src/server/http";
-import { menuRepository } from "@/src/server/repositories/menuRepository";
-import { createMenuService } from "@/src/server/services/menuService";
-import { publicMenuQuerySchema } from "@/src/server/validation/menuSchemas";
+import { handle, parseQuery } from "@/lib/http";
+import { menuRepo } from "@/repository/MenuRepo";
+import { MenuService } from "@/service/MenuService";
+import { publicMenuQuerySchema } from "@/validation/menuSchemas";
 
-const menuService = createMenuService(menuRepository);
+const menuService = new MenuService(menuRepo);
 
-// Public: opened from the QR code on a table. No staff or guest session needed.
+// Public (listed in src/proxy.ts): opened from the QR code on a table. No staff or guest session needed.
 export async function GET(request: NextRequest) {
   return handle(async () => {
     const query = parseQuery(request, publicMenuQuerySchema);

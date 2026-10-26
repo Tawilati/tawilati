@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "../app/generated/prisma/client";
 import { prisma } from "../lib/db";
-import { makeSlug } from "../server/slug";
+import { makeSlug } from "../utils/slug";
 
 const BUSINESS_NAME = "Tawilati Demo Café";
 const EXCHANGE_RATE = new Prisma.Decimal("89500");

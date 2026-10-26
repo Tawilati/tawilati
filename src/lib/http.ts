@@ -1,10 +1,12 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import logger from "@/src/utils/logger";
-import { AppError } from "@/src/server/errors";
+import logger from "@/utils/logger";
+import { HttpException } from "@/utils/exceptions/http/HttpException";
 
-export function errorResponse(status: number, code: string, details?: unknown) {
-  return Response.json({ error: { code, ...(details ? { details } : {}) } }, { status });
+// Same shape as src/proxy.ts and src/lib/auth/gaurd.ts: { success: false, message, details? }.
+// For API errors the message is the contract code (e.g. "invalid_qr"); the UI maps it to a sentence.
+export function errorResponse(status: number, message: string, details?: unknown) {
+  return Response.json({ success: false, message, ...(details ? { details } : {}) }, { status });
 }
 
 // Parses the query string; throws validation_error (400) if it doesn't match.
@@ -14,12 +16,12 @@ export function parseQuery<S extends z.ZodType>(request: NextRequest, schema: S)
   return result.data;
 }
 
-// Runs a route body and turns thrown errors into the JSON error shape of the API contract.
+// Runs a route body and turns thrown errors into the JSON error shape above.
 export async function handle(run: () => Promise<Response>): Promise<Response> {
   try {
     return await run();
   } catch (error) {
-    if (error instanceof AppError) return errorResponse(error.status, error.code);
+    if (error instanceof HttpException) return errorResponse(error.status, error.message, error.details);
     if (error instanceof z.ZodError) {
       return errorResponse(400, "validation_error", z.flattenError(error).fieldErrors);
     }

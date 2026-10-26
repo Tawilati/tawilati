@@ -8,10 +8,13 @@ Name: Tawilati (طاولتي, "my table"). Wordmark: `tawilati.` Tagline: "Good 
 
 ## Code layout and commands
 
-- `src/app/api/**/route.ts`: route handlers. Wrap the body in `handle()` and parse input with `parseQuery()` (both in `src/server/http.ts`), which turn `AppError` and Zod errors into `{ "error": { "code", "details?" } }`.
-- `src/server/validation/`: Zod schemas. `src/server/services/`: business rules, built with `createXService(repo)`. `src/server/repositories/`: Prisma only, each exporting an interface plus the Prisma implementation. `src/server/errors.ts`: `AppError(status, code)`.
+- `src/app/api/**/route.ts`: route handlers. Wrap the body in `handle()` and parse input with `parseQuery()` (`src/lib/http.ts`); thrown `HttpException`s and Zod errors become `{ "success": false, "message": "<code>", "details?" }`, the same shape as `src/proxy.ts` and `authGuard`. The route wires the service to the real repository (`new MenuService(menuRepo)`).
+- `src/proxy.ts`: JWT check on every `/api/*` route; public routes (login, register, `/api/menu`, `/api/guest-sessions`) are listed there. Staff identity arrives as `x-user-id`, `x-user-role`, `x-business-id` headers (`src/lib/auth/requestHelper.ts`, `authGuard` in `src/lib/auth/gaurd.ts`).
+- `src/validation/`: Zod schemas. `src/service/`: business rules, classes taking their repository in the constructor and importing it as a type only (so unit tests never load Prisma). `src/repository/`: Prisma only, singleton classes (`XRepo.getInstance()`) implementing an interface the service depends on.
+- Errors: `src/utils/exceptions/http/` (`HttpException(status, message)`; for API errors the message is the contract code, e.g. `new NotFoundException("invalid_qr")`, `new ConflictException("table_disabled")`).
+- Path alias `@/` → `src/`. Ids are UUID strings.
 - Tests: `*.test.ts` are unit tests (`npm test`, services with fake repositories); `*.int.test.ts` hit the database at `DATABASE_URL` (`npm run test:integration`), create their own businesses and delete them afterwards.
-- Database: Postgres in Docker on port 5434 (5432 is taken by a local Windows Postgres on Souad's machine). `npx prisma migrate dev`, `npx prisma generate` (client in `src/app/generated/prisma`, gitignored), `npm run db:seed` (demo café, re-runnable, prints the menu links). Prisma config is `prisma7.config.ts`.
+- Database: Postgres in Docker on port 5434 (5432 is taken by a local Windows Postgres on Souad's machine). `npx prisma migrate dev`, `npx prisma generate` (client in `src/app/generated/prisma`, gitignored), `npm run db:seed` (demo café, re-runnable, prints the menu links). Prisma config is `prisma7.config.ts`. After merging `main`, verify migrations with `npx prisma migrate reset --force` then `npx prisma migrate diff --from-config-datasource --to-schema src/prisma/schema.prisma --script` (must print an empty migration).
 
 ## Core flow (build first)
 
@@ -53,7 +56,7 @@ Stretch: split the bill by person. Scored extras: pricing page with test-mode ch
 
 ## Data model (`src/prisma/schema.prisma`, matches the team's latest ERD)
 
-The schema is the source of truth; this table summarises it. Ids are autoincrement `Int`.
+The schema is the source of truth; this table summarises it. Ids are UUID strings.
 
 | Model | Fields | Constraints |
 |---|---|---|
@@ -69,7 +72,7 @@ The schema is the source of truth; this table summarises it. Ids are autoincreme
 | OrderLine | id, orderId → DiningOrder, menuItemId, qty, priceUSD, priceLBP, rateSnapshot, createdAt | qty ≥ 1; FK to MenuItem is RESTRICT |
 | Payment | id, sessionId → TableSession, amountUSD, amountLBP, method (CASH/EXTERNAL_CARD), recordedById, createdAt | no idempotency key yet (the spec asks for unique (orderId, idempotencyKey)) |
 
-**Customer menu link (what the QR code encodes):** `/menu/{business.slug}/{table.slug}?t={qrToken}`, e.g. `/menu/tawilati-demo-cafe/t1?t=1e64…`. The names make the address bar readable; the token is what authorises the table (without it anyone could order to any table by typing a URL). Slugs never follow renames, so printed QR codes keep working. Sign-up must reject a taken name or slug with 409 `business_name_taken`. Slug helpers: `src/server/slug.ts`.
+**Customer menu link (what the QR code encodes):** `/menu/{business.slug}/{table.slug}?t={qrToken}`, e.g. `/menu/tawilati-demo-cafe/t1?t=1e64…`. The names make the address bar readable; the token is what authorises the table (without it anyone could order to any table by typing a URL). Slugs never follow renames, so printed QR codes keep working. Sign-up must reject a taken name or slug with 409 `business_name_taken`. Slug helpers: `src/utils/slug.ts`.
 
 Round status (`DiningOrder.status`): `NEW → PREPARING → READY → SERVED`, strictly in that order (plus `CANCELLED`); anything else is 400 `invalid_transition` with no write. Kitchen moves NEW→PREPARING→READY; waiter moves READY→SERVED. Because status is per round, a second round on a tab shows up in the kitchen as its own NEW ticket (settles open issue 2). Closing the tab sets `TableSession.status = CLOSED`, `closedAt`, clears `activeTableId` and revokes its guest sessions in one transaction. Closed tabs are immutable. UI label for NEW in the kitchen is "New".
 

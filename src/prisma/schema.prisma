@@ -38,7 +38,7 @@ enum PaymentMethod {
 }
 
 model Business {
-  id           Int      @id @default(autoincrement())
+  id           String    @id @default(uuid())
   name         String   @db.VarChar(100)
   exchangeRate Decimal  @db.Decimal(10, 4)
   timezone     String
@@ -56,14 +56,19 @@ model Business {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  businessId   Int
+  id           String    @id @default(uuid())
+  businessId   String
   name         String
   email        String   @unique @db.VarChar(254)
   passwordHash String
   role         UserRole
   isActive     Boolean  @default(true)
   isVerified   Boolean  @default(false)
+  resetPasswordToken        String?
+  resetPasswordExpiresAt    DateTime?
+  refreshToken              String?
+  refreshTokenExpiresAt     DateTime?
+  lastLogin                 DateTime?
   createdAt    DateTime @default(now())
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -71,11 +76,13 @@ model User {
 
   @@index([businessId])
   @@index([email])
+   @@index([refreshTokenExpiresAt])
+  @@index([resetPasswordExpiresAt])
 }
 
 model MenuCategory {
-  id        Int      @id @default(autoincrement())
-  businessId Int
+  id         String    @id @default(uuid())
+  businessId String
   name      String   @db.VarChar(50)
   createdAt DateTime @default(now())
 
@@ -87,9 +94,9 @@ model MenuCategory {
 }
 
 model MenuItem {
-  id         Int       @id @default(autoincrement())
-  businessId Int
-  categoryId Int
+  id         String    @id @default(uuid())
+  businessId String
+  categoryId String
   name       String    @db.VarChar(100)
   priceUSD   Decimal   @db.Decimal(10, 2)
   priceLBP   Decimal   @db.Decimal(12, 2)
@@ -108,8 +115,8 @@ model MenuItem {
 }
 
 model DiningTable {
-  id         Int      @id @default(autoincrement())
-  businessId Int
+  id         String    @id @default(uuid())
+  businessId String
   label      String   @db.VarChar(50)
   qrToken    String   @unique @db.Char(64)
   isDisabled Boolean  @default(false)
@@ -124,11 +131,11 @@ model DiningTable {
 }
 
 model TableSession {
-  id            Int                 @id @default(autoincrement())
-  businessId    Int
-  tableId       Int
+  id            String    @id @default(uuid())
+  businessId    String
+  tableId       String
   status        TableSessionStatus  @default(OPEN)
-  activeTableId Int?                @unique
+  activeTableId String?                @unique
   openedAt      DateTime            @default(now())
   closedAt      DateTime?
   totalUSD      Decimal             @default(0) @db.Decimal(12, 2)
@@ -149,8 +156,8 @@ model TableSession {
 }
 
 model GuestSession {
-  id        Int       @id @default(autoincrement())
-  sessionId Int
+  id        String    @id @default(uuid())
+  sessionId String
   token     String    @unique @db.Char(64)
   createdAt DateTime  @default(now())
   expiresAt DateTime
@@ -164,11 +171,11 @@ model GuestSession {
 }
 
 model DiningOrder {
-  id             Int         @id @default(autoincrement())
-  businessId     Int
-  sessionId      Int
-  tableId        Int
-  guestSessionId Int?
+  id             String    @id @default(uuid())
+  businessId     String
+  sessionId      String
+  tableId        String
+  guestSessionId String?
   status         OrderStatus @default(NEW)
   totalUSD       Decimal     @default(0) @db.Decimal(12, 2)
   totalLBP       Decimal     @default(0) @db.Decimal(14, 2)
@@ -189,9 +196,9 @@ model DiningOrder {
 }
 
 model OrderLine {
-  id          Int      @id @default(autoincrement())
-  orderId     Int
-  menuItemId  Int
+  id          String    @id @default(uuid())
+  orderId     String
+  menuItemId  String
   qty         Int      @db.Integer
   priceUSD    Decimal  @db.Decimal(10, 2)
   priceLBP    Decimal  @db.Decimal(12, 2)
@@ -207,11 +214,11 @@ model OrderLine {
 }
 
 model Submission {
-  id             Int      @id @default(autoincrement())
-  businessId     Int
+  id             String    @id @default(uuid())
+  businessId     String
   idempotencyKey String   @db.VarChar(255)
   payloadHash    String   @db.Char(64)
-  orderId        Int?
+  orderId        String?
   createdAt      DateTime @default(now())
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -224,12 +231,12 @@ model Submission {
 }
 
 model Payment {
-  id           Int           @id @default(autoincrement())
-  sessionId    Int
+  id           String    @id @default(uuid())
+  sessionId    String
   amountUSD    Decimal       @db.Decimal(12, 2)
   amountLBP    Decimal       @db.Decimal(14, 2)
   method       PaymentMethod
-  recordedById Int
+  recordedById String
   createdAt    DateTime      @default(now())
 
   session    TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

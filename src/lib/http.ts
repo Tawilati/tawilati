@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import logger from "@/utils/logger";
@@ -21,6 +22,8 @@ export async function handle(run: () => Promise<Response>): Promise<Response> {
   try {
     return await run();
   } catch (error) {
+    // Let Next.js's own control-flow signals through (prerender bail-out, notFound(), redirect()).
+    unstable_rethrow(error);
     if (error instanceof HttpException) return errorResponse(error.status, error.message, error.details);
     if (error instanceof z.ZodError) {
       return errorResponse(400, "validation_error", z.flattenError(error).fieldErrors);

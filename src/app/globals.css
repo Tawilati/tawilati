@@ -1,6 +1,9 @@
 @import "tailwindcss";
 /* Brand tokens (colours, status, spacing, radius). Source of truth: brand/tokens.css. */
 @import "../../brand/tokens.css";
+/* Brand component styles (tw-btn, tw-field, tw-toast, tw-badge, tw-stepper, tw-nav...), wrapped by src/components/ui/.
+   In the components layer so Tailwind utilities passed as className can still override them. */
+@import "../../brand/components.css" layer(components);
 
 /* Point the brand font tokens at the self-hosted fonts loaded in layout.tsx. */
 :root {

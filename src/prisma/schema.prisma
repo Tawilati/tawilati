@@ -39,7 +39,9 @@ enum PaymentMethod {
 
 model Business {
   id           Int      @id @default(autoincrement())
-  name         String   @db.VarChar(100)
+  name         String   @unique @db.VarChar(100)
+  // URL name, made from `name` once at sign-up and never changed, so printed QR links keep working.
+  slug         String   @unique @db.VarChar(60)
   exchangeRate Decimal  @db.Decimal(10, 4)
   timezone     String
   createdAt    DateTime @default(now())
@@ -51,8 +53,6 @@ model Business {
   tableSessions TableSession[]
   orders        DiningOrder[]
   submissions   Submission[]
-
-  @@index([name])
 }
 
 model User {
@@ -111,6 +111,8 @@ model DiningTable {
   id         Int      @id @default(autoincrement())
   businessId Int
   label      String   @db.VarChar(50)
+  // URL name, made from `label` once at creation and never changed.
+  slug       String   @db.VarChar(60)
   qrToken    String   @unique @db.Char(64)
   isDisabled Boolean  @default(false)
   createdAt  DateTime @default(now())
@@ -120,6 +122,7 @@ model DiningTable {
   orders   DiningOrder[]
 
   @@unique([businessId, label])
+  @@unique([businessId, slug])
   @@index([businessId])
 }
 

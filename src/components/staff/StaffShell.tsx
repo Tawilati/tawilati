@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { LogOutIcon, SettingsIcon, XIcon } from "@/components/icons";
+import { ChevronRightIcon, LogOutIcon, SettingsIcon, XIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
 import type { ROLE } from "@/types/Roles";
 import { isActive, NAV_BY_ROLE, ROLE_LABEL, type NavItem } from "./navigation";
@@ -34,8 +34,9 @@ function NavLink({ item, pathname, compact = false }: { item: NavItem; pathname:
   );
 }
 
-// The frame around every staff screen. Tablet and laptop: sidebar. Phone: top bar + bottom bar, with the
-// `phoneMore` screens, the signed-in person and Sign out under "More".
+// The frame around every staff screen. Tablet and laptop: sidebar, with the `phoneMore` screens and Sign out
+// folded under the signed-in person's name (an arrow opens them). Phone: top bar + bottom bar, with the
+// same items under "More".
 export function StaffShell({
   role,
   userName,
@@ -50,6 +51,10 @@ export function StaffShell({
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  // Sidebar account menu. Starts open on Staff or Settings, so the current screen stays visible.
+  const [accountOpen, setAccountOpen] = useState(() =>
+    NAV_BY_ROLE[role].some((item) => item.phoneMore && isActive(item, pathname)),
+  );
 
   async function signOut() {
     // Logout clears the auth cookies; whatever the answer, leave the staff area.
@@ -77,18 +82,45 @@ export function StaffShell({
           <Logo className="h-auto w-32" />
         </Link>
         <nav className="tw-nav" aria-label="Staff">
-          {items.map((item) => (
+          {barItems.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
         </nav>
-        <div className="mt-auto flex flex-col gap-0.5 border-t border-border-subtle px-2 pt-3 text-[13px]">
-          <b className="font-semibold">{userName}</b>
-          <span className="text-ink-muted">
-            {ROLE_LABEL[role]} · {businessName}
-          </span>
-          <button type="button" onClick={signOut} className="tw-nav__item -mx-2 mt-1.5 cursor-pointer text-ink-muted">
-            <LogOutIcon className="size-5" />
-            Sign out
+        <div className="mt-auto flex flex-col border-t border-border-subtle pt-2">
+          {accountOpen && (
+            <div id="account-menu" className="flex flex-col gap-0.5 pb-1">
+              {moreItems.length > 0 && (
+                <nav className="tw-nav" aria-label="Account">
+                  {moreItems.map((item) => (
+                    <NavLink key={item.href} item={item} pathname={pathname} />
+                  ))}
+                </nav>
+              )}
+              <button type="button" onClick={signOut} className="tw-nav__item cursor-pointer text-ink-muted">
+                <LogOutIcon className="size-5" />
+                Sign out
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setAccountOpen((open) => !open)}
+            aria-expanded={accountOpen}
+            aria-controls="account-menu"
+            className="flex min-h-12 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-muted"
+          >
+            <span className="flex min-w-0 flex-1 flex-col">
+              <b className="truncate font-semibold">{userName}</b>
+              <span className="truncate text-ink-muted" title={businessName}>
+                {ROLE_LABEL[role]} · {businessName}
+              </span>
+            </span>
+            {/* Points up while closed (the menu opens above), down while open. */}
+            <ChevronRightIcon
+              aria-hidden="true"
+              className={`size-5 shrink-0 text-ink-muted transition-transform ${accountOpen ? "rotate-90" : "-rotate-90"}`}
+            />
+            <span className="sr-only">{accountOpen ? "Hide account menu" : "Show account menu"}</span>
           </button>
         </div>
       </aside>

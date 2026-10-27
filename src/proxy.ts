@@ -23,9 +23,9 @@ const publicApiRoutes = [
   "/api/auth/register",
   "/api/auth/business-name", // GET ?name= — sign-up form checks the name is free
   "/api/auth/refresh",
-  "/api/auth/forgot-password",
-  "/api/auth/reset-password",
-  "/api/auth/verify-reset",
+  // "/api/auth/forgot-password",
+  // "/api/auth/reset-password",
+  // "/api/auth/verify-reset",
 
   // Customer-facing (anonymous)
   "/api/menu",            // GET /api/menu?b=&t= — QR resolve

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PublicMenu } from "@/service/MenuService";
-import { newlySoldOut } from "./menuChanges";
+import { newlySoldOut } from "@/utils/menuChanges";
 
 function menu(items: { id: string; name: string; soldOut: boolean }[]): PublicMenu {
   return {

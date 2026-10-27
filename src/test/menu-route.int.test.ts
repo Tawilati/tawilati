@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { GET } from "./route";
+import { GET } from "@/app/api/menu/route";
 
 // Two businesses, so we can prove one's QR code never opens the other's menu.
 const token = () => randomBytes(32).toString("hex");

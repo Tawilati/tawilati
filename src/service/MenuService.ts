@@ -2,6 +2,7 @@
 import type { MenuRepository } from "@/repository/MenuRepo";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
+import logger from "@/utils/logger";
 import type { PublicMenuQuery } from "@/validation/menuSchemas";
 
 export type PublicMenuItem = {
@@ -26,6 +27,7 @@ export class MenuService {
     const table = await this.repo.findTableByQrToken(qrToken);
     // A token from another business gets the same answer as an unknown one.
     if (!table || table.business.slug !== businessSlug) throw new NotFoundException("invalid_qr");
+    
     if (table.isDisabled) throw new ConflictException("table_disabled");
 
     const categories = await this.repo.findMenuCategories(table.business.id);

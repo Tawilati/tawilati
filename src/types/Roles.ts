@@ -98,13 +98,13 @@ export const ROLE_PERMISSIONS: RolePermissions ={
 //THEY HELP TO CHECK IF A USER HAS A SPECIFIC PERMISSION OR NOT INSIDE THE AUTHGAURD    
 
 //this is used to convert the strinf role in request to the enum ROLE type
-  export function toRole(role: string): ROLE | null {
+  export function toRole(role: string): ROLE  {
   const roleMap: Record<string, ROLE> = {
     owner:   ROLE.OWNER,
     kitchen: ROLE.KITCHEN,
     waiter:  ROLE.WAITER,
   };
-  return roleMap[role.trim().toLowerCase()] ?? null;
+  return roleMap[role.trim().toLowerCase()] 
 }
 
 export function hasPermission(

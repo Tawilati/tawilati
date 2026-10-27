@@ -47,6 +47,10 @@ export class BusinessRepo {
         },
       });
     } catch (err) {
+         // Let P2002 bubble up unwrapped so handleRouteError can map it
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw err;
+    }
       const error = err instanceof Error ? err : new Error(String(err));
       throw new DBException("Error creating business", error);
     }

@@ -11,6 +11,7 @@ import bcrypt from "bcryptjs";
 import { businessRepo } from "@/repository/BusinessRepo";
 import prisma from "@/lib/db";
 import { UserRole } from "@/app/generated/prisma/enums";
+import { makeSlug } from "@/utils/slug";
 
 export class UserService {
   private static instance: UserService;
@@ -32,7 +33,7 @@ export class UserService {
     }
 
     // 3. Derive unique slug
-    const slug = await slugService.uniqueBusinessSlug(data.businessName);
+    const slug = await slugService.uniqueBusinessSlug(makeSlug(data.businessName,"business"));
 
     // 4. Hash password
     const passwordHash = await bcrypt.hash(data.password, 10);

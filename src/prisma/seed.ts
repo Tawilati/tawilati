@@ -146,19 +146,21 @@ async function main() {
     }
   }
 
+  // One account per role, all with the same password, so each staff screen can be tried.
   const passwordHash = await bcrypt.hash(OWNER_PASSWORD, 10);
-  await prisma.user.create({
-    data: {
-      businessId: business.id,
-      name: "Demo Owner",
-      email: OWNER_EMAIL,
-      passwordHash,
-      role: "OWNER",
-    },
+  const accounts = [
+    { name: "Demo Owner", email: OWNER_EMAIL, role: "OWNER" },
+    { name: "Demo Waiter", email: "waiter@tawilati.com", role: "WAITER" },
+    { name: "Demo Kitchen", email: "kitchen@tawilati.com", role: "KITCHEN" },
+  ] as const;
+  await prisma.user.createMany({
+    data: accounts.map((account) => ({ ...account, businessId: business.id, passwordHash })),
   });
 
   console.log(`Seeded "${business.name}".`);
-  console.log(`  Owner: ${OWNER_EMAIL} / ${OWNER_PASSWORD}`);
+  for (const account of accounts) {
+    console.log(`  ${account.role.padEnd(7)} ${account.email} / ${OWNER_PASSWORD}`);
+  }
   for (const table of business.tables) {
     console.log(`  ${table.label} customer link: /menu/${business.slug}/${table.slug}?t=${table.qrToken}`);
     console.log(`  ${table.label} API:           /api/menu?b=${business.slug}&t=${table.qrToken}`);

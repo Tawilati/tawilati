@@ -1,11 +1,7 @@
 // src/utils/handleRouteError.ts
 import { Prisma } from "@/app/generated/prisma/client";
-import { ZodError } from "zod";
-import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
-import { AuthorizationException } from "@/utils/exceptions/http/AutharizationException"
-import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
-import { ConflictException } from "@/utils/exceptions/http/ConflictException";
-import {  InsufficientPermissionsException} from "@/utils/exceptions/http/AutharizationException"
+import { z, ZodError } from "zod";
+import { HttpException } from "@/utils/exceptions/http/HttpException";
 import {
   DBException,
   ItemNotFoundException,
@@ -14,71 +10,40 @@ import {
 /**
  * Map any thrown error to an HTTP Response.
  * The single place where exceptions become status codes.
+ * Shape: { success: false, message: "<code>", details? }. The message is always a
+ * contract code (e.g. "invalid_credentials"), never a sentence: the UI maps codes to sentences.
  *
  * Order matters:
- *  1. Zod (validation) → 400 with details
- *  2. Typed domain exceptions → 4xx
+ *  1. Zod (validation) → 400 with details keyed by field
+ *  2. HttpException and its subclasses → their own status
  *  3. Prisma P2002 (unique violation) → 409
  *  4. Prisma P2025 (record not found) → 404
  *  5. Other Prisma errors → 500
  *  6. DBException → 500
  *  7. Unknown → 500
- * when add a new ecxeptiom add it here also so it can map it
+ * A new HttpException subclass needs nothing here: its status comes with it.
  */
 export function handleRouteError(err: unknown): Response {
   // ─────────────────────────────────────────────────────────
   // 1. Zod validation errors → 400
+  //    details: { email: ["Invalid email address"], password: [...] }, so a form can show
+  //    each message under its field.
   // ─────────────────────────────────────────────────────────
   if (err instanceof ZodError) {
-    return Response.json(
-      {
-        success: false,
-        message: "validation_error",
-        details: err.issues.map((issue) => ({
-          path: issue.path,
-          message: issue.message,
-        })),
-      },
-      { status: 400 }
-    );
+    return json(400, "validation_error", z.flattenError(err).fieldErrors);
   }
 
   // ─────────────────────────────────────────────────────────
-  // 2. Typed domain exceptions → 4xx
+  // 2. Typed exceptions → their own status
+  //    (BadRequest 400, Authentication 401, Authorization/Forbidden 403, NotFound 404, Conflict 409)
   // ─────────────────────────────────────────────────────────
-  if (err instanceof BadRequestException) {
-    return Response.json(
-      { success: false, message: err.message },
-      { status: 400 }
-    );
+  if (err instanceof HttpException) {
+    return json(err.status, err.message, err.details);
   }
 
-  if (err instanceof AuthorizationException) {
-    return Response.json(
-      { success: false, message: err.message },
-      { status: 401 }
-    );
-  }
-
-  if (err instanceof InsufficientPermissionsException) {
-    return Response.json(
-      { success: false, message: err.message },
-      { status: 403 }
-    );
-  }
-
-  if (err instanceof ItemNotFoundException || err instanceof NotFoundException) {
-    return Response.json(
-      { success: false, message: err.message },
-      { status: 404 }
-    );
-  }
-
-  if (err instanceof ConflictException) {
-    return Response.json(
-      { success: false, message: err.message },
-      { status: 409 }
-    );
+  // Repo-level "not found": its message names the record (e.g. an email), so it is not sent.
+  if (err instanceof ItemNotFoundException) {
+    return json(404, "not_found");
   }
 
   // ─────────────────────────────────────────────────────────
@@ -88,41 +53,31 @@ export function handleRouteError(err: unknown): Response {
     err instanceof Prisma.PrismaClientKnownRequestError &&
     err.code === "P2002"
   ) {
-    const target = String(err.meta?.target ?? "");
+    const constraint = uniqueConstraint(err);
 
-    if (target.includes("email")) {
-      return Response.json(
-        { success: false, message: "email_already_in_use" },
-        { status: 409 }
-      );
+    if (constraint.includes("email")) {
+      return json(409, "email_already_in_use");
     }
 
-    if (target.includes("slug")) {
-      return Response.json(
-        { success: false, message: "slug_already_taken" },
-        { status: 409 }
-      );
+    // Business_name_key or Business_slug_key: both mean the name is taken at sign-up.
+    if (constraint.startsWith("Business_")) {
+      return json(409, "business_name_taken");
     }
 
-    if (target.includes("label")) {
-      return Response.json(
-        { success: false, message: "label_already_taken" },
-        { status: 409 }
-      );
+    if (constraint.includes("label")) {
+      return json(409, "label_already_taken");
     }
 
-    if (target.includes("idempotencyKey")) {
-      return Response.json(
-        { success: false, message: "idempotency_key_conflict" },
-        { status: 409 }
-      );
+    if (constraint.includes("slug")) {
+      return json(409, "slug_already_taken");
+    }
+
+    if (constraint.includes("idempotencyKey")) {
+      return json(409, "idempotency_key_conflict");
     }
 
     // Generic unique violation
-    return Response.json(
-      { success: false, message: "duplicate_value" },
-      { status: 409 }
-    );
+    return json(409, "duplicate_value");
   }
 
   // ─────────────────────────────────────────────────────────
@@ -132,10 +87,7 @@ export function handleRouteError(err: unknown): Response {
     err instanceof Prisma.PrismaClientKnownRequestError &&
     err.code === "P2025"
   ) {
-    return Response.json(
-      { success: false, message: "not_found" },
-      { status: 404 }
-    );
+    return json(404, "not_found");
   }
 
   // ─────────────────────────────────────────────────────────
@@ -148,18 +100,12 @@ export function handleRouteError(err: unknown): Response {
       err.meta,
       err.message
     );
-    return Response.json(
-      { success: false, message: "database_error" },
-      { status: 500 }
-    );
+    return json(500, "database_error");
   }
 
   if (err instanceof Prisma.PrismaClientUnknownRequestError) {
     console.error("[handleRouteError] Prisma unknown error:", err.message);
-    return Response.json(
-      { success: false, message: "database_error" },
-      { status: 500 }
-    );
+    return json(500, "database_error");
   }
 
   // ─────────────────────────────────────────────────────────
@@ -171,18 +117,32 @@ export function handleRouteError(err: unknown): Response {
       err.message,
       err.cause ?? ""
     );
-    return Response.json(
-      { success: false, message: "database_error" },
-      { status: 500 }
-    );
+    return json(500, "database_error");
   }
 
   // ─────────────────────────────────────────────────────────
   // 7. Unknown → 500
   // ─────────────────────────────────────────────────────────
   console.error("[handleRouteError] Unknown error:", err);
+  return json(500, "internal_server_error");
+}
+
+function json(status: number, message: string, details?: unknown): Response {
   return Response.json(
-    { success: false, message: "internal_server_error" },
-    { status: 500 }
+    { success: false, message, ...(details ? { details } : {}) },
+    { status }
   );
+}
+
+// Name of the violated unique constraint, e.g. "Business_name_key" or "User_email_key".
+// With the pg driver adapter Prisma leaves meta.target empty and reports the
+// constraint under meta.driverAdapterError instead.
+function uniqueConstraint(err: Prisma.PrismaClientKnownRequestError): string {
+  const meta = err.meta as
+    | {
+        target?: unknown;
+        driverAdapterError?: { cause?: { constraint?: { index?: string } } };
+      }
+    | undefined;
+  return String(meta?.driverAdapterError?.cause?.constraint?.index ?? meta?.target ?? "");
 }

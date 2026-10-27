@@ -32,6 +32,18 @@ export class BusinessRepo {
     return BusinessRepo.instance;
   }
 
+  async existsByName(name: string): Promise<boolean> {
+    try {
+      const business = await prisma.business.findUnique({
+        where: { name },
+        select: { id: true },
+      });
+      return business !== null;
+    } catch (err) {
+      throw new DBException("Error checking business name", err as Error);
+    }
+  }
+
   async create(
     tx: DbClient,          
     name: string,

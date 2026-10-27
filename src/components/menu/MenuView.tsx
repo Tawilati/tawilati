@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { TableIcon } from "@/components/icons";
+import { TablesIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
 import type { PublicMenu } from "@/service/MenuService";
 import { newlySoldOut } from "@/utils/menuChanges";
@@ -84,7 +84,7 @@ export function MenuView({
       <header className="flex flex-col gap-1 px-[max(18px,env(safe-area-inset-left,0px))] pt-6 pb-3.5">
         <h1 className="text-[22px] leading-tight font-bold text-balance">{menu.business.name}</h1>
         <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-primary-tint px-2.5 py-0.5 text-[13px] font-semibold text-primary">
-          <TableIcon className="size-3.5" />
+          <TablesIcon className="size-3.5" />
           Table {menu.table.label}
         </span>
       </header>

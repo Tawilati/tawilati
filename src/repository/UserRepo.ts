@@ -44,6 +44,25 @@ export class UserRepo {
         }
 
     }
+    // The signed-in person for a staff screen: their status and role now (not as signed in the token),
+    // plus their business's name for the header.
+    async findStaffProfile(userId: string) {
+        try {
+            return await prisma.user.findUnique({
+                where: { id: userId },
+                select: {
+                    id: true,
+                    name: true,
+                    role: true,
+                    isActive: true,
+                    businessId: true,
+                    business: { select: { name: true } },
+                },
+            });
+        } catch (err) {
+            throw new DBException("Error loading staff profile", err as Error);
+        }
+    }
     //helper function used in service
     async existsByEmail(email: string): Promise<boolean> {
   try {

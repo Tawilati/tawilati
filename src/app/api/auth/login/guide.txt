@@ -1,0 +1,293 @@
+// ─────────────────────────────────────────────────────────────
+// LOGIN ENDPOINT — TEST CASES
+// POST /api/auth/login
+// Body: { email, password }
+// ─────────────────────────────────────────────────────────────
+
+
+//**
+// TEST 1 — Successful login
+//
+// Setup:
+//   - A user must exist. Register first OR use a seeded user.
+//   - Example: owner@tawilati.com / Secret123 (role OWNER)
+//
+// Request:
+//   POST /api/auth/login
+//   Content-Type: application/json
+//   {
+//     "email": "owner@tawilati.com",
+//     "password": "Secret123"
+//   }
+//
+// Expected:
+//   - Status: 200 OK
+//   - Body: {
+//       success: true,
+//       message: "Login successful",
+//       data: {
+//         userId: "...",
+//         businessId: "...",
+//         role: "OWNER",
+//         email: "owner@tawilati.com",
+//         ...
+//       }
+//     }
+//   - Headers: Set-Cookie: auth_token=...; refresh_token=...
+//   - DB: User.lastLogin is updated to now()
+//   - DB: User.refreshToken is set to a bcrypt hash (not the raw token)
+//**
+
+
+//**
+// TEST 2 — Wrong password
+//
+// Request:
+//   {
+//     "email": "owner@tawilati.com",
+//     "password": "WrongPassword123"
+//   }
+//
+// Expected:
+//   - Status: 401 Unauthorized
+//   - Body: { success: false, message: "invalid_credentials" }
+//     (or similar — must be generic)
+//   - NO cookies set
+//
+// Why generic: avoid user enumeration — the attacker must not know
+// whether the email exists or the password is wrong.
+//**
+
+
+//**
+// TEST 3 — Unknown email
+//
+// Request:
+//   {
+//     "email": "doesnotexist@tawilati.com",
+//     "password": "Whatever123"
+//   }
+//
+// Expected:
+//   - Status: 401 Unauthorized
+//   - Body: { success: false, message: "invalid_credentials" }
+//     (EXACTLY the same message as Test 2 — no enumeration)
+//   - NO cookies set
+//**
+
+
+//**
+// TEST 4 — Validation errors (missing / invalid fields)
+//
+// Request:
+//   {
+//     "email": "not-an-email",
+//     "password": ""
+//   }
+//
+// Expected:
+//   - Status: 400 Bad Request
+//   - Body: {
+//       success: false,
+//       message: "validation_error",
+//       details: [
+//         { path: ["email"],    message: "Invalid email address" },
+//         { path: ["password"], message: "String must contain at least 1 character(s)" }
+//       ]
+//     }
+//**
+
+
+//**
+// TEST 5 — Deactivated user (`isActive = false`)
+//
+// Setup:
+//   - Owner deactivates a waiter: PATCH /api/staff/:id { isActive: false }
+//   - Attempt to log in with that waiter's credentials.
+//
+// Expected:
+//   - Status: 401 Unauthorized
+//   - Body: { success: false, message: "invalid_credentials" }
+//     (or "account_deactivated" if you choose to distinguish)
+//   - NO cookies set
+//
+// Proves:
+//   - isActive is checked in login (A-04 partial)
+//**
+
+
+//**
+// TEST 6 — Email normalization (case-insensitive)
+//
+// Setup:
+//   - Registered email: "owner@tawilati.com"
+//
+// Request:
+//   {
+//     "email": "OWNER@Tawilati.COM",    ← uppercase + mixed case
+//     "password": "Secret123"
+//   }
+//
+// Expected:
+//   - Status: 200 OK
+//   - Cookies set
+//
+// Proves:
+//   - Email is normalized (trimmed + lowercased) before lookup
+//   - "OWNER@Tawilati.COM" finds "owner@tawilati.com"
+//**
+
+
+//**
+// TEST 7 — Whitespace in email
+//
+// Request:
+//   {
+//     "email": "  owner@tawilati.com  ",   ← leading/trailing spaces
+//     "password": "Secret123"
+//   }
+//
+// Expected:
+//   - Status: 200 OK
+//   - Cookies set
+//
+// Proves:
+//   - Zod .trim() strips whitespace before lookup
+//**
+
+
+//**
+// TEST 8 — Auto-login after register then login (fresh session)
+//
+// Steps:
+//   1. POST /api/auth/register → 201 + cookies (session A)
+//   2. Clear cookies (simulate new device)
+//   3. POST /api/auth/login with the same credentials → 200 + new cookies (session B)
+//   4. GET /api/auth/me with session B cookies → 200
+//
+// Expected:
+//   - Each login issues a fresh refresh token
+//   - DB: User.refreshToken is updated (the old one is replaced)
+//   - Both access tokens are valid until their own exp
+//
+// Proves:
+//   - Login works independently of register
+//   - Refresh token rotation on each login
+//**
+
+
+//**
+// TEST 9 — Refresh token is hashed in DB
+//
+// After successful login:
+//   - Query: SELECT "refreshToken" FROM "User" WHERE email = 'owner@tawilati.com'
+//
+// Expected:
+//   - Value starts with "$2b$10$" (bcrypt hash)
+//   - NOT the raw JWT string from the cookie
+//
+// Proves:
+//   - persistAuth hashes the refresh token before storing
+//   - Stolen DB doesn't leak usable refresh tokens
+//**
+
+
+//**
+// TEST 10 — lastLogin is updated on login
+//
+// Steps:
+//   1. Query: SELECT "lastLogin" FROM "User" WHERE email = 'owner@tawilati.com'
+//      → Record value V1 (might be null or an old date)
+//   2. Login
+//   3. Query again → Record value V2
+//
+// Expected:
+//   - V2 > V1 (or V2 is not null if V1 was null)
+//   - V2 is approximately now()
+//
+// Proves:
+//   - persistAuth calls updateLastLogin
+//**
+
+
+//**
+// TEST 11 — Missing body
+//
+// Request:
+//   POST /api/auth/login
+//   Body: {}
+//
+// Expected:
+//   - Status: 400 Bad Request
+//   - Body: { success: false, message: "validation_error",
+//             details: [{ path: ["email"], message: "..." },
+//                       { path: ["password"], message: "..." }] }
+//**
+
+
+//**
+// TEST 12 — Malformed JSON body
+//
+// Request:
+//   Body: "{ not valid JSON"
+//
+// Expected:
+//   - Status: 400 (if request.json() is wrapped in try/catch)
+//     OR 500 (if not wrapped)
+//
+// Recommendation: wrap request.json() in try/catch for a clean 400.
+//**
+
+
+//**
+// TEST 13 — Empty password
+//
+// Request:
+//   { "email": "owner@tawilati.com", "password": "" }
+//
+// Expected:
+//   - Status: 400 Bad Request
+//   - details: [{ path: ["password"], message: "String must contain at least 1 character(s)" }]
+//
+// Why: fail at validation, not at bcrypt.compare (which would
+// return false and produce a 401 — less helpful to the client).
+//**
+
+
+//**
+// TEST 14 — Login → protected endpoint (chain)
+//
+// Steps:
+//   1. Login → 200 + cookies
+//   2. GET /api/auth/me with cookies → 200
+//   3. GET /api/staff with cookies (if OWNER) → 200
+//   4. GET /api/staff with cookies (if WAITER) → 403
+//
+// Proves:
+//   - Cookies set by login work on protected endpoints
+//   - JWT contains userId, businessId, role
+//   - Middleware verifies and injects headers
+//   - authGuard enforces permissions per role
+//**
+
+
+//**
+// SUMMARY — expected status codes
+//
+// | Test | Scenario                            | Status |
+// |------|-------------------------------------|--------|
+// | 1    | Success                             | 200    |
+// | 2    | Wrong password                      | 401    |
+// | 3    | Unknown email                       | 401    |
+// | 4    | Invalid input (missing / bad format)| 400    |
+// | 5    | Deactivated user                    | 401    |
+// | 6    | Email case-insensitive              | 200    |
+// | 7    | Email whitespace trimmed            | 200    |
+// | 8    | Fresh session on login              | 200    |
+// | 9    | Refresh token hashed in DB          | (DB check) |
+// | 10   | lastLogin updated                   | (DB check) |
+// | 11   | Empty body                          | 400    |
+// | 12   | Malformed JSON                      | 400/500|
+// | 13   | Empty password                      | 400    |
+// | 14   | Login → protected endpoints chain   | 200/403|
+//**

@@ -1,12 +1,8 @@
 // src/types/auth.ts
 import type { UserRole } from "@/app/generated/prisma/client";
+import type { RegisterUserRequest } from "@/validation/User";
 
-export interface RegisterRequest {
-  businessName: string;
-  ownerName: string;
-  email: string;
-  password: string;
-}
+export type RegisterRequest = RegisterUserRequest;
 
 export interface RegisterResponse {
   success: true;
@@ -15,6 +11,26 @@ export interface RegisterResponse {
   userId: string;
   role: UserRole;
   slug: string;
+}
+export interface LoginResponse{
+  id:string,
+  name:string,
+  email:string,
+  role:UserRole;
+}
+
+export function mapToLoginResponse(
+  id: string,
+  name: string,
+  email: string,
+  role: UserRole
+): LoginResponse {
+  return {
+    id,
+    name,
+    email,
+    role,
+  };
 }
 
 export function mapToRegisterResponse(

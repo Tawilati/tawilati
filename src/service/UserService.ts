@@ -12,6 +12,10 @@ import { businessRepo } from "@/repository/BusinessRepo";
 import prisma from "@/lib/db";
 import { UserRole } from "@/app/generated/prisma/enums";
 import { makeSlug } from "@/utils/slug";
+import logger from "@/utils/logger";
+import { ItemNotFoundException } from "@/utils/exceptions/RepoException";
+import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
+import { User } from "@/app/generated/prisma/client";
 
 export class UserService {
   private static instance: UserService;
@@ -22,13 +26,31 @@ export class UserService {
     }
     return UserService.instance;
   }
+async validateUser(email:string,pass:string ):Promise<User>{
+        email.trim().toLocaleLowerCase();
+       const targetUser = await userRepo.getByEmail(email);
 
-  async registerUser(data: RegisterRequest): Promise<RegisterResponse> {
+         if (!targetUser) {
+      throw new ItemNotFoundException("User not found");
+    }
+    //compare pass
+    if (!bcrypt.compareSync(pass, targetUser.passwordHash || "")) {
+      logger.warn("Login attempt failed: Invalid credentials");
+      throw new BadRequestException("Bad request: invalid email or password");
+    }
+    if(targetUser.isActive==false){
+        logger.warn("Login attempt failed: Invalid credentials");
+      throw new BadRequestException("Bad request:user is in activated"); 
+    }
+    return targetUser;
+}
+  async registerUser(data:{businessName:string,ownerName:string,email:string,password:string}): Promise<RegisterResponse> {
     // 1. Normalize email ONCE — used for both the check and the insert
     const email = data.email.trim().toLowerCase();
 
     // 2. Pre-check — friendly 409 for the common case
     if (await userRepo.existsByEmail(email)) {
+      logger.info('email taken')
       throw new ConflictException("email already in use");
     }
 

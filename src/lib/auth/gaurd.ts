@@ -48,7 +48,7 @@ export function authGuard(
     if (!user) {
         logger.warn('Unauthorized access attempt - no user found');
         return NextResponse.json(
-            { success: false, message: 'Unauthorized' },
+            { success: false, message: 'unauthorized' },
             { status: 401 }
         );
     }
@@ -56,15 +56,13 @@ export function authGuard(
     // 3. Check if user has a valid role
     if (!Object.values(ROLE).includes(user.role)) {
         logger.warn(`Invalid role found for user ${user.userId}: ${user.role}`);
-        throw new InvalidRoleException(`Invalid role: ${user.role}`);
+        throw new InvalidRoleException("forbidden");
     }
 
     // 4. Check role (if required)
     if (options.requireRole && user.role !== options.requireRole) {
         logger.warn(`User ${user.userId} (${user.role}) attempted to access ${options.requireRole} route`);
-        throw new AuthorizationException(
-            `Access denied. ${options.requireRole} role required.`
-        );
+        throw new AuthorizationException("forbidden");
     }
 
     // 5. Check single permission (if required)

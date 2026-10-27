@@ -48,8 +48,7 @@
 //
 // Expected:
 //   - Status: 409 Conflict
-//   - Body: { success: false, message: "email already in use" }
-//     (or "email_already_in_use" from the P2002 race path)
+//   - Body: { success: false, message: "email_already_in_use" }
 //**
 
 
@@ -69,11 +68,11 @@
 //   - Body: {
 //       success: false,
 //       message: "validation_error",
-//       details: [
-//         { path: ["businessName"], message: "..." },
-//         { path: ["email"],        message: "..." },
-//         { path: ["password"],     message: "..." }
-//       ]
+//       details: {
+//         businessName: ["..."],
+//         email:        ["..."],
+//         password:     ["..."]
+//       }
 //     }
 //**
 
@@ -130,7 +129,7 @@
 //
 // Expected:
 //   - Status: 401 Unauthorized
-//   - Body: { success: false, message: "Unauthorized" }
+//   - Body: { success: false, message: "unauthorized" }
 //**
 
 
@@ -169,7 +168,7 @@
 //
 // Expected:
 //   - Step 4: 403 Forbidden
-//   - Body: { success: false, message: "Forbidden" }
+//   - Body: { success: false, message: "forbidden" }
 //     (from InsufficientPermissionsException)
 //
 // Proves:
@@ -204,7 +203,7 @@
 // Expected:
 //   - Status: 400
 //   - Body: { success: false, message: "validation_error",
-//             details: [{ path: ["password"], message: "..." }] }
+//             details: { password: ["..."] } }
 //
 // Proves:
 //   - Zod .min(8) / .regex() rejects weak passwords
@@ -222,10 +221,8 @@
 // Expected:
 //   - Status: 400
 //   - Body: { success: false, message: "validation_error",
-//             details: [{ path: ["businessName"], message: "..." },
-//                       { path: ["ownerName"],    message: "..." },
-//                       { path: ["email"],        message: "..." },
-//                       { path: ["password"],     message: "..." }] }
+//             details: { businessName: ["..."], ownerName: ["..."],
+//                        email: ["..."], password: ["..."] } }
 //
 // Proves:
 //   - All required fields are validated
@@ -272,21 +269,20 @@
 
 
 //**
-// TEST 14 — Duplicate business name (different email) → allowed
+// TEST 14 — Duplicate business name (different email) → rejected
 //
 // Steps:
 //   1. Register "Cafe Beirut" with email A → 201, slug "cafe-beirut"
-//   2. Register "Cafe Beirut" with email B → 201, slug "cafe-beirut-2"
+//   2. Register "Cafe Beirut" with email B → 409
 //
 // Expected:
-//   - Both registrations succeed
-//   - Slugs differ (cafe-beirut vs cafe-beirut-2)
-//   - Both Business rows exist with name = "Cafe Beirut"
+//   - Step 2: { success: false, message: "business_name_taken" }
+//   - Only one Business row named "Cafe Beirut"
 //
 // Proves:
-//   - Business names are not unique (display labels)
-//   - Slugs are unique (URL identifiers)
-//   - uniqueBusinessSlug appends -2 when collision
+//   - Business names are unique (Business.name @unique in the schema)
+//   - Two different names with the same slug ("Café Beirut", "Cafe Beirut")
+//     still both register: uniqueBusinessSlug gives the second "cafe-beirut-2"
 //**
 
 
@@ -308,5 +304,5 @@
 // | 11   | Empty body                 | 400    |
 // | 12   | Whitespace trimmed         | 201    |
 // | 13   | Arabic name → fallback slug| 201    |
-// | 14   | Duplicate business name    | 201    |
+// | 14   | Duplicate business name    | 409    |
 //**

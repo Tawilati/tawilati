@@ -90,10 +90,10 @@
 //   - Body: {
 //       success: false,
 //       message: "validation_error",
-//       details: [
-//         { path: ["email"],    message: "Invalid email address" },
-//         { path: ["password"], message: "String must contain at least 1 character(s)" }
-//       ]
+//       details: {
+//         email:    ["Invalid email format"],
+//         password: ["Password is required"]
+//       }
 //     }
 //**
 
@@ -108,7 +108,7 @@
 // Expected:
 //   - Status: 401 Unauthorized
 //   - Body: { success: false, message: "invalid_credentials" }
-//     (or "account_deactivated" if you choose to distinguish)
+//     (same as Tests 2 and 3: never say the account is deactivated)
 //   - NO cookies set
 //
 // Proves:
@@ -220,8 +220,7 @@
 // Expected:
 //   - Status: 400 Bad Request
 //   - Body: { success: false, message: "validation_error",
-//             details: [{ path: ["email"], message: "..." },
-//                       { path: ["password"], message: "..." }] }
+//             details: { email: ["..."], password: ["..."] } }
 //**
 
 
@@ -247,7 +246,7 @@
 //
 // Expected:
 //   - Status: 400 Bad Request
-//   - details: [{ path: ["password"], message: "String must contain at least 1 character(s)" }]
+//   - details: { password: ["Password is required"] }
 //
 // Why: fail at validation, not at bcrypt.compare (which would
 // return false and produce a 401 — less helpful to the client).

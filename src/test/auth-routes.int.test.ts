@@ -1,10 +1,12 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { POST as register } from "@/app/api/auth/register/route";
 import { POST as login } from "@/app/api/auth/login/route";
 import { GET as checkName } from "@/app/api/auth/business-name/route";
+import { POST as logout } from "@/app/api/auth/logout/route";
+import { userService } from "@/service/UserService";
 
 // Emails and business names are unique, so each run uses its own.
 const run = randomBytes(3).toString("hex");
@@ -98,6 +100,56 @@ describe("GET /api/auth/business-name", () => {
 
     expect(res.status).toBe(400);
     expect(Object.keys((await res.json()).details)).toEqual(["name"]);
+  });
+});
+
+describe("staff screens: who is signed in (userService.getStaffProfile)", () => {
+  it("returns the person's name, role and business name", async () => {
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: owner.email } });
+
+    expect(await userService.getStaffProfile(user.id, user.businessId)).toEqual({
+      userId: user.id,
+      name: "Ali",
+      role: "OWNER",
+      businessId: user.businessId,
+      businessName: owner.businessName,
+    });
+  });
+
+  it("refuses a token naming another business, and a deactivated waiter", async () => {
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: owner.email } });
+    const waiter = await prisma.user.create({
+      data: {
+        businessId: user.businessId,
+        name: "Waiter",
+        email: `waiter-${run}@tawilati.test`,
+        passwordHash: "x",
+        role: "WAITER",
+        isActive: false,
+      },
+    });
+
+    expect(await userService.getStaffProfile(user.id, randomUUID())).toBeNull();
+    expect(await userService.getStaffProfile(waiter.id, user.businessId)).toBeNull();
+  });
+});
+
+describe("POST /api/auth/logout", () => {
+  it("clears both cookies and forgets the stored refresh token", async () => {
+    await post(login, "/api/auth/login", { email: owner.email, password: owner.password });
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: owner.email } });
+    expect(user.refreshToken).not.toBeNull();
+
+    // In the app, src/proxy.ts sets x-user-id from the verified token.
+    const res = await logout(
+      new NextRequest("http://localhost/api/auth/logout", { method: "POST", headers: { "x-user-id": user.id } }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.getSetCookie().every((cookie) => /Max-Age=0/i.test(cookie))).toBe(true);
+    expect(cookieNames(res)).toEqual(["auth_token", "refresh_token"]);
+    const after = await prisma.user.findUniqueOrThrow({ where: { email: owner.email } });
+    expect(after.refreshToken).toBeNull();
   });
 });
 

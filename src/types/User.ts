@@ -12,6 +12,15 @@ export interface RegisterResponse {
   role: UserRole;
   slug: string;
 }
+// Who is using a staff screen, as shown in the staff frame.
+export interface StaffProfile {
+  userId: string;
+  name: string;
+  role: UserRole;
+  businessId: string;
+  businessName: string;
+}
+
 export interface LoginResponse{
   id:string,
   name:string,

@@ -4,6 +4,7 @@ import {
   mapToRegisterResponse,
   type RegisterRequest,
   type RegisterResponse,
+  type StaffProfile,
 } from "@/types/User";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { slugService } from "./SlugService";
@@ -49,6 +50,20 @@ export class UserService {
     }
     return targetUser;
   }
+  // Re-read on every staff screen, so deactivating someone or changing their role takes effect at once.
+  // null when the user is gone, deactivated, or not in the business their token names.
+  async getStaffProfile(userId: string, businessId: string): Promise<StaffProfile | null> {
+    const user = await userRepo.findStaffProfile(userId);
+    if (!user || !user.isActive || user.businessId !== businessId) return null;
+    return {
+      userId: user.id,
+      name: user.name,
+      role: user.role,
+      businessId: user.businessId,
+      businessName: user.business.name,
+    };
+  }
+
   // For the sign-up form, before it is sent. Business names are public (guests see them on the
   // menu), so saying a name is taken reveals nothing private. Register still checks again.
   async isBusinessNameAvailable(name: string): Promise<boolean> {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeSlug, SLUG_PATTERN, slugify } from "./slug";
+import { makeSlug, SLUG_PATTERN, slugify } from "@/utils/slug";
 
 describe("slugify", () => {
   it.each([

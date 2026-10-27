@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatLBP, formatUSD } from "./money";
+import { formatLBP, formatUSD } from "@/utils/money";
 
 describe("formatUSD", () => {
   it.each([

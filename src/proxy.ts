@@ -20,6 +20,7 @@ const publicApiRoutes = [
   // Staff auth
   "/api/auth/login",
   "/api/auth/register",
+  "/api/auth/business-name", // GET ?name= — sign-up form checks the name is free
   "/api/auth/refresh",
   "/api/auth/forgot-password",
   "/api/auth/reset-password",
@@ -121,7 +122,7 @@ export async function proxy(req: NextRequest) {
     logger.warn(`[Middleware] No auth for ${currentPath}`);
 
     const response = NextResponse.json(
-      { success: false, message: "Authentication required" },
+      { success: false, message: "unauthorized" },
       { status: 401 }
     );
     authService.clearAuthCookies(response);
@@ -130,7 +131,7 @@ export async function proxy(req: NextRequest) {
     logger.error("[Middleware] Unexpected error", err);
 
     const response = NextResponse.json(
-      { success: false, message: "Authentication error" },
+      { success: false, message: "unauthorized" },
       { status: 401 }
     );
     authService.clearAuthCookies(response);

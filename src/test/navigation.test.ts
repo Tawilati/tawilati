@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ROLE } from "@/types/Roles";
-import { homeFor, isActive, NAV_BY_ROLE } from "./navigation";
+import { homeFor, isActive, NAV_BY_ROLE } from "@/components/staff/navigation";
 
 describe("staff navigation", () => {
   it("sends each role to its own first screen", () => {

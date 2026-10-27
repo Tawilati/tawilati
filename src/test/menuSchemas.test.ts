@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publicMenuQuerySchema } from "./menuSchemas";
+import { publicMenuQuerySchema } from "@/validation/menuSchemas";
 
 const TOKEN = "0123456789abcdef".repeat(4);
 

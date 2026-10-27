@@ -7,7 +7,7 @@ import type {
   TableWithBusiness,
 } from "@/repository/MenuRepo";
 import { HttpException } from "@/utils/exceptions/http/HttpException";
-import { MenuService } from "./MenuService";
+import { MenuService } from "@/service/MenuService";
 
 const TOKEN = "a".repeat(64);
 

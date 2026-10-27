@@ -13,7 +13,7 @@ Name: Tawilati (طاولتي, "my table"). Wordmark: `tawilati.` Tagline: "Good 
 - `src/validation/`: Zod schemas. `src/service/`: business rules, classes taking their repository in the constructor and importing it as a type only (so unit tests never load Prisma). `src/repository/`: Prisma only, singleton classes (`XRepo.getInstance()`) implementing an interface the service depends on.
 - Errors: `src/utils/exceptions/http/` (`HttpException(status, message)`; for API errors the message is the contract code, e.g. `new NotFoundException("invalid_qr")`, `new ConflictException("table_disabled")`).
 - Path alias `@/` → `src/`. Ids are UUID strings.
-- Tests: `*.test.ts` are unit tests (`npm test`, services with fake repositories); `*.int.test.ts` hit the database at `DATABASE_URL` (`npm run test:integration`), create their own businesses and delete them afterwards.
+- Tests: test files live in `src/test/`. `*.test.ts` are unit tests (`npm test`, services with fake repositories); `*.int.test.ts` hit the database at `DATABASE_URL` (`npm run test:integration`), create their own businesses and delete them afterwards.
 - Database: Postgres in Docker on port 5434 (5432 is taken by a local Windows Postgres on Souad's machine). `npx prisma migrate dev`, `npx prisma generate` (client in `src/app/generated/prisma`, gitignored), `npm run db:seed` (demo café, re-runnable, prints the menu links). Prisma config is `prisma7.config.ts`. After merging `main`, verify migrations with `npx prisma migrate reset --force` then `npx prisma migrate diff --from-config-datasource --to-schema src/prisma/schema.prisma --script` (must print an empty migration).
 
 ## Core flow (build first)

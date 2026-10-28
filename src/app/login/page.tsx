@@ -13,7 +13,7 @@ export default function LoginPage() {
       intro="Sign in to see your tables, orders and menu."
       footer={
         <>
-          New café?{" "}
+          New business?{" "}
           <Link href="/register" className={authLinkClassName}>
             Create an account
           </Link>

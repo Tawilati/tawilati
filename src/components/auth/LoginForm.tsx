@@ -51,7 +51,7 @@ export function LoginForm() {
         Sign in
       </Button>
       <p className="text-center text-[13px] text-ink-muted">
-        Staff: your café owner creates your account. Ask them for your email and password.
+        Staff: your business owner creates your account. Ask them for your email and password.
       </p>
     </form>
   );

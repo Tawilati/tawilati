@@ -5,7 +5,7 @@ import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export const metadata: Metadata = { title: "Set up your business · Tawilati" };
 
-// A café owner signs up here: it creates the café's workspace and their owner account, and signs them in.
+// A business owner signs up here: it creates the business's workspace and their owner account, and signs them in.
 // Staff never sign up; the owner creates their accounts.
 export default function RegisterPage() {
   return (

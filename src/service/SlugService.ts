@@ -1,8 +1,6 @@
 // src/service/SlugService.ts
 //made  this so it can ensure uniqnes of slug
-import { prisma } from "@/lib/db";
-
-import { DBException } from "@/utils/exceptions/RepoException";
+import { slugRepo } from "@/repository/SlugRepo";
 
 export class SlugService {
   private static instance: SlugService;
@@ -22,18 +20,9 @@ export class SlugService {
     let candidate = base;
     let n = 1;
 
-    try {
-      while (
-        await prisma.business.findUnique({
-          where: { slug: candidate },
-          select: { id: true },
-        })
-      ) {
-        n++;
-        candidate = `${base}-${n}`;
-      }
-    } catch (err) {
-      throw new DBException("Error checking business slug uniqueness", err as Error);
+    while (await slugRepo.businessSlugExists(candidate)) {
+      n++;
+      candidate = `${base}-${n}`;
     }
 
     return candidate;
@@ -47,18 +36,9 @@ export class SlugService {
     let candidate = base;
     let n = 1;
 
-    try {
-      while (
-        await prisma.diningTable.findUnique({
-          where: { businessId_slug: { businessId, slug: candidate } },
-          select: { id: true },
-        })
-      ) {
-        n++;
-        candidate = `${base}-${n}`;
-      }
-    } catch (err) {
-      throw new DBException("Error checking table slug uniqueness", err as Error);
+    while (await slugRepo.tableSlugExists(businessId, candidate)) {
+      n++;
+      candidate = `${base}-${n}`;
     }
 
     return candidate;

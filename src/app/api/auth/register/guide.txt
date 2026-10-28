@@ -4,7 +4,12 @@
 // Body: { businessName, ownerName, email, password }
 // ─────────────────────────────────────────────────────────────
 
-
+examples
+  "businessName": "donveto",
+  "ownerName": "mhmmad",
+  "email": "mhmad@gmail.com",
+  "password": "Don330Mneh"
+  
 //**
 // TEST 1 — Successful registration
 //

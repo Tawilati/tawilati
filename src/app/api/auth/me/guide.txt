@@ -1,0 +1,83 @@
+GET /api/auth/me - API TEST GUIDE
+
+Purpose
+  Return the signed-in user's safe profile.
+
+Authentication
+  Staff auth cookie is required. The proxy validates the access token or attempts
+  refresh with the refresh cookie, then forwards trusted x-user-* headers.
+  No particular role is required.
+
+Success response
+  Status: 200
+  {
+    "success": true,
+    "data": {
+      "userId": "uuid",
+      "businessId": "uuid",
+      "name": "Owner",
+      "email": "owner@example.test",
+      "role": "OWNER",
+      "isActive": true,
+      "createdAt": "ISO date"
+    }
+  }
+  The response must not contain passwordHash, refreshToken, or reset-password
+  fields.
+
+TEST CASES
+
+1. Valid owner access cookie
+  Send GET /api/auth/me with the owner's valid auth_token cookie.
+  Expect 200 and that owner's profile. Verify safe fields only.
+
+2. Valid waiter and kitchen access cookies
+  Repeat as WAITER and KITCHEN.
+  Expect 200 for both; this endpoint has no role restriction.
+
+3. Missing cookies
+  Send the request without auth_token or refresh_token.
+  Expect 401 { "success": false, "message": "unauthorized" } from the proxy.
+  Expect auth cookies to be cleared.
+
+4. Invalid or expired access cookie, no usable refresh cookie
+  Expect 401 with the generic unauthorized response and cookies cleared.
+
+5. Expired access cookie and valid refresh cookie
+  Expect the proxy to rotate tokens, forward the user identity, and return 200.
+  Verify replacement auth_token and refresh_token cookies are set.
+
+6. Invalid, expired, missing-in-database, or mismatched refresh token
+  Expect 401 and cleared cookies. Do not expect token details in the response.
+
+7. Malformed or incomplete user identity
+  If a required x-user-* header is absent, authGuard returns 401
+  { "success": false, "message": "unauthorized" }.
+  The later userId-only fallback in the handler is defensive; normal requests
+  reach it only after authGuard accepts the full identity. The proxy clears
+  client-supplied identity headers and only forwards identity from a verified
+  token.
+
+8. User deleted after a token was issued
+  Keep a valid token, delete its User row, then call this endpoint.
+  Expect 404 { "success": false, "message": "not_found" }.
+
+9. User deactivated after a token was issued
+  Current implementation note: this route loads the profile and returns its
+  isActive value; proxy validation does not query isActive. Verify behavior
+  explicitly against the requirement that deactivation immediately disables
+  staff sessions. Do not treat a 200 profile with isActive:false as session
+  revocation.
+
+10. Database unavailable
+  Expect 500 { "success": false, "message": "database_error" }; internal DB
+  details must not be sent to the client.
+
+11. Method not supported
+  Try POST /api/auth/me.
+  Expect Next.js 405 Method Not Allowed.
+
+Security checks
+  - A client-supplied x-user-id, x-user-role, or x-business-id must not override
+    the identity derived from the token.
+  - Response must never expose password hashes or token hashes.

@@ -16,16 +16,19 @@ export const businessNameSchema = z
   .max(100)
   .regex(/\p{L}/u, { message: "Must contain a letter" });
 
+// Used at sign-up and when an owner creates a staff account.
+export const passwordSchema = z
+  .string()
+  .max(100)
+  .refine((password) => PASSWORD_RULES.every((rule) => rule.test(password)), {
+    message: "Use at least 8 characters, with a letter and a number",
+  });
+
 export const registerUserRequestSchema = z.object({
   businessName: businessNameSchema,
   ownerName: z.string().trim().min(1).max(100),
   email: z.string().trim().max(254).pipe(z.email()),
-  password: z
-    .string()
-    .max(100)
-    .refine((password) => PASSWORD_RULES.every((rule) => rule.test(password)), {
-      message: "Use at least 8 characters, with a letter and a number",
-    }),
+  password: passwordSchema,
 });
 
 // GET /api/auth/business-name?name=...: is this name still free?

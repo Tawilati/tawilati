@@ -4,6 +4,16 @@ import type { RegisterUserRequest } from "@/validation/User";
 
 export type RegisterRequest = RegisterUserRequest;
 
+export interface AuthenticatedUser {
+  id: string;
+  businessId: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: UserRole;
+  isActive: boolean;
+}
+
 export interface RegisterResponse {
   success: true;
   message: string;

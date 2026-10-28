@@ -1,0 +1,61 @@
+POST /api/auth/logout - API TEST GUIDE
+
+Purpose
+  Sign out the current staff session by deleting the stored refresh-token hash
+  and clearing both auth cookies.
+
+Authentication
+  This is a protected API route. The proxy requires a usable access or refresh
+  token before the handler runs.
+
+Success response
+  Status: 200
+  Body: { "success": true, "message": "signed_out" }
+  Set-Cookie expires auth_token and refresh_token (Max-Age=0, Path=/).
+
+TEST CASES
+
+1. Logout with valid access cookie
+  Sign in, then POST /api/auth/logout with the returned cookies.
+  Expect 200, signed_out, both cookies cleared, and User.refreshToken and
+  User.refreshTokenExpiresAt set to null.
+
+2. Logout with expired access cookie and valid refresh cookie
+  Expect the proxy to refresh the session, then the route to revoke the newly
+  persisted refresh token and clear both cookies.
+
+3. Repeat logout while the access cookie remains valid
+  Expect the route to remain safe to repeat and clear cookies again. The
+  stored refresh-token fields remain null.
+
+4. No cookies
+  The proxy rejects the request before the logout handler.
+  Expect 401 { "success": false, "message": "unauthorized" } and cleared cookies.
+  The handler's local fallback for a missing user ID does not bypass proxy auth.
+
+5. Invalid access and refresh cookies
+  Expect 401 from the proxy, no successful logout response, and cleared cookies.
+
+6. Refresh token reuse after logout
+  Replay the old refresh cookie after logout.
+  Expect the proxy to reject it with 401 because the stored refresh-token hash
+  was removed.
+
+7. Database unavailable while revoking refresh token
+  Expect 500 { "success": false, "message": "database_error" }. Verify whether
+  cookies were cleared: the handler clears them only after the DB update
+  succeeds; the proxy may also clear cookies if it cannot authenticate.
+
+8. Access-token replay after logout
+  Current implementation note: access tokens are validated statelessly and
+  remain valid until expiry. Verify whether the product's logout policy accepts
+  this or requires immediate access-token revocation.
+
+9. Method not supported
+  Try GET /api/auth/logout.
+  Expect Next.js 405 Method Not Allowed.
+
+Security checks
+  - Never return the raw refresh token.
+  - Clearing browser cookies alone is not sufficient; the stored refresh
+    credential must also be revoked.

@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Card, TextField } from "@/components/ui";
+import { Button, ConfirmDialog, Modal, TextField, useModalGuard } from "@/components/ui";
+import { ItemMenu } from "./ItemMenu";
 import type { Category } from "./menuApi";
 
-// Add, rename and delete categories. `onChange` runs the call and returns an error sentence (or null when it worked).
+// The categories as pills: name, item count and a three-dots menu (Rename, and Delete while the category is empty).
+// Add, rename and delete each open their own pop-up. The `on…` callbacks run the call and return an error sentence,
+// or null when it worked. The caller decides where this sits: inside a pop-up, or on the page while there are none yet.
 export function CategoriesPanel({
   categories,
   onAdd,
@@ -16,158 +19,156 @@ export function CategoriesPanel({
   onRename: (id: string, name: string) => Promise<string | null>;
   onDelete: (id: string) => Promise<string | null>;
 }) {
-  const [newName, setNewName] = useState("");
-  const [addError, setAddError] = useState<string>();
-  const [renaming, setRenaming] = useState<{
-    id: string;
-    name: string;
-    error?: string;
-  } | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [renaming, setRenaming] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState<Category | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function add(event: FormEvent) {
-    event.preventDefault();
-    if (busy) return;
-    if (!newName.trim())
-      return setAddError("Enter a category name, like Hot drinks.");
-    setBusy(true);
-    const error = await onAdd(newName.trim());
-    setBusy(false);
-    setAddError(error ?? undefined);
-    if (!error) setNewName("");
+  function openNameForm(category: Category | null) {
+    setRenaming(category);
+    setAdding(category === null);
   }
 
-  async function rename(event: FormEvent) {
-    event.preventDefault();
-    if (busy) return;
-    if (!renaming) return;
-    if (!renaming.name.trim())
-      return setRenaming({ ...renaming, error: "Enter a category name." });
-    setBusy(true);
-    const error = await onRename(renaming.id, renaming.name.trim());
-    setBusy(false);
-    if (error) setRenaming({ ...renaming, error });
-    else setRenaming(null);
+  function closeNameForm() {
+    setAdding(false);
+    setRenaming(null);
   }
 
-  async function remove(id: string) {
+  // Returns the error sentence to show under the field, or null when it worked (and the pop-up closes).
+  async function submitName(name: string): Promise<string | null> {
+    if (busy) return null;
+    setBusy(true);
+    const error = renaming ? await onRename(renaming.id, name) : await onAdd(name);
+    setBusy(false);
+    if (!error) closeNameForm();
+    return error;
+  }
+
+  async function confirmDelete(category: Category) {
     if (busy) return;
     setBusy(true);
-    const error = await onDelete(id);
+    const error = await onDelete(category.id);
     setBusy(false);
-    if (!error) setConfirmingDelete(null);
+    if (!error) setDeleting(null);
   }
 
   return (
-    <Card className="flex flex-col gap-4">
-      <h2 className="text-lg font-bold">Categories</h2>
-      <p className="text-sm text-ink-muted">Only empty categories can be deleted. Item counts include archived items.</p>
-      <fieldset disabled={busy} className="contents">
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-ink-muted">
+        {categories.length === 0
+          ? "Add your first category, then put items in it."
+          : "Only empty categories can be deleted. Counts include archived items."}
+      </p>
 
-      {categories.length === 0 && (
-        <p className="text-sm text-ink-muted">
-          Add your first category, then put items in it.
-        </p>
-      )}
-
-      <ul className="flex flex-col divide-y divide-border-subtle">
+      <ul className="flex flex-wrap gap-2">
         {categories.map((category) => (
           <li
             key={category.id}
-            className="flex flex-wrap items-center gap-2 py-2"
+            className="flex min-h-11 max-w-full items-center gap-2 rounded-full bg-primary py-px pl-4 pr-1 text-on-primary"
           >
-            {renaming?.id === category.id ? (
-              <form
-                onSubmit={rename}
-                className="flex w-full flex-wrap items-end gap-2"
-              >
-                <TextField
-                  label="Category name"
-                  className="min-w-0 flex-1"
-                  value={renaming.name}
-                  error={renaming.error}
-                  maxLength={50}
-                  autoFocus
-                  onChange={(e) =>
-                    setRenaming({ id: category.id, name: e.target.value })
-                  }
-                />
-                <Button type="submit" size="sm" loading={busy}>
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setRenaming(null)}
-                >
-                  Cancel
-                </Button>
-              </form>
-            ) : (
-              <>
-                <span className="min-w-0 flex-1 truncate font-semibold">
-                  {category.name}
-                </span>
-                <span className="text-sm text-ink-muted">
-                  {category.itemCount}{" "}
-                  {category.itemCount === 1 ? "item" : "items"}
-                </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    setRenaming({ id: category.id, name: category.name })
-                  }
-                >
-                  Rename
-                </Button>
-                {category.itemCount === 0 &&
-                  (confirmingDelete === category.id ? (
-                    <>
-                    <Button
-                      size="sm"
-                      variant="accent"
-                      loading={busy}
-                      onClick={() => remove(category.id)}
-                    >
-                      Confirm delete
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setConfirmingDelete(null)}>Cancel</Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setConfirmingDelete(category.id)}
-                    >
-                      Delete
-                    </Button>
-                  ))}
-              </>
-            )}
+            <span className="min-w-0 truncate font-semibold">{category.name}</span>
+            <span
+              className={`rounded-full px-2 text-xs font-bold tabular-nums ${
+                category.itemCount === 0 ? "bg-white/20 text-on-primary" : "bg-surface text-primary"
+              }`}
+              title={`${category.itemCount} ${category.itemCount === 1 ? "item" : "items"}`}
+            >
+              {category.itemCount}
+            </span>
+            <div className="[&_button[aria-haspopup]]:size-9 [&_button[aria-haspopup]]:text-on-primary [&_button[aria-haspopup]]:hover:bg-white/15">
+              <ItemMenu
+                itemName={category.name}
+                actions={[
+                  { label: "Rename", onSelect: () => openNameForm(category) },
+                  ...(category.itemCount === 0
+                    ? [{ label: "Delete", danger: true, onSelect: () => setDeleting(category) }]
+                    : []),
+                ]}
+              />
+            </div>
           </li>
         ))}
+        <li>
+          <button
+            type="button"
+            onClick={() => openNameForm(null)}
+            className="flex min-h-11 cursor-pointer items-center rounded-full border-[1.5px] border-dashed border-primary px-4 font-semibold text-primary hover:bg-primary-tint"
+          >
+            + Add category
+          </button>
+        </li>
       </ul>
 
-      <form onSubmit={add} className="flex flex-wrap items-end gap-2">
-        <TextField
-          label="New category"
-          className="min-w-0 flex-1"
-          value={newName}
-          error={addError}
-          maxLength={50}
-          placeholder="Hot drinks"
-          onChange={(e) => {
-            setNewName(e.target.value);
-            setAddError(undefined);
-          }}
-        />
+      {(adding || renaming) && (
+        <Modal title={renaming ? "Rename category" : "Add a category"} locked={busy} onClose={closeNameForm}>
+          <NameForm
+            initialName={renaming?.name ?? ""}
+            submitLabel={renaming ? "Save" : "Add category"}
+            busy={busy}
+            onSubmit={submitName}
+          />
+        </Modal>
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title={`Delete ${deleting.name}?`}
+          confirmLabel="Delete category"
+          loading={busy}
+          onConfirm={() => confirmDelete(deleting)}
+          onCancel={() => setDeleting(null)}
+        >
+          It has no items, so nothing on your menu changes.
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+// The name field of the add and rename pop-ups.
+function NameForm({
+  initialName,
+  submitLabel,
+  busy,
+  onSubmit,
+}: {
+  initialName: string;
+  submitLabel: string;
+  busy: boolean;
+  onSubmit: (name: string) => Promise<string | null>;
+}) {
+  const [name, setName] = useState(initialName);
+  const [error, setError] = useState<string>();
+  const requestClose = useModalGuard(name !== initialName);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    if (!name.trim()) return setError("Enter a category name, like Hot drinks.");
+    setError((await onSubmit(name.trim())) ?? undefined);
+  }
+
+  return (
+    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <TextField
+        label="Category name"
+        value={name}
+        error={error}
+        maxLength={50}
+        placeholder="Hot drinks"
+        onChange={(e) => {
+          setName(e.target.value);
+          setError(undefined);
+        }}
+      />
+      <div className="flex flex-wrap gap-2">
         <Button type="submit" loading={busy}>
-          Add category
+          {submitLabel}
         </Button>
-      </form>
-      </fieldset>
-    </Card>
+        <Button variant="ghost" onClick={requestClose}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }

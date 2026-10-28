@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { PlusIcon } from "@/components/icons";
-import { Button, Card, StatusBadge, Toast } from "@/components/ui";
+import { Button, Card, ConfirmDialog, Modal, StatusBadge, Toast } from "@/components/ui";
 import { FloatingToast } from "@/components/ui/FloatingToast";
 import { CategoryTabs } from "@/components/menu/CategoryTabs";
 import { CategoriesPanel } from "./CategoriesPanel";
@@ -36,6 +36,7 @@ export function MenuManager() {
   const [showArchived, setShowArchived] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [deleting, setDeleting] = useState<MenuItem | null>(null);
+  const [archiving, setArchiving] = useState<MenuItem | null>(null);
   const [editing, setEditing] = useState<MenuItem | "new" | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const noticeCount = useRef(0);
@@ -166,12 +167,12 @@ export function MenuManager() {
   return (
     <div className="flex flex-col gap-6">
       {heading(
-        categories.length > 0 && !editing && (
+        categories.length > 0 && (
           <div className="flex flex-wrap gap-2">
             <Button
               variant="ghost"
               disabled={mutating || !!loadError}
-              aria-expanded={showCategories}
+              aria-haspopup="dialog"
               onClick={() => setShowCategories((open) => !open)}
             >
               Categories
@@ -208,36 +209,40 @@ export function MenuManager() {
 
       <fieldset disabled={mutating || !!loadError} className="contents">
 
-      {deleting && (
-        <Card
-          className="flex flex-col gap-3"
-          role="alertdialog"
-          aria-label={`Delete ${deleting.name}`}
+      {archiving && (
+        <ConfirmDialog
+          title={`Archive ${archiving.name}?`}
+          confirmLabel="Archive item"
+          loading={workingOn === archiving.id}
+          onConfirm={async () => {
+            const item = archiving;
+            setWorkingOn(item.id);
+            const error = await run(() => menuApi.archiveItem(item.id), "Item archived");
+            setWorkingOn(null);
+            if (!error) setArchiving(null);
+          }}
+          onCancel={() => setArchiving(null)}
         >
-          <p className="font-semibold">Delete {deleting.name}?</p>
-          <p className="text-sm text-ink-muted">
-            This removes it from the menu for good. If it has ever been ordered,
-            archive it instead.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="accent"
-              loading={workingOn === deleting.id}
-              onClick={async () => {
-                const item = deleting;
-                setWorkingOn(item.id);
-                const error = await run(() => menuApi.deleteItem(item.id), "Item deleted");
-                setWorkingOn(null);
-                if (!error) setDeleting(null);
-              }}
-            >
-              Delete item
-            </Button>
-            <Button variant="ghost" onClick={() => setDeleting(null)}>
-              Cancel
-            </Button>
-          </div>
-        </Card>
+          It disappears from the menu your guests see. You can restore it later.
+        </ConfirmDialog>
+      )}
+
+      {deleting && (
+        <ConfirmDialog
+          title={`Delete ${deleting.name}?`}
+          confirmLabel="Delete item"
+          loading={workingOn === deleting.id}
+          onConfirm={async () => {
+            const item = deleting;
+            setWorkingOn(item.id);
+            const error = await run(() => menuApi.deleteItem(item.id), "Item deleted");
+            setWorkingOn(null);
+            if (!error) setDeleting(null);
+          }}
+          onCancel={() => setDeleting(null)}
+        >
+          This removes it from the menu for good. If it has ever been ordered, archive it instead.
+        </ConfirmDialog>
       )}
 
       {categories.length === 0 && (
@@ -246,32 +251,36 @@ export function MenuManager() {
             Start by adding a category, like Hot drinks or Desserts. Then you
             can add items to it.
           </p>
-          {panel}
+          <Card>{panel}</Card>
         </>
       )}
 
-      {categories.length === 0 ? null : editing ? (
-        <ItemForm
-          key={editing === "new" ? "new" : editing.id}
-          item={editing === "new" ? null : editing}
-          categories={categories}
-          defaultCategoryId={filter === "all" ? undefined : filter}
-          onSave={saveItem}
-          onCancel={() => setEditing(null)}
-        />
-      ) : (
-        <>
-          <CategoryTabs
-            categories={[{ id: "all", name: "All" }, ...categories]}
-            activeId={filter}
-            onSelect={setFilter}
+      {editing && categories.length > 0 && (
+        <Modal title={editing === "new" ? "Add an item" : "Edit item"} locked={mutating} onClose={() => setEditing(null)}>
+          <ItemForm
+            item={editing === "new" ? null : editing}
+            categories={categories}
+            defaultCategoryId={filter === "all" ? undefined : filter}
+            onSave={saveItem}
           />
-        </>
+        </Modal>
       )}
 
-      {categories.length > 0 && showCategories && !editing && panel}
+      {categories.length > 0 && (
+        <CategoryTabs
+          categories={[{ id: "all", name: "All" }, ...categories]}
+          activeId={filter}
+          onSelect={setFilter}
+        />
+      )}
 
-      {visible.length === 0 && categories.length > 0 && !editing && (
+      {categories.length > 0 && showCategories && (
+        <Modal title="Categories" locked={mutating} onClose={() => setShowCategories(false)}>
+          {panel}
+        </Modal>
+      )}
+
+      {visible.length === 0 && categories.length > 0 && (
         <Card>
           <p className="text-sm text-ink-muted">
             No items here yet. Tap “Add item” to create one.
@@ -280,9 +289,9 @@ export function MenuManager() {
       )}
 
       <ul
-        role={editing || categories.length === 0 ? undefined : "tabpanel"}
+        role={categories.length === 0 ? undefined : "tabpanel"}
         id={`panel-${filter}`}
-        aria-labelledby={editing || categories.length === 0 ? undefined : `tab-${filter}`}
+        aria-labelledby={categories.length === 0 ? undefined : `tab-${filter}`}
         className="flex flex-col gap-2.5"
       >
         {visible.map((item) => {
@@ -317,9 +326,7 @@ export function MenuManager() {
                   <StatusBadge status="SOLD_OUT" className="shrink-0" />
                 )}
                 {archived && (
-                  <StatusBadge status="CLOSED" className="shrink-0">
-                    Archived
-                  </StatusBadge>
+                  <span className="tw-badge shrink-0 bg-[var(--brand-accent)] text-ink">Archived</span>
                 )}
                 {!archived && (
                   <Button
@@ -378,12 +385,10 @@ export function MenuManager() {
                           },
                           {
                             label: "Archive",
-                            onSelect: () =>
-                              onItemAction(
-                                item,
-                                () => menuApi.archiveItem(item.id),
-                                "Item archived",
-                              ),
+                            onSelect: () => {
+                              setNotice(null);
+                              setArchiving(item);
+                            },
                           },
                           {
                             danger: true,
@@ -404,7 +409,7 @@ export function MenuManager() {
 
       {archivedCount > 0 && (
         <Button
-          variant="ghost"
+          variant="accent"
           className="self-start"
           onClick={() => setShowArchived((shown) => !shown)}
         >

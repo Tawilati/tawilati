@@ -1,6 +1,10 @@
 // The owner's menu screen talks to /api/categories and /api/menu-items. Decimals arrive as strings ("2.50").
 // Error codes never reach the person: `sentenceFor` turns each one into a sentence.
 
+import { ApiError, call } from "../api";
+
+export { ApiError };
+
 export type Category = { id: string; name: string; itemCount: number };
 
 export type MenuItem = {
@@ -14,38 +18,6 @@ export type MenuItem = {
 };
 
 export type ItemInput = { name: string; categoryId: string; priceUSD: number };
-
-export class ApiError extends Error {
-  constructor(
-    readonly code: string,
-    readonly status: number,
-  ) {
-    super(code);
-  }
-}
-
-async function call<T = undefined>(path: string, method: string, body?: unknown): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method,
-      headers: body === undefined ? undefined : { "content-type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiError("offline", 0);
-  }
-  if (response.status === 204) return undefined as T;
-  const json = await response.json().catch(() => null);
-  if (!response.ok) {
-    const fallback = response.status === 401 ? "unauthorized" : response.status === 403 ? "forbidden" : "internal_server_error";
-    throw new ApiError(String(json?.message ?? fallback), response.status);
-  }
-  if (!json || json.success !== true || json.data == null) {
-    throw new ApiError("invalid_response", response.status);
-  }
-  return json.data as T;
-}
 
 export const menuApi = {
   categories: () => call<Category[]>("/api/categories", "GET"),

@@ -31,15 +31,17 @@ export function ItemMenu({
     }
     function escape(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        // Closes the menu only, not a pop-up around it.
+        event.stopPropagation();
         setOpen(false);
         trigger.current?.focus();
       }
     }
     document.addEventListener("pointerdown", outside);
-    document.addEventListener("keydown", escape);
+    document.addEventListener("keydown", escape, true);
     return () => {
       document.removeEventListener("pointerdown", outside);
-      document.removeEventListener("keydown", escape);
+      document.removeEventListener("keydown", escape, true);
     };
   }, [open]);
 

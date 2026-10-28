@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Card, TextField } from "@/components/ui";
+import { Button, SelectField, TextField, useModalGuard } from "@/components/ui";
 import {
   parsePriceUSD,
   priceHint,
@@ -16,21 +16,20 @@ export function ItemForm({
   categories,
   defaultCategoryId,
   onSave,
-  onCancel,
 }: {
   item: MenuItem | null;
   categories: Category[];
   defaultCategoryId?: string;
   onSave: (input: ItemInput) => Promise<string | null>;
-  onCancel: () => void;
 }) {
-  const [name, setName] = useState(item?.name ?? "");
-  const [price, setPrice] = useState(
-    item ? Number(item.priceUSD).toFixed(2) : "",
-  );
-  const [categoryId, setCategoryId] = useState(
-    item?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "",
-  );
+  const initial = {
+    name: item?.name ?? "",
+    price: item ? Number(item.priceUSD).toFixed(2) : "",
+    categoryId: item?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? "",
+  };
+  const [name, setName] = useState(initial.name);
+  const [price, setPrice] = useState(initial.price);
+  const [categoryId, setCategoryId] = useState(initial.categoryId);
   const [errors, setErrors] = useState<{
     name?: string;
     price?: string;
@@ -38,6 +37,9 @@ export function ItemForm({
     form?: string;
   }>({});
   const [pending, setPending] = useState(false);
+  const requestClose = useModalGuard(
+    name !== initial.name || price !== initial.price || categoryId !== initial.categoryId,
+  );
 
   // Shown while typing; on submit the same field also catches an empty price.
   const livePriceError = priceHint(price);
@@ -64,10 +66,7 @@ export function ItemForm({
   }
 
   return (
-    <Card className="flex flex-col gap-4">
-      <h2 className="text-lg font-bold">
-        {item ? "Edit item" : "Add an item"}
-      </h2>
+    <>
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
         <fieldset disabled={pending} className="contents">
         <TextField
@@ -75,7 +74,6 @@ export function ItemForm({
           value={name}
           error={errors.name}
           maxLength={100}
-          autoFocus
           onChange={(e) => {
             setName(e.target.value);
             setErrors((current) => ({ ...current, name: undefined, form: undefined }));
@@ -92,35 +90,16 @@ export function ItemForm({
             setErrors((current) => ({ ...current, price: undefined, form: undefined }));
           }}
         />
-        <div className="tw-field">
-          <label className="tw-field__label" htmlFor="item-category">
-            Category
-          </label>
-          <div className="tw-field__control">
-            <select
-              id="item-category"
-              className="tw-field__input"
-              value={categoryId}
-              aria-invalid={errors.category ? true : undefined}
-              aria-describedby={errors.category ? "item-category-error" : undefined}
-              onChange={(e) => {
-                setCategoryId(e.target.value);
-                setErrors((current) => ({ ...current, category: undefined, form: undefined }));
-              }}
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {errors.category && (
-            <span id="item-category-error" className="tw-field__hint text-danger">
-              {errors.category}
-            </span>
-          )}
-        </div>
+        <SelectField
+          label="Category"
+          value={categoryId}
+          options={categories.map((category) => ({ value: category.id, label: category.name }))}
+          error={errors.category}
+          onChange={(id) => {
+            setCategoryId(id);
+            setErrors((current) => ({ ...current, category: undefined, form: undefined }));
+          }}
+        />
         {errors.form && (
           <p role="alert" className="text-sm font-semibold text-danger">
             {errors.form}
@@ -130,12 +109,12 @@ export function ItemForm({
           <Button type="submit" loading={pending}>
             {item ? "Save changes" : "Add item"}
           </Button>
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="ghost" onClick={requestClose}>
             Cancel
           </Button>
         </div>
         </fieldset>
       </form>
-    </Card>
+    </>
   );
 }

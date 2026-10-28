@@ -1,9 +1,6 @@
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  CategoryRepository,
-  CategoryRecord,
-} from "@/repository/CategoryRepo";
-import { CategoryService } from "@/service/CategoryService";
+import type { CategoryRecord } from "@/repository/CategoryRepo";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
@@ -11,14 +8,18 @@ const { repo } = vi.hoisted(() => ({
   repo: {
     findManyByBusiness: vi.fn(),
     findById: vi.fn(),
+    findByBusinessAndName: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
   },
 }));
 
-const categoryRepository = repo as unknown as CategoryRepository;
-const categoryService = new CategoryService(categoryRepository);
+vi.mock("@/repository/CategoryRepo", () => ({
+  categoryRepo: repo,
+}));
+
+import { categoryService } from "@/service/CategoryService";
 
 const category: CategoryRecord = {
   id: "category-1",
@@ -36,9 +37,9 @@ describe("CategoryService", () => {
     it("returns categories for a business", async () => {
       repo.findManyByBusiness.mockResolvedValue([category]);
 
-      await expect(categoryService.listCategories("business-1")).resolves.toEqual([
-        category,
-      ]);
+      await expect(
+        categoryService.listCategories("business-1"),
+      ).resolves.toEqual([category]);
 
       expect(repo.findManyByBusiness).toHaveBeenCalledWith("business-1");
     });
@@ -69,13 +70,29 @@ describe("CategoryService", () => {
 
   describe("createCategory", () => {
     it("creates and returns a category", async () => {
+      repo.findByBusinessAndName.mockResolvedValue(null);
       repo.create.mockResolvedValue(category);
 
       await expect(
         categoryService.createCategory("business-1", "Drinks"),
       ).resolves.toEqual(category);
 
+      expect(repo.findByBusinessAndName).toHaveBeenCalledWith(
+        "business-1",
+        "Drinks",
+      );
+
       expect(repo.create).toHaveBeenCalledWith("business-1", "Drinks");
+    });
+
+    it("throws ConflictException when the category name already exists", async () => {
+      repo.findByBusinessAndName.mockResolvedValue(category);
+
+      await expect(
+        categoryService.createCategory("business-1", "Drinks"),
+      ).rejects.toThrow(ConflictException);
+
+      expect(repo.create).not.toHaveBeenCalled();
     });
   });
 
@@ -138,7 +155,10 @@ describe("CategoryService", () => {
     });
 
     it("throws ConflictException when the category contains items", async () => {
-      repo.findById.mockResolvedValue({ ...category, itemCount: 2 });
+      repo.findById.mockResolvedValue({
+        ...category,
+        itemCount: 2,
+      });
 
       await expect(
         categoryService.deleteCategory("category-1", "business-1"),

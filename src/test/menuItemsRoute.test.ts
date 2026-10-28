@@ -32,6 +32,7 @@ vi.mock("@/service/MenuItemsService", () => ({
 import { GET, POST } from "@/app/api/menu-items/route";
 
 const businessId = "business-1";
+
 const item = {
   id: "item-1",
   name: "Coffee",
@@ -40,10 +41,7 @@ const item = {
   soldOut: false,
 };
 
-function request(
-  method: string,
-  body?: unknown,
-): NextRequest {
+function request(method: string, body?: unknown): NextRequest {
   return new NextRequest("http://localhost/api/menu-items", {
     method,
     ...(body === undefined
@@ -83,6 +81,7 @@ describe("/api/menu-items", () => {
         { message: "Unauthorized" },
         { status: 401 },
       );
+
       mocks.authGuard.mockReturnValue(denied);
 
       const response = await GET(request("GET"));
@@ -91,12 +90,15 @@ describe("/api/menu-items", () => {
       expect(mocks.getAll).not.toHaveBeenCalled();
     });
 
-    it("rejects a missing business context", async () => {
+    it("returns 400 when the business context is missing", async () => {
       mocks.getBusinessIdFromRequest.mockReturnValue(null);
 
-      await expect(GET(request("GET"))).rejects.toThrow(
-        "missing_business_context",
-      );
+      const response = await GET(request("GET"));
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body.success).toBe(false);
+      expect(body.message).toBe("missing_business_context");
       expect(mocks.getAll).not.toHaveBeenCalled();
     });
   });
@@ -126,18 +128,27 @@ describe("/api/menu-items", () => {
       );
     });
 
-    it("rejects invalid input without creating an item", async () => {
-      const responsePromise = POST(
-        request("POST", { name: "", categoryId: "invalid", priceUSD: -1 }),
+    it("returns 400 for invalid input without creating an item", async () => {
+      const response = await POST(
+        request("POST", {
+          name: "",
+          categoryId: "invalid",
+          priceUSD: -1,
+        }),
       );
+      const body = await response.json();
 
-      await expect(responsePromise).rejects.toBeDefined();
+      expect(response.status).toBe(400);
+      expect(body.success).toBe(false);
       expect(mocks.create).not.toHaveBeenCalled();
     });
 
     it("does not create an item when access is denied", async () => {
       mocks.authGuard.mockReturnValue(
-        NextResponse.json({ message: "Unauthorized" }, { status: 401 }),
+        NextResponse.json(
+          { message: "Unauthorized" },
+          { status: 401 },
+        ),
       );
 
       const response = await POST(request("POST", validInput));

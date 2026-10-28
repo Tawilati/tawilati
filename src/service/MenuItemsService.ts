@@ -1,27 +1,35 @@
 
 import { Prisma } from "@/app/generated/prisma/client";
+
 import {
   menuItemRepo,
   type MenuItemRepository,
 } from "@/repository/MenuItemsRepo";
+
 import type {
   CreateMenuItemInput,
   UpdateMenuItemInput,
 } from "@/validation/menuItemsSchemas";
+
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 
 export class MenuItemService {
+  // Stores the single MenuItemService instance.
   private static instance: MenuItemService;
 
-  constructor(
-    private readonly repo: MenuItemRepository = menuItemRepo,
+  //Prevents external code from creating service instances.
+  //The repository is injected into the service.
+  private constructor(
+    private readonly repo: MenuItemRepository,
   ) {}
 
+  // Returns the existing instance or creates it once.
   static getInstance(): MenuItemService {
     if (!MenuItemService.instance) {
-      MenuItemService.instance = new MenuItemService();
+      // CHANGED 2: Explicitly inject the shared repository singleton.
+      MenuItemService.instance = new MenuItemService(menuItemRepo);
     }
 
     return MenuItemService.instance;
@@ -45,7 +53,9 @@ export class MenuItemService {
   async getById(businessId: string, itemId: string) {
     const item = await this.repo.findById(itemId, businessId);
 
-    if (!item) throw new NotFoundException("menu_item_not_found");
+    if (!item) {
+      throw new NotFoundException("menu_item_not_found");
+    }
 
     return item;
   }
@@ -64,7 +74,9 @@ export class MenuItemService {
     const exchangeRate =
       await this.repo.findBusinessExchangeRate(businessId);
 
-    if (!exchangeRate) throw new NotFoundException("business_not_found");
+    if (!exchangeRate) {
+      throw new NotFoundException("business_not_found");
+    }
 
     const priceUSD = new Prisma.Decimal(input.priceUSD).toDecimalPlaces(
       2,
@@ -90,7 +102,9 @@ export class MenuItemService {
   ) {
     const existingItem = await this.repo.findById(itemId, businessId);
 
-    if (!existingItem) throw new NotFoundException("menu_item_not_found");
+    if (!existingItem) {
+      throw new NotFoundException("menu_item_not_found");
+    }
 
     if (input.categoryId !== undefined) {
       const categoryExists = await this.repo.categoryBelongsToBusiness(
@@ -111,15 +125,25 @@ export class MenuItemService {
       soldOut?: boolean;
     } = {};
 
-    if (input.name !== undefined) data.name = input.name;
-    if (input.categoryId !== undefined) data.categoryId = input.categoryId;
-    if (input.soldOut !== undefined) data.soldOut = input.soldOut;
+    if (input.name !== undefined) {
+      data.name = input.name;
+    }
+
+    if (input.categoryId !== undefined) {
+      data.categoryId = input.categoryId;
+    }
+
+    if (input.soldOut !== undefined) {
+      data.soldOut = input.soldOut;
+    }
 
     if (input.priceUSD !== undefined) {
       const exchangeRate =
         await this.repo.findBusinessExchangeRate(businessId);
 
-      if (!exchangeRate) throw new NotFoundException("business_not_found");
+      if (!exchangeRate) {
+        throw new NotFoundException("business_not_found");
+      }
 
       const priceUSD = new Prisma.Decimal(input.priceUSD).toDecimalPlaces(
         2,
@@ -137,7 +161,9 @@ export class MenuItemService {
   async archive(businessId: string, itemId: string) {
     const item = await this.repo.findById(itemId, businessId);
 
-    if (!item) throw new NotFoundException("menu_item_not_found");
+    if (!item) {
+      throw new NotFoundException("menu_item_not_found");
+    }
 
     if (item.archivedAt !== null) {
       throw new ConflictException("menu_item_already_archived");
@@ -150,7 +176,9 @@ export class MenuItemService {
   async unarchive(businessId: string, itemId: string) {
     const item = await this.repo.findById(itemId, businessId);
 
-    if (!item) throw new NotFoundException("menu_item_not_found");
+    if (!item) {
+      throw new NotFoundException("menu_item_not_found");
+    }
 
     if (item.archivedAt === null) {
       throw new ConflictException("menu_item_not_archived");
@@ -160,4 +188,5 @@ export class MenuItemService {
   }
 }
 
+//Export the shared service instance for route handlers.
 export const menuItemService = MenuItemService.getInstance();

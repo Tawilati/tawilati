@@ -1,18 +1,11 @@
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/app/generated/prisma/client";
-import type {
-  MenuItemRepository,
-  MenuItemRecord,
-} from "@/repository/MenuItemsRepo";
+import type { MenuItemRecord } from "@/repository/MenuItemsRepo";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
-vi.mock("@/repository/MenuItemsRepo", () => ({
-  menuItemRepo: {},
-}));
-
-import { MenuItemService } from "@/service/MenuItemsService";
 const { repo } = vi.hoisted(() => ({
   repo: {
     findManyByBusiness: vi.fn(),
@@ -25,8 +18,11 @@ const { repo } = vi.hoisted(() => ({
   },
 }));
 
-const categoryRepository = repo as unknown as MenuItemRepository;
-const menuItemService = new MenuItemService(categoryRepository);
+vi.mock("@/repository/MenuItemsRepo", () => ({
+  menuItemRepo: repo,
+}));
+
+import { menuItemService } from "@/service/MenuItemsService";
 
 const BUSINESS_ID = "business-1";
 const ITEM_ID = "item-1";
@@ -56,9 +52,9 @@ describe("MenuItemService", () => {
     it("returns menu items for a business", async () => {
       repo.findManyByBusiness.mockResolvedValue([item]);
 
-      await expect(menuItemService.getAll(BUSINESS_ID)).resolves.toEqual([
-        item,
-      ]);
+      await expect(
+        menuItemService.getAll(BUSINESS_ID),
+      ).resolves.toEqual([item]);
 
       expect(repo.findManyByBusiness).toHaveBeenCalledWith(BUSINESS_ID);
     });
@@ -103,7 +99,9 @@ describe("MenuItemService", () => {
         CATEGORY_ID,
         BUSINESS_ID,
       );
-      expect(repo.findBusinessExchangeRate).toHaveBeenCalledWith(BUSINESS_ID);
+      expect(repo.findBusinessExchangeRate).toHaveBeenCalledWith(
+        BUSINESS_ID,
+      );
       expect(repo.create).toHaveBeenCalledWith(BUSINESS_ID, {
         name: "Latte",
         categoryId: CATEGORY_ID,
@@ -113,7 +111,7 @@ describe("MenuItemService", () => {
       });
     });
 
-    it("trims the USD price to two decimal places using half-up rounding", async () => {
+    it("rounds the USD price to two decimal places using half-up rounding", async () => {
       repo.categoryBelongsToBusiness.mockResolvedValue(true);
       repo.findBusinessExchangeRate.mockResolvedValue(exchangeRate);
       repo.create.mockResolvedValue(item);
@@ -136,7 +134,10 @@ describe("MenuItemService", () => {
     it("uses the supplied soldOut value", async () => {
       repo.categoryBelongsToBusiness.mockResolvedValue(true);
       repo.findBusinessExchangeRate.mockResolvedValue(exchangeRate);
-      repo.create.mockResolvedValue({ ...item, soldOut: true });
+      repo.create.mockResolvedValue({
+        ...item,
+        soldOut: true,
+      });
 
       await menuItemService.create(BUSINESS_ID, {
         name: "Latte",
@@ -184,7 +185,10 @@ describe("MenuItemService", () => {
   describe("update", () => {
     it("updates the item name", async () => {
       repo.findById.mockResolvedValue(item);
-      repo.update.mockResolvedValue({ ...item, name: "Iced Latte" });
+      repo.update.mockResolvedValue({
+        ...item,
+        name: "Iced Latte",
+      });
 
       await menuItemService.update(BUSINESS_ID, ITEM_ID, {
         name: "Iced Latte",
@@ -197,9 +201,13 @@ describe("MenuItemService", () => {
 
     it("updates the category when it belongs to the business", async () => {
       const newCategoryId = "123e4567-e89b-12d3-a456-426614174001";
+
       repo.findById.mockResolvedValue(item);
       repo.categoryBelongsToBusiness.mockResolvedValue(true);
-      repo.update.mockResolvedValue({ ...item, categoryId: newCategoryId });
+      repo.update.mockResolvedValue({
+        ...item,
+        categoryId: newCategoryId,
+      });
 
       await menuItemService.update(BUSINESS_ID, ITEM_ID, {
         categoryId: newCategoryId,
@@ -216,6 +224,7 @@ describe("MenuItemService", () => {
 
     it("throws BadRequestException if the new category belongs to another business", async () => {
       const newCategoryId = "123e4567-e89b-12d3-a456-426614174001";
+
       repo.findById.mockResolvedValue(item);
       repo.categoryBelongsToBusiness.mockResolvedValue(false);
 
@@ -230,7 +239,10 @@ describe("MenuItemService", () => {
 
     it("updates soldOut without changing the price", async () => {
       repo.findById.mockResolvedValue(item);
-      repo.update.mockResolvedValue({ ...item, soldOut: true });
+      repo.update.mockResolvedValue({
+        ...item,
+        soldOut: true,
+      });
 
       await menuItemService.update(BUSINESS_ID, ITEM_ID, {
         soldOut: true,
@@ -265,7 +277,9 @@ describe("MenuItemService", () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(
-        menuItemService.update(BUSINESS_ID, ITEM_ID, { name: "Iced Latte" }),
+        menuItemService.update(BUSINESS_ID, ITEM_ID, {
+          name: "Iced Latte",
+        }),
       ).rejects.toThrow(NotFoundException);
 
       expect(repo.update).not.toHaveBeenCalled();
@@ -276,7 +290,9 @@ describe("MenuItemService", () => {
       repo.findBusinessExchangeRate.mockResolvedValue(null);
 
       await expect(
-        menuItemService.update(BUSINESS_ID, ITEM_ID, { priceUSD: 4 }),
+        menuItemService.update(BUSINESS_ID, ITEM_ID, {
+          priceUSD: 4,
+        }),
       ).rejects.toThrow(NotFoundException);
 
       expect(repo.update).not.toHaveBeenCalled();
@@ -286,10 +302,12 @@ describe("MenuItemService", () => {
   describe("archive", () => {
     it("archives an active menu item", async () => {
       repo.findById.mockResolvedValue(item);
-      repo.setArchived.mockImplementation(async (_itemId, _businessId, archivedAt) => ({
-        ...item,
-        archivedAt,
-      }));
+      repo.setArchived.mockImplementation(
+        async (_itemId, _businessId, archivedAt) => ({
+          ...item,
+          archivedAt,
+        }),
+      );
 
       const result = await menuItemService.archive(BUSINESS_ID, ITEM_ID);
 

@@ -56,7 +56,8 @@ const menuItemSelect = {
 
 export class MenuItemRepo implements MenuItemRepository {
   private static instance: MenuItemRepo;
-
+//Prevents creating repository instances with `new` outside this class.
+private constructor() {}
   static getInstance(): MenuItemRepo {
     if (!MenuItemRepo.instance) {
       MenuItemRepo.instance = new MenuItemRepo();

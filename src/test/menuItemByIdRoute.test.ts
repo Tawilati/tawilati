@@ -74,48 +74,57 @@ describe("PATCH /api/menu-items/:id", () => {
     );
   });
 
-  it("rejects an empty update", async () => {
-    await expect(
-      PATCH(request({}), {
-        params: Promise.resolve({ id: itemId }),
-      }),
-    ).rejects.toBeDefined();
+  it("returns 400 for an empty update", async () => {
+    const response = await PATCH(request({}), {
+      params: Promise.resolve({ id: itemId }),
+    });
+    const body = await response.json();
 
+    expect(response.status).toBe(400);
+    expect(body.success).toBe(false);
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid update data", async () => {
-    await expect(
-      PATCH(request({ priceUSD: -10 }), {
-        params: Promise.resolve({ id: itemId }),
-      }),
-    ).rejects.toBeDefined();
+  it("returns 400 for invalid update data", async () => {
+    const response = await PATCH(request({ priceUSD: -10 }), {
+      params: Promise.resolve({ id: itemId }),
+    });
+    const body = await response.json();
 
+    expect(response.status).toBe(400);
+    expect(body.success).toBe(false);
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("does not update when access is denied", async () => {
     mocks.authGuard.mockReturnValue(
-      NextResponse.json({ message: "Unauthorized" }, { status: 401 }),
+      NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 },
+      ),
     );
 
-    const response = await PATCH(request({ name: "Iced Coffee" }), {
-      params: Promise.resolve({ id: itemId }),
-    });
+    const response = await PATCH(
+      request({ name: "Iced Coffee" }),
+      { params: Promise.resolve({ id: itemId }) },
+    );
 
     expect(response.status).toBe(401);
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it("rejects a missing business context", async () => {
+  it("returns 400 when the business context is missing", async () => {
     mocks.getBusinessIdFromRequest.mockReturnValue(null);
 
-    await expect(
-      PATCH(request({ name: "Iced Coffee" }), {
-        params: Promise.resolve({ id: itemId }),
-      }),
-    ).rejects.toThrow("missing_business_context");
+    const response = await PATCH(
+      request({ name: "Iced Coffee" }),
+      { params: Promise.resolve({ id: itemId }) },
+    );
+    const body = await response.json();
 
+    expect(response.status).toBe(400);
+    expect(body.success).toBe(false);
+    expect(body.message).toBe("missing_business_context");
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });

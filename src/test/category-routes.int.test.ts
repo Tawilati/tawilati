@@ -142,7 +142,7 @@ describe("/api/categories integration", () => {
     expect(response.status).toBe(401);
     expect(await response.json()).toMatchObject({
       success: false,
-      message: "Unauthorized",
+      message: "unauthorized",
     });
   });
 });

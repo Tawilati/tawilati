@@ -4,11 +4,27 @@ import type {
   CategoryRecord,
 } from "@/repository/CategoryRepo";
 
+//Import the shared repository singleton.
+import { categoryRepo } from "@/repository/CategoryRepo";
+
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
 export class CategoryService {
-  constructor(private readonly repo: CategoryRepository) {}
+  //Stores the single CategoryService instance.
+  private static instance: CategoryService;
+
+  //Private constructor prevents external code from creating additional service instances. The shared repository is injected here.
+  private constructor(private readonly repo: CategoryRepository) {}
+
+  //Returns the existing instance or creates it once.
+  static getInstance(): CategoryService {
+    if (!CategoryService.instance) {
+      CategoryService.instance = new CategoryService(categoryRepo);
+    }
+
+    return CategoryService.instance;
+  }
 
   async listCategories(businessId: string): Promise<CategoryRecord[]> {
     return this.repo.findManyByBusiness(businessId);
@@ -31,7 +47,15 @@ export class CategoryService {
     businessId: string,
     name: string,
   ): Promise<CategoryRecord> {
-    return this.repo.create(businessId, name);
+    //Check for a duplicate within this business.
+    const existingCategory = await this.repo.findByBusinessAndName(
+      businessId,
+      name,);
+      //Reject duplicate names with HTTP 409 Conflict.
+    if (existingCategory) {
+      throw new ConflictException("category_already_exists");
+    }
+return this.repo.create(businessId, name);
   }
 
   async updateCategory(
@@ -73,3 +97,6 @@ export class CategoryService {
     }
   }
 }
+
+//Export one shared service instance for route handlers to import.
+export const categoryService = CategoryService.getInstance();

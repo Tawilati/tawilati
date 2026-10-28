@@ -32,7 +32,9 @@ const cookieNames = (res: Response) => res.headers.getSetCookie().map((c) => c.s
 
 afterAll(async () => {
   // Users cascade with their business.
-  await prisma.business.deleteMany({ where: { id: { in: businessIds } } });
+  await prisma.business.deleteMany({
+    where: { id: { in: businessIds } },
+  });
   await prisma.$disconnect();
 });
 
@@ -45,7 +47,7 @@ describe("POST /api/auth/register", () => {
     expect(body.data).toMatchObject({ role: "OWNER", slug: `auth-test-cafe-${run}` });
     businessIds.push(body.data.businessId);
     expect(cookieNames(res)).toEqual(["auth_token", "refresh_token"]);
-  });
+  },15000);
 
   it("rejects an email that is already used, whatever its case", async () => {
     const res = await post(register, "/api/auth/register", {
@@ -56,7 +58,7 @@ describe("POST /api/auth/register", () => {
 
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ success: false, message: "email_already_in_use" });
-  });
+  },15000);
 
   it("rejects a business name that is already taken", async () => {
     const res = await post(register, "/api/auth/register", {

@@ -253,6 +253,19 @@
 .tw-nav__item:hover { background: var(--surface-muted); }
 .tw-nav__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .tw-nav__item[aria-current="page"] { background: var(--brand-secondary-tint); color: var(--brand-primary); font-weight: 600; }
+/* A screen that isn't built yet: shown so the menu doesn't move later, but not a link. */
+.tw-nav__item[aria-disabled="true"] { color: var(--text-disabled); cursor: not-allowed; }
+.tw-nav__item[aria-disabled="true"]:hover { background: transparent; }
+.tw-nav__soon {
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+}
 
 /* ---------- Status badge ---------- */
 .tw-badge {

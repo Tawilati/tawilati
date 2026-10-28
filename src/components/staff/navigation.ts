@@ -1,6 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
 import {
-  HomeIcon,
   KitchenIcon,
   MenuIcon,
   PaymentIcon,
@@ -28,10 +27,9 @@ export type NavItem = {
 // The screens each role can open, in menu order. The first one is where the role lands after signing in.
 export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
   [ROLE.OWNER]: [
-    { href: "/dashboard", label: "Overview", icon: HomeIcon, exact: true },
     { href: "/dashboard/menu", label: "Menu", icon: MenuIcon },
     { href: "/dashboard/tables", label: "Tables", icon: TablesIcon, soon: true },
-    { href: "/dashboard/staff", label: "Staff", icon: StaffIcon, phoneMore: true },
+    { href: "/dashboard/staff", label: "Staff", icon: StaffIcon },
     { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon, soon: true },
     { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, phoneMore: true, accountMenu: true },
   ],

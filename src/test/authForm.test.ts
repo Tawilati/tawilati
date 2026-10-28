@@ -78,7 +78,7 @@ describe("errorsFromResponse", () => {
 
 describe("destinationFor", () => {
   it("sends each role to its first screen", () => {
-    expect(destinationFor("OWNER")).toBe("/dashboard");
+    expect(destinationFor("OWNER")).toBe("/dashboard/menu");
     expect(destinationFor("KITCHEN")).toBe("/kitchen");
     expect(destinationFor("WAITER")).toBe("/waiter");
   });

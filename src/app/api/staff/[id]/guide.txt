@@ -1,0 +1,98 @@
+PATCH /api/staff/:id - API TEST GUIDE
+
+Purpose
+  Update a waiter or kitchen account in the authenticated OWNER's business.
+
+Authentication and authorization
+  A valid staff session with OWNER permission is required.
+  Staff from another business and OWNER accounts are not editable through this
+  endpoint.
+
+Path
+  /api/staff/{id}
+  id must be a UUID.
+
+Body
+  At least one supported field:
+  { "name": "Rami", "role": "KITCHEN", "isActive": false }
+  Supported fields: name, role, isActive.
+
+Success
+  Status: 200
+  { "success": true, "message": "staff updated", "data": {
+      "id": "...", "name": "...", "email": "...",
+      "role": "WAITER", "isActive": true, "createdAt": "ISO date"
+  } }
+
+TEST CASES
+
+1. Rename staff
+  As OWNER, PATCH a staff UUID with { "name": "  Rami  " }.
+  Expect 200 and a trimmed name.
+
+2. Change role
+  Change WAITER to KITCHEN and vice versa.
+  Expect 200 and the new role.
+
+3. Deactivate or reactivate
+  PATCH { "isActive": false }, then { "isActive": true }.
+  Expect 200 and the requested state each time.
+  Verify separately whether deactivation immediately blocks existing access and
+  refresh sessions; route behavior should meet the staff-deactivation policy.
+
+4. Combine supported fields
+  Send name, role, and isActive together.
+  Expect one successful update containing all requested changes.
+
+5. Unauthenticated request
+  Expect 401 unauthorized from the proxy.
+
+6. WAITER or KITCHEN attempts update
+  Expect 403 forbidden.
+
+7. Invalid path id
+  Try a malformed UUID.
+  Expect 400 validation_error; no database lookup should occur.
+
+8. Unknown staff UUID
+  Expect 404 not_found.
+
+9. Staff UUID belonging to another business
+  Expect the same 404 not_found as an unknown UUID; do not disclose the other
+  business's staff record.
+
+10. Attempt to update an OWNER account
+  Expect 404 not_found because OWNER is outside the staff roles.
+
+11. Missing, empty, or unknown-only body
+  Try {}, { "name": "" }, and { "unexpected": true }.
+  Expect 400 validation_error; at least one supported, valid field is required.
+
+12. Invalid field values
+  Try an empty or over-100-character name, role OWNER, an unknown role, or a
+  non-boolean isActive value.
+  Expect 400 validation_error.
+
+13. Extra tenant or sensitive fields
+  Add businessId, passwordHash, or refreshToken alongside a valid field.
+  Unknown keys are stripped. The update must remain scoped to the session's
+  business and must not set those fields.
+
+14. Record deleted between lookup and update
+  Simulate deletion after findInBusiness but before update.
+  Expect 404 not_found (Prisma P2025 mapping).
+
+15. Database unavailable
+  Expect 500 database_error without internal details.
+
+16. Malformed JSON
+  Expect 400 invalid_json.
+
+17. Method not supported
+  Try GET /api/staff/{id}.
+  Expect Next.js 405 Method Not Allowed.
+
+Security checks
+  - Never accept businessId from the request body.
+  - Never return passwordHash or token fields.
+  - Unknown and cross-tenant IDs should be indistinguishable to the caller.

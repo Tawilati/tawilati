@@ -1,0 +1,110 @@
+STAFF COLLECTION API - TEST GUIDE
+
+Routes
+  POST /api/staff - create a waiter or kitchen account.
+  GET  /api/staff - list waiter and kitchen accounts in the current business.
+
+Authentication and permissions
+  Both routes require a valid staff session and OWNER permission.
+  The businessId is always taken from the authenticated identity header, never
+  from the request body.
+
+POST /api/staff
+
+Body
+  {
+    "name": "Rami",
+    "email": "rami@example.test",
+    "password": "Secret123",
+    "role": "WAITER"
+  }
+  role must be WAITER or KITCHEN.
+
+Success
+  Status: 201
+  { "success": true, "message": "staff created", "data": {
+      "id": "...", "name": "Rami", "email": "rami@example.test",
+      "role": "WAITER", "isActive": true, "createdAt": "ISO date"
+  } }
+
+POST TEST CASES
+
+1. Create waiter and kitchen users
+  As OWNER, submit a valid body for each supported role.
+  Expect 201 and a safe staff response; passwordHash and auth tokens must not
+  appear.
+
+2. Unauthenticated request
+  Expect 401 unauthorized from the proxy.
+
+3. WAITER or KITCHEN tries to create staff
+  Expect 403 forbidden.
+
+4. Missing or invalid fields
+  Try {}, omitted required fields, invalid email, empty/overlong name, invalid
+  role, and password shorter than 8, over 100 characters, without a letter, or
+  without a number.
+  Expect 400 validation_error with field details.
+
+5. Malformed JSON
+  Expect 400 { "success": false, "message": "invalid_json" }.
+
+6. Email normalization
+  Submit mixed-case email with surrounding spaces.
+  Expect stored/returned email to be trimmed and lowercased.
+
+7. Name normalization
+  Submit a name with surrounding spaces.
+  Expect returned name to be trimmed.
+
+8. Globally duplicated email
+  Use an email already registered by any role or business.
+  Expect 409 email_already_in_use.
+
+9. Concurrent duplicate email
+  Send two create requests with the same email at once.
+  At most one should return 201; the database unique constraint should make the
+  other return 409 email_already_in_use.
+
+10. Body contains another businessId
+  Submit a valid body plus businessId for a different business.
+  The schema strips unknown fields. Verify the new user belongs to the OWNER's
+  business, never the body-supplied business.
+
+11. Database unavailable
+  Expect 500 database_error without internal details.
+
+GET /api/staff
+
+Success
+  Status: 200
+  { "success": true, "message": "staff list", "data": [ ...staff responses ] }
+  Empty result is a successful data: [] response.
+  Results are ordered by createdAt ascending.
+
+GET TEST CASES
+
+12. OWNER lists staff
+  Expect only WAITER and KITCHEN accounts from the OWNER's business.
+  Confirm owner accounts and other businesses' staff are absent.
+
+13. Business has no staff
+  Expect 200 with an empty array, not 404.
+
+14. Unauthenticated request
+  Expect 401 unauthorized.
+
+15. WAITER or KITCHEN tries to list staff
+  Expect 403 forbidden.
+
+16. Forged business identity headers
+  Send client-supplied x-business-id for another tenant.
+  The proxy must discard client-provided identity headers; results remain scoped
+  to the verified session.
+
+17. Database unavailable
+  Expect 500 database_error.
+
+18. Method not supported
+  Try PATCH /api/staff without an id.
+  Expect Next.js 405 Method Not Allowed.

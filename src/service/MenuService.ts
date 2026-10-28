@@ -1,5 +1,4 @@
-// Type-only import: the service never loads Prisma, so unit tests run without a database.
-import type { MenuRepository } from "@/repository/MenuRepo";
+import { menuRepo, type MenuRepository } from "@/repository/MenuRepo";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import logger from "@/utils/logger";
@@ -20,17 +19,26 @@ export type PublicMenu = {
 };
 
 export class MenuService {
-  constructor(private readonly repo: MenuRepository) {}
+  private static instance: MenuService;
+
+ 
+
+  static getInstance(): MenuService {
+    if (!MenuService.instance) {
+      MenuService.instance = new MenuService();
+    }
+    return MenuService.instance;
+  }
 
   // The menu a guest sees after scanning the QR code on a table.
   async getPublicMenu({ businessSlug, qrToken }: PublicMenuQuery): Promise<PublicMenu> {
-    const table = await this.repo.findTableByQrToken(qrToken);
+    const table = await menuRepo.findTableByQrToken(qrToken);
     // A token from another business gets the same answer as an unknown one.
     if (!table || table.business.slug !== businessSlug) throw new NotFoundException("invalid_qr");
     
     if (table.isDisabled) throw new ConflictException("table_disabled");
 
-    const categories = await this.repo.findMenuCategories(table.business.id);
+    const categories = await menuRepo.findMenuCategories(table.business.id);
 
     return {
       business: table.business,
@@ -53,3 +61,5 @@ export class MenuService {
     };
   }
 }
+
+export const menuService = MenuService.getInstance();

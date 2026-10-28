@@ -1,0 +1,65 @@
+GET /api/auth/business-name - API TEST GUIDE
+
+Purpose
+  Public availability check for the business-name field during registration.
+
+Authentication
+  Public route; no staff or guest credential is required.
+
+Query
+  ?name=Business%20Name
+
+Success response
+  Status: 200
+  { "success": true, "data": { "available": true } }
+  The response includes Cache-Control: no-store.
+
+TEST CASES
+
+1. Unused valid name
+  GET /api/auth/business-name?name=New%20Cafe
+  Expect 200 and available:true.
+
+2. Exact existing name
+  Expect 200 and available:false. This is a public check by design.
+
+3. Leading/trailing whitespace
+  Query with ?name=%20%20Cafe%20%20.
+  Zod trims the value before the lookup; expect the normalized name's result.
+
+4. Name below the minimum or blank
+  Try missing name, name=, whitespace-only, and a one-character name.
+  Expect 400 { success:false, message:"validation_error", details:... }.
+
+5. Name above the maximum
+  Supply more than 100 characters.
+  Expect 400 validation_error.
+
+6. Name with no letter
+  Supply only digits or punctuation.
+  Expect 400 validation_error because a business name must contain a letter.
+
+7. Arabic or other Unicode letters
+  Supply a valid name containing Unicode letters.
+  Expect validation to pass. Availability then reflects the exact stored name.
+
+8. Extra query parameters
+  Add unrelated parameters, such as ?name=Cafe&role=OWNER.
+  The schema ignores unknown keys; the name check still succeeds.
+
+9. Repeated name parameter
+  Send ?name=First&name=Second.
+  The parser converts query parameters with Object.fromEntries; verify that the
+  last value is the one checked.
+
+10. Database unavailable
+  Expect 500 database_error with no infrastructure details exposed.
+
+11. Method not supported
+  Try POST /api/auth/business-name.
+  Expect Next.js 405 Method Not Allowed.
+
+Race-condition note
+  Availability is advisory only. Another registration can claim the name after
+  this response; POST /api/auth/register must still enforce uniqueness and
+  return 409 business_name_taken.

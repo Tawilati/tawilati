@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 import { MenuStateScreen, type MenuProblem } from "@/components/menu/MenuStateScreen";
 import { MenuView } from "@/components/menu/MenuView";
-import { menuRepo } from "@/repository/MenuRepo";
-import { MenuService, type PublicMenu } from "@/service/MenuService";
+import { menuService, type PublicMenu } from "@/service/MenuService";
 import { HttpException } from "@/utils/exceptions/http/HttpException";
 import { publicMenuQuerySchema, type PublicMenuQuery } from "@/validation/menuSchemas";
-
-const menuService = new MenuService(menuRepo);
 
 export const metadata: Metadata = { title: "Menu · Tawilati" };
 

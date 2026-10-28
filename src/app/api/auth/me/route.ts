@@ -3,8 +3,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { authGuard } from "@/lib/auth/gaurd"
 import { getUserIdFromRequest } from "@/lib/auth/requestHelper";
+import { handle } from "@/lib/http";
 import { userRepo } from "@/repository/UserRepo";
-import { handleRouteError } from "@/utils/handleRouteError";
 
 /**
  * GET /api/auth/me
@@ -24,7 +24,7 @@ import { handleRouteError } from "@/utils/handleRouteError";
  *   500 — DB error (DBException)
  */
 export async function GET(request: NextRequest) {
-  try {
+  return handle(async () => {
     // 1. Auth guard — no role/permission required.
     //    Returns 401 NextResponse if no session; null if allowed.
     const authError = authGuard(request);
@@ -56,7 +56,5 @@ export async function GET(request: NextRequest) {
         createdAt: user.createdAt,
       },
     });
-  } catch (err) {
-    return handleRouteError(err);
-  }
+  });
 }

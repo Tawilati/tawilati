@@ -2,6 +2,7 @@
 import { userRepo } from "@/repository/UserRepo";
 import {
   mapToRegisterResponse,
+  type AuthenticatedUser,
   type RegisterRequest,
   type RegisterResponse,
   type StaffProfile,
@@ -10,13 +11,12 @@ import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { slugService } from "./SlugService";
 import bcrypt from "bcryptjs";
 import { businessRepo } from "@/repository/BusinessRepo";
-import prisma from "@/lib/db";
-import { UserRole } from "@/app/generated/prisma/enums";
+import { registrationRepo } from "@/repository/RegistrationRepo";
 import { makeSlug } from "@/utils/slug";
 import logger from "@/utils/logger";
 import { ItemNotFoundException } from "@/utils/exceptions/RepoException";
 import { AuthenticationException } from "@/utils/exceptions/http/AuthenticationException";
-import { User } from "@/app/generated/prisma/client";
+import { ForbiddenException } from "@/utils/exceptions/http/ForbiddenException";
 
 // Compared against when the email is unknown, so a login takes the same time
 // whether or not the account exists.
@@ -33,8 +33,8 @@ export class UserService {
   }
   // Unknown email, wrong password and deactivated account all get the same 401
   // invalid_credentials, so the answer never tells which emails have an account.
-  async validateUser(email: string, pass: string): Promise<User> {
-    let targetUser: User | null = null;
+  async validateUser(email: string, pass: string): Promise<AuthenticatedUser> {
+    let targetUser: AuthenticatedUser | null = null;
     try {
       targetUser = await userRepo.getByEmail(email.trim().toLowerCase());
     } catch (err) {
@@ -44,9 +44,13 @@ export class UserService {
     // Always run bcrypt, even with no user (see DUMMY_PASSWORD_HASH).
     const passwordMatches = await bcrypt.compare(pass, targetUser?.passwordHash ?? DUMMY_PASSWORD_HASH);
 
-    if (!targetUser || !passwordMatches || !targetUser.isActive) {
+    if (!targetUser || !passwordMatches ) {
       logger.warn("Login attempt failed: invalid credentials");
       throw new AuthenticationException("invalid_credentials");
+    }
+    if(!targetUser.isActive){
+      logger.error('user is inactivated account');
+      throw new ForbiddenException('inactive user')
     }
     return targetUser;
   }
@@ -70,7 +74,7 @@ export class UserService {
     return !(await businessRepo.existsByName(name));
   }
 
-  async registerUser(data:{businessName:string,ownerName:string,email:string,password:string}): Promise<RegisterResponse> {
+  async registerUser(data: RegisterRequest): Promise<RegisterResponse> {
     // 1. Normalize email ONCE — used for both the check and the insert
     const email = data.email.trim().toLowerCase();
 
@@ -93,28 +97,21 @@ export class UserService {
     // 4. Hash password
     const passwordHash = await bcrypt.hash(data.password, 10);
 
-    // 5. Atomic insert (Business + Owner)
-    return prisma.$transaction(async (tx) => {
-      const business = await businessRepo.create(tx, data.businessName, slug);
-
-      const owner = await userRepo.create(
-        {
-          businessId: business.id,
-          name: data.ownerName,
-          email,                    // ← normalized
-          passwordHash,
-          role: UserRole.OWNER,
-        },
-        tx
-      );
-
-      return mapToRegisterResponse(
-        business.id,
-        owner.id,
-        owner.role,
-        business.slug
-      );
+    // The repository keeps business and owner creation in one transaction.
+    const registration = await registrationRepo.registerOwner({
+      businessName: data.businessName,
+      ownerName: data.ownerName,
+      email,
+      passwordHash,
+      slug,
     });
+
+    return mapToRegisterResponse(
+      registration.businessId,
+      registration.userId,
+      registration.role,
+      registration.slug,
+    );
   }
 }
 

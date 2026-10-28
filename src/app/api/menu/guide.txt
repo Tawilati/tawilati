@@ -1,0 +1,98 @@
+GET /api/menu - API TEST GUIDE
+
+Purpose
+  Resolve a table QR token and return the public menu for its business.
+
+Authentication
+  Public route. Staff and guest-session credentials are not required.
+
+Query
+  ?b={businessSlug}&t={64-character-lowercase-hex-qr-token}
+
+Success response
+  Status: 200
+  Response is the menu object directly (not wrapped in success/data):
+  {
+    "business": { "id": "...", "name": "...", "slug": "..." },
+    "table": { "id": "...", "label": "...", "slug": "..." },
+    "categories": [
+      {
+        "id": "...",
+        "name": "...",
+        "items": [
+          {
+            "id": "...",
+            "name": "...",
+            "priceUSD": "2.50",
+            "priceLBP": "223750",
+            "soldOut": false
+          }
+        ]
+      }
+    ]
+  }
+  Cache-Control: no-store is required because sold-out state can change.
+
+TEST CASES
+
+1. Valid business slug and table QR token
+  Expect 200 with the token's table, business, and currently visible menu.
+
+2. Missing b or t
+  Expect 400 validation_error.
+
+3. Invalid business slug
+  Try uppercase, whitespace, invalid punctuation, or a slug longer than 60
+  characters.
+  Expect 400 validation_error.
+
+4. Invalid QR token format
+  Try fewer/more than 64 characters, uppercase hex, or non-hex characters.
+  Expect 400 validation_error.
+
+5. Unknown but correctly formatted token
+  Expect 404 { "success": false, "message": "invalid_qr" }.
+
+6. Token belongs to a different business than b
+  Expect the same 404 invalid_qr as an unknown token; do not reveal which
+  business owns a token.
+
+7. Disabled table
+  Use a valid token for a disabled table.
+  Expect 409 { "success": false, "message": "table_disabled" }.
+
+8. Archived items
+  Include archived and active items in a category.
+  Expect archived items omitted. If a category then has no visible items, omit
+  the category as well.
+
+9. Empty menu
+  If the business has no categories or all items are archived, expect 200 with
+  categories: [].
+
+10. Sold-out item
+  Expect the item to remain in the menu with soldOut:true; it is not hidden.
+
+11. Price formatting
+  Check USD has exactly two decimal places and LBP has no decimal places; both
+  are strings. Confirm no floating-point formatting is introduced.
+
+12. Extra query parameter
+  Add unrelated query keys. They are ignored by the current Zod object parser.
+
+13. Repeated b or t parameters
+  The query parser uses Object.fromEntries, so the last repeated value is used.
+  Verify malformed final values produce validation_error.
+
+14. Database unavailable
+  Expect 500 database_error without internal details.
+
+15. Method not supported
+  Try POST /api/menu.
+  Expect Next.js 405 Method Not Allowed.
+
+Security checks
+  - Do not accept businessId from the request.
+  - A valid token with the wrong business slug must not return menu data.
+  - This route resolves the QR token; it does not create a guest session or submit
+    an order.

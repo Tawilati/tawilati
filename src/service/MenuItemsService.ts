@@ -14,6 +14,9 @@ import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 
+// Decimal(12,2) holds values below 10^10.
+const MAX_PRICE_LBP = new Prisma.Decimal("10000000000");
+
 export class MenuItemService {
   // Stores the single MenuItemService instance.
   private static instance: MenuItemService;
@@ -36,9 +39,18 @@ export class MenuItemService {
     priceUSD: Prisma.Decimal,
     exchangeRate: Prisma.Decimal,
   ): Prisma.Decimal {
-    return priceUSD
+    const priceLBP = priceUSD
       .mul(exchangeRate)
       .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+
+    // priceLBP is Decimal(12,2); a high rate can push a valid USD price past it.
+    if (priceLBP.gte(MAX_PRICE_LBP)) {
+      throw new BadRequestException("validation_error", {
+        priceUSD: ["Price is too high for the current exchange rate"],
+      });
+    }
+
+    return priceLBP;
   }
 
   // List menu items belonging to a business.

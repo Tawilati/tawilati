@@ -112,6 +112,16 @@ describe("MenuItemService", () => {
       });
     });
 
+    it("rejects a price whose LBP value would overflow the column, without writing", async () => {
+      repo.categoryBelongsToBusiness.mockResolvedValue(true);
+      repo.findBusinessExchangeRate.mockResolvedValue(new Prisma.Decimal("200000"));
+
+      await expect(
+        menuItemService.create(BUSINESS_ID, { name: "Gold", categoryId: CATEGORY_ID, priceUSD: 99999 }),
+      ).rejects.toMatchObject({ status: 400, message: "validation_error" });
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
     it("rounds the USD price to two decimal places using half-up rounding", async () => {
       repo.categoryBelongsToBusiness.mockResolvedValue(true);
       repo.findBusinessExchangeRate.mockResolvedValue(exchangeRate);

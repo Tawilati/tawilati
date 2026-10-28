@@ -74,6 +74,7 @@ export function errorsFromResponse(mode: AuthMode, body: unknown): AuthErrors {
       return Object.keys(fields).length > 0 ? { fields } : { fields, form: SERVER_TROUBLE };
     }
     case "invalid_credentials":
+    case "inactive user": // 403 from the login route for a turned-off account with the right password
       // Same sentence for a wrong password, an unknown email and a turned-off account.
       return {
         fields: {},

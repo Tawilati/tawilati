@@ -56,6 +56,13 @@ describe("errorsFromResponse", () => {
     expect(JSON.stringify(form)).not.toContain("invalid_credentials");
   });
 
+  it("shows a turned-off account (403 inactive user) with the same message as a wrong password", () => {
+    const { form } = errorsFromResponse("login", { message: "inactive user" });
+
+    expect(form).toEqual(errorsFromResponse("login", { message: "invalid_credentials" }).form);
+    expect(JSON.stringify(form)).not.toContain("inactive");
+  });
+
   it("maps validation_error details to the field sentences", () => {
     const { fields, form } = errorsFromResponse("register", {
       message: "validation_error",

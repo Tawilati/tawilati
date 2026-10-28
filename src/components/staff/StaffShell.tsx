@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronRightIcon, LogOutIcon, SettingsIcon, XIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
@@ -72,7 +72,6 @@ export function StaffShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -85,8 +84,8 @@ export function StaffShell({
     setSigningOut(true);
     // Logout clears the auth cookies; whatever the answer, leave the staff area.
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    router.replace("/login");
-    router.refresh();
+    // A full page load, not router.replace + refresh: those two raced, leaving this dialog spinning on the old screen.
+    window.location.assign("/login");
   }
   const items = NAV_BY_ROLE[role];
   const sidebarItems = items.filter((item) => !item.accountMenu);

@@ -23,6 +23,10 @@ export async function call<T = undefined>(path: string, method: string, body?: u
   }
   if (response.status === 204) return undefined as T;
   const json = await response.json().catch(() => null);
+  if (response.status === 401 && typeof window !== "undefined") {
+    // The proxy already tried the refresh token and cleared the cookies: the session is over, so leave the screen.
+    window.location.assign("/login?reason=unauthorized");
+  }
   if (!response.ok) {
     const fallback = response.status === 401 ? "unauthorized" : response.status === 403 ? "forbidden" : "internal_server_error";
     throw new ApiError(String(json?.message ?? fallback), response.status);

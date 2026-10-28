@@ -162,11 +162,10 @@ export function StaffManager() {
         )}
 
         {editing && (
-          <Modal title={editing === "new" ? "Add staff member" : "Edit staff member"} onClose={() => setEditing(null)}>
+          <Modal title={editing === "new" ? "Add staff member" : "Edit staff member"} locked={mutating} onClose={() => setEditing(null)}>
             <StaffForm
               member={editing === "new" ? null : editing}
               onSave={save}
-              onCancel={() => setEditing(null)}
             />
           </Modal>
         )}
@@ -183,20 +182,23 @@ export function StaffManager() {
           {staff.map((member) => (
             <li
               key={member.id}
-              className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border-subtle p-4 ${
+              className={`flex items-center gap-3 rounded-2xl border border-border-subtle p-4 ${
                 member.isActive ? "bg-surface" : "bg-surface-muted"
               }`}
             >
-              <div className="flex min-w-0 flex-1 basis-44 flex-col gap-0.5">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <p className={`truncate text-base font-semibold ${member.isActive ? "text-ink" : "text-ink-muted"}`}>
                   {member.name}
                 </p>
                 <p className="truncate text-[13px] text-ink-muted">{member.email}</p>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-[13px] font-semibold leading-snug ${
+              {/* The role, with Inactive under it; the three dots stay at the same spot on every card. */}
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[13px] font-semibold leading-snug ${
                     member.role === "WAITER" ? "bg-primary text-on-primary" : "bg-[var(--brand-accent)] text-ink"
-                  }`}>
+                  }`}
+                >
                   {roleLabel(member.role)}
                 </span>
                 {!member.isActive && (
@@ -204,32 +206,32 @@ export function StaffManager() {
                     Inactive
                   </StatusBadge>
                 )}
-                <div className="-mr-2">
-                  <ItemMenu
-                    itemName={member.name}
-                    actions={
-                      member.isActive
-                        ? [
-                            {
-                              label: "Edit",
-                              onSelect: () => {
-                                setNotice(null);
-                                setEditing(member);
-                              },
+              </div>
+              <div className="-mr-2 shrink-0">
+                <ItemMenu
+                  itemName={member.name}
+                  actions={
+                    member.isActive
+                      ? [
+                          {
+                            label: "Edit",
+                            onSelect: () => {
+                              setNotice(null);
+                              setEditing(member);
                             },
-                            {
-                              danger: true,
-                              label: "Deactivate",
-                              onSelect: () => {
-                                setNotice(null);
-                                setDeactivating(member);
-                              },
+                          },
+                          {
+                            danger: true,
+                            label: "Deactivate",
+                            onSelect: () => {
+                              setNotice(null);
+                              setDeactivating(member);
                             },
-                          ]
-                        : [{ label: "Reactivate", onSelect: () => void setActive(member, true) }]
-                    }
-                  />
-                </div>
+                          },
+                        ]
+                      : [{ label: "Reactivate", onSelect: () => void setActive(member, true) }]
+                  }
+                />
               </div>
             </li>
           ))}

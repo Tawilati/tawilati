@@ -1,6 +1,7 @@
 // The owner's staff screen talks to /api/staff. The API has no delete: deactivating is how an account is removed,
 // and it can be undone. Error codes never reach the person: `staffSentenceFor` turns each one into a sentence.
 import { ApiError, call } from "../api";
+import { createStaffSchema } from "@/validation/staff";
 
 export type StaffRole = "WAITER" | "KITCHEN";
 
@@ -49,5 +50,5 @@ export function roleLabel(role: StaffRole): string {
 export function emailHint(text: string): string | undefined {
   const email = text.trim();
   if (!email) return undefined;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? undefined : "Enter a valid email";
+  return createStaffSchema.shape.email.safeParse(email).success ? undefined : "Enter a valid email";
 }

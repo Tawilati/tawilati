@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { PasswordRules } from "@/components/auth/PasswordRules";
-import { Button, PasswordField, SelectField, TextField } from "@/components/ui";
+import { Button, PasswordField, SelectField, TextField, useModalGuard } from "@/components/ui";
 import { PASSWORD_RULES } from "@/validation/User";
 import { emailHint, ROLE_OPTIONS, type NewStaff, type StaffMember, type StaffRole } from "./staffApi";
 
@@ -10,11 +10,9 @@ import { emailHint, ROLE_OPTIONS, type NewStaff, type StaffMember, type StaffRol
 export function StaffForm({
   member,
   onSave,
-  onCancel,
 }: {
   member: StaffMember | null;
   onSave: (input: NewStaff) => Promise<string | null>;
-  onCancel: () => void;
 }) {
   const [name, setName] = useState(member?.name ?? "");
   const [email, setEmail] = useState(member?.email ?? "");
@@ -22,6 +20,12 @@ export function StaffForm({
   const [role, setRole] = useState<StaffRole>(member?.role ?? "WAITER");
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; form?: string }>({});
   const [pending, setPending] = useState(false);
+  const requestClose = useModalGuard(
+    name !== (member?.name ?? "") ||
+      email !== (member?.email ?? "") ||
+      password !== "" ||
+      role !== (member?.role ?? "WAITER"),
+  );
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -48,13 +52,13 @@ export function StaffForm({
   return (
     <>
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <fieldset disabled={pending} className="contents">
         <TextField
           label="Name"
           value={name}
           error={errors.name}
           maxLength={100}
           autoComplete="off"
-          autoFocus
           onChange={(e) => {
             setName(e.target.value);
             clear("name");
@@ -106,10 +110,11 @@ export function StaffForm({
           <Button type="submit" loading={pending}>
             {member ? "Save changes" : "Add staff member"}
           </Button>
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="ghost" onClick={requestClose}>
             Cancel
           </Button>
         </div>
+        </fieldset>
       </form>
     </>
   );

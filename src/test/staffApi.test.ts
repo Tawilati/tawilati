@@ -56,5 +56,7 @@ describe("staff wording", () => {
     expect(emailHint("")).toBeUndefined();
     expect(emailHint(" rami@example.com ")).toBeUndefined();
     expect(emailHint("rami@")).toMatch(/valid email/);
+    expect(emailHint("rami..staff@example.com")).toMatch(/valid email/);
+    expect(emailHint(`${"a".repeat(250)}@example.com`)).toMatch(/valid email/);
   });
 });

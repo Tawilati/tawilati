@@ -15,6 +15,7 @@ const { repo } = vi.hoisted(() => ({
     create: vi.fn(),
     update: vi.fn(),
     setArchived: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -380,6 +381,29 @@ describe("MenuItemService", () => {
       ).rejects.toThrow(ConflictException);
 
       expect(repo.setArchived).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("MenuItemService.delete", () => {
+  it("deletes an item nobody ordered", async () => {
+    repo.delete.mockResolvedValue("deleted");
+
+    await expect(menuItemService.delete(BUSINESS_ID, ITEM_ID)).resolves.toBeUndefined();
+    expect(repo.delete).toHaveBeenCalledWith(ITEM_ID, BUSINESS_ID);
+  });
+
+  it("is a 404 for an item outside the business", async () => {
+    repo.delete.mockResolvedValue("not_found");
+
+    await expect(menuItemService.delete(BUSINESS_ID, ITEM_ID)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("is a 409 for an item that was ordered", async () => {
+    repo.delete.mockResolvedValue("in_use");
+
+    await expect(menuItemService.delete(BUSINESS_ID, ITEM_ID)).rejects.toMatchObject({
+      message: "menu_item_in_use",
     });
   });
 });

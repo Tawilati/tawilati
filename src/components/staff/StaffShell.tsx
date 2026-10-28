@@ -79,7 +79,7 @@ export function StaffShell({
     <div className="flex min-h-full flex-1">
       <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col gap-5 border-r border-border-subtle bg-surface px-3 py-5 md:flex">
         <Link href={items[0].href} className="ml-2 self-start">
-          <Logo className="h-auto w-32" />
+          <Logo priority className="h-auto w-32" />
         </Link>
         <nav className="tw-nav" aria-label="Staff">
           {barItems.map((item) => (
@@ -130,7 +130,7 @@ export function StaffShell({
           className="sticky z-20 flex items-center justify-between border-b border-border-subtle bg-surface px-4 py-3 md:hidden"
           style={{ top: "env(safe-area-inset-top, 0px)" }}
         >
-          <Logo className="h-auto w-[104px]" />
+          <Logo priority className="h-auto w-[104px]" />
           <span className="text-xs font-semibold text-secondary-ink">{ROLE_LABEL[role]}</span>
         </header>
 

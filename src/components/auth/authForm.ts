@@ -14,18 +14,18 @@ export type AuthErrors = { fields: FieldErrors; form?: FormMessage };
 // One sentence per field, whatever rule it broke: it says how to fix it.
 const FIELD_SENTENCES: Record<AuthMode, Partial<Record<AuthField, string>>> = {
   login: {
-    email: "Enter your email address, like name@cafe.com.",
+    email: "Enter your email address, like name@business.com.",
     password: "Enter your password.",
   },
   register: {
     businessName: "Enter the business name: 2 to 100 characters, with at least one letter.",
     ownerName: "Enter the owner's name, up to 100 characters.",
-    email: "Enter a valid email address, like name@cafe.com.",
+    email: "Enter a valid email address, like name@business.com.",
     password: "Use at least 8 characters, with a letter and a number.",
   },
 };
 
-export const BUSINESS_NAME_TAKEN = "Another business already uses this name. Add your area, like “Café Hamra Beirut”.";
+export const BUSINESS_NAME_TAKEN = "Another business already uses this name. Try adding your area or street to it.";
 
 export const OFFLINE: FormMessage = {
   title: "We couldn't reach Tawilati",
@@ -79,7 +79,7 @@ export function errorsFromResponse(mode: AuthMode, body: unknown): AuthErrors {
         fields: {},
         form: {
           title: "Email or password is incorrect",
-          body: "Check them and try again. If you're staff and still can't sign in, ask the café owner.",
+          body: "Check them and try again. If you're staff and still can't sign in, ask the business owner.",
         },
       };
     case "email_already_in_use":

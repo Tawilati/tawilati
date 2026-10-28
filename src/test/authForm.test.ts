@@ -23,7 +23,7 @@ describe("checkFields", () => {
 
   it("checks a single field when it is left, and leaves an empty one alone", () => {
     expect(checkField("register", registerUserRequestSchema, "email", { email: "souad@" })).toBe(
-      "Enter a valid email address, like name@cafe.com.",
+      "Enter a valid email address, like name@business.com.",
     );
     expect(checkField("register", registerUserRequestSchema, "email", { email: "souad@cafe.com" })).toBeUndefined();
     expect(checkField("register", registerUserRequestSchema, "email", { email: "  " })).toBeUndefined();
@@ -41,7 +41,7 @@ describe("checkFields", () => {
 });
 
 describe("errorsFromResponse", () => {
-  it("puts a taken email and a taken café name under their fields", () => {
+  it("puts a taken email and a taken business name under their fields", () => {
     expect(errorsFromResponse("register", { message: "email_already_in_use" }).fields.email).toMatch(/already uses this email/);
     expect(errorsFromResponse("register", { message: "business_name_taken" }).fields.businessName).toMatch(
       /already uses this name/,
@@ -63,7 +63,7 @@ describe("errorsFromResponse", () => {
     });
 
     expect(fields).toEqual({
-      email: "Enter a valid email address, like name@cafe.com.",
+      email: "Enter a valid email address, like name@business.com.",
       password: "Use at least 8 characters, with a letter and a number.",
     });
     expect(form).toBeUndefined();

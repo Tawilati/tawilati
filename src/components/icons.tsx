@@ -93,6 +93,17 @@ export function ClockIcon(props: IconProps) {
   );
 }
 
+// brand/icons/ui/ellipsis-vertical.svg
+export function EllipsisVerticalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </Icon>
+  );
+}
+
 // brand/icons/ui/eye.svg
 export function EyeIcon(props: IconProps) {
   return (

@@ -51,6 +51,14 @@
 .tw-btn--primary { background: var(--brand-primary); color: var(--on-primary); }
 .tw-btn--primary:hover { background: var(--brand-primary-hover); }
 .tw-btn--primary:active { background: var(--brand-primary-active); }
+/* Disabled primary stays green so it still reads as the main action, just washed out. Must follow the rules above. */
+.tw-btn--primary:disabled,
+.tw-btn--primary[aria-disabled="true"] {
+  background: color-mix(in srgb, var(--brand-primary) 45%, white);
+  border-color: transparent;
+  color: var(--on-primary);
+  opacity: 0.85;
+}
 
 /* Secondary: Sage fill. Charcoal text 5.6:1 */
 .tw-btn--secondary { background: var(--brand-secondary); color: var(--text-primary); }

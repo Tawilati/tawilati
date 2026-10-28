@@ -18,3 +18,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ success: true, message: "menu item updated", data: menuItem });
   });
 }
+
+// DELETE /api/menu-items/:id (OWNER): 204; an item that was ever ordered is a 409 menu_item_in_use (archive it instead).
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  return handle(async () => {
+    const denied = authGuard(request, { requirePermission: PERMISSION.MENU_ITEM_WRITE });
+    if (denied) return denied;
+
+    const { id } = await parseParams(params, menuItemIdSchema);
+    await menuItemService.delete(getBusinessIdFromRequest(request)!, id);
+    return new Response(null, { status: 204 });
+  });
+}

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronRightIcon, LogOutIcon, SettingsIcon, XIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
+import { ConfirmDialog } from "@/components/ui";
 import type { ROLE } from "@/types/Roles";
 import { isActive, NAV_BY_ROLE, ROLE_LABEL, type NavItem } from "./navigation";
 
@@ -12,6 +13,28 @@ import { isActive, NAV_BY_ROLE, ROLE_LABEL, type NavItem } from "./navigation";
 function NavLink({ item, pathname, compact = false }: { item: NavItem; pathname: string; compact?: boolean }) {
   const Icon = item.icon;
   const current = isActive(item, pathname);
+  // A screen that isn't built yet: in its place so the menu doesn't move later, but not a link.
+  if (item.soon) {
+    if (compact) {
+      return (
+        <span
+          aria-disabled="true"
+          title="Coming soon"
+          className="flex min-h-12 cursor-not-allowed flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-[var(--text-disabled)]"
+        >
+          <Icon className="h-[26px] w-6" />
+          {item.label}
+        </span>
+      );
+    }
+    return (
+      <span aria-disabled="true" className="tw-nav__item">
+        <Icon className="size-5" />
+        {item.label}
+        <span className="tw-nav__soon">Soon</span>
+      </span>
+    );
+  }
   if (compact) {
     return (
       <Link
@@ -34,7 +57,7 @@ function NavLink({ item, pathname, compact = false }: { item: NavItem; pathname:
   );
 }
 
-// The frame around every staff screen. Tablet and laptop: sidebar, with the `phoneMore` screens and Sign out
+// The frame around every staff screen. Tablet and laptop: sidebar, with the `accountMenu` screens and Sign out
 // folded under the signed-in person's name (an arrow opens them). Phone: top bar + bottom bar, with the
 // same items under "More".
 export function StaffShell({
@@ -51,18 +74,23 @@ export function StaffShell({
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   // Sidebar account menu. Starts open on Staff or Settings, so the current screen stays visible.
   const [accountOpen, setAccountOpen] = useState(() =>
-    NAV_BY_ROLE[role].some((item) => item.phoneMore && isActive(item, pathname)),
+    NAV_BY_ROLE[role].some((item) => item.accountMenu && isActive(item, pathname)),
   );
 
   async function signOut() {
+    setSigningOut(true);
     // Logout clears the auth cookies; whatever the answer, leave the staff area.
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     router.replace("/login");
     router.refresh();
   }
   const items = NAV_BY_ROLE[role];
+  const sidebarItems = items.filter((item) => !item.accountMenu);
+  const accountItems = items.filter((item) => item.accountMenu);
   const barItems = items.filter((item) => !item.phoneMore);
   const moreItems = items.filter((item) => item.phoneMore);
 
@@ -82,21 +110,21 @@ export function StaffShell({
           <Logo priority className="h-auto w-32" />
         </Link>
         <nav className="tw-nav" aria-label="Staff">
-          {barItems.map((item) => (
+          {sidebarItems.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
         </nav>
         <div className="mt-auto flex flex-col border-t border-border-subtle pt-2">
           {accountOpen && (
             <div id="account-menu" className="flex flex-col gap-0.5 pb-1">
-              {moreItems.length > 0 && (
+              {accountItems.length > 0 && (
                 <nav className="tw-nav" aria-label="Account">
-                  {moreItems.map((item) => (
+                  {accountItems.map((item) => (
                     <NavLink key={item.href} item={item} pathname={pathname} />
                   ))}
                 </nav>
               )}
-              <button type="button" onClick={signOut} className="tw-nav__item cursor-pointer text-ink-muted">
+              <button type="button" onClick={() => setConfirmingSignOut(true)} className="tw-nav__item cursor-pointer text-ink-muted">
                 <LogOutIcon className="size-5" />
                 Sign out
               </button>
@@ -189,7 +217,14 @@ export function StaffShell({
                   <NavLink key={item.href} item={item} pathname={pathname} />
                 ))}
               </nav>
-              <button type="button" onClick={signOut} className="tw-nav__item cursor-pointer text-ink-muted">
+              <button
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  setConfirmingSignOut(true);
+                }}
+                className="tw-nav__item cursor-pointer text-ink-muted"
+              >
                 <LogOutIcon className="size-5" />
                 Sign out
               </button>
@@ -197,6 +232,17 @@ export function StaffShell({
           </div>
         )}
       </div>
+      {confirmingSignOut && (
+        <ConfirmDialog
+          title="Sign out?"
+          confirmLabel="Sign out"
+          loading={signingOut}
+          onConfirm={signOut}
+          onCancel={() => setConfirmingSignOut(false)}
+        >
+          You&apos;ll need your email and password to get back in.
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

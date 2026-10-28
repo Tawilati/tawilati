@@ -19,6 +19,10 @@ export type NavItem = {
   exact?: boolean;
   // On a phone, list it under "More" instead of in the bottom bar.
   phoneMore?: boolean;
+  // On a laptop, list it in the account menu (with Sign out) instead of the main sidebar.
+  accountMenu?: boolean;
+  // Not built yet: listed greyed out with a "Soon" label, and not a link.
+  soon?: boolean;
 };
 
 // The screens each role can open, in menu order. The first one is where the role lands after signing in.
@@ -26,10 +30,10 @@ export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
   [ROLE.OWNER]: [
     { href: "/dashboard", label: "Overview", icon: HomeIcon, exact: true },
     { href: "/dashboard/menu", label: "Menu", icon: MenuIcon },
-    { href: "/dashboard/tables", label: "Tables", icon: TablesIcon },
+    { href: "/dashboard/tables", label: "Tables", icon: TablesIcon, soon: true },
     { href: "/dashboard/staff", label: "Staff", icon: StaffIcon, phoneMore: true },
-    { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon },
-    { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, phoneMore: true },
+    { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon, soon: true },
+    { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, phoneMore: true, accountMenu: true },
   ],
   [ROLE.KITCHEN]: [
     { href: "/kitchen", label: "Kitchen", icon: KitchenIcon, exact: true },

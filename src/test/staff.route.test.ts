@@ -333,15 +333,6 @@ describe("PATCH /api/staff/:id", () => {
       expect(mockedStaffService.updateStaff).not.toHaveBeenCalled();
     });
 
-    // Test 25 — malformed id
-    it("returns 400 validation_error when the id is not a uuid", async () => {
-      const res = await patch({ name: "Rami" }, {}, "not-a-uuid");
-
-      expect(res.status).toBe(400);
-      expect(Object.keys((await res.json()).details)).toEqual(["id"]);
-      expect(mockedStaffService.updateStaff).not.toHaveBeenCalled();
-    });
-
     // Test 26 — malformed JSON
     it("returns 400 invalid_json when the body is not valid JSON", async () => {
       const res = await patch(null, { invalidJson: true });

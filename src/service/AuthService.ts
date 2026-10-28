@@ -218,6 +218,11 @@ validateAccessToken(token: string): UserPayload {
 
 
     }
+    // Sign out: the stored refresh token is dropped too, so a copied refresh cookie can't sign back in.
+    async logout(response: NextResponse, userId: string): Promise<void> {
+        await userRepo.updateRefreshToken(userId, null, null);
+        this.clearAuthCookies(response);
+    }
      clearAuthCookies(response: NextResponse): void {
         // ✅ Delete auth_token by setting maxAge: 0
         response.cookies.set('auth_token', '', {

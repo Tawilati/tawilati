@@ -1,4 +1,4 @@
-import { AlertIcon } from "@/components/icons";
+import { CircleAlertIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
 
 export type MenuProblem = "invalid_qr" | "table_disabled" | "empty_menu";
@@ -31,7 +31,7 @@ export function MenuStateScreen({ problem }: { problem: MenuProblem }) {
           isError ? "bg-danger-tint text-danger" : "bg-primary-tint text-primary"
         }`}
       >
-        {isError ? <AlertIcon className="size-[26px]" /> : <Logo variant="icon" className="h-[26px] w-auto" />}
+        {isError ? <CircleAlertIcon className="size-[26px]" /> : <Logo variant="icon" className="h-[26px] w-auto" />}
       </span>
       <h1 className="text-lg font-bold text-balance">{title}</h1>
       <p className="max-w-[30ch] text-sm text-ink-muted">{body}</p>

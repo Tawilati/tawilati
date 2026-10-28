@@ -1,15 +1,20 @@
-// Demo data so everyone tests against the same café. Run with `npm run db:seed`.
-// Safe to re-run: the demo business is deleted and recreated each time, with the same QR tokens.
+// src/prisma/seed.ts
+// Demo data so everyone tests against the same café.
+// Safe to re-run: deletes ALL previous demo rows (users, orders, sessions, payments, submissions) before recreating.
+
 import { createHash } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { Prisma } from "../app/generated/prisma/client";
 import { prisma } from "../lib/db";
 import { makeSlug } from "../utils/slug";
 
 const BUSINESS_NAME = "Tawilati Demo Café";
 const EXCHANGE_RATE = new Prisma.Decimal("89500");
+const OWNER_EMAIL = "owner@tawilati.com";
+const OWNER_PASSWORD = "Secret123";
 
-// Fixed tokens keep the demo QR links stable across re-seeds. Real tables get random tokens.
-const demoToken = (label: string) => createHash("sha256").update(`tawilati-demo-${label}`).digest("hex");
+const demoToken = (label: string) =>
+  createHash("sha256").update(`tawilati-demo-${label}`).digest("hex");
 
 const menu: Record<string, [name: string, priceUSD: string, soldOut?: boolean][]> = {
   "Hot drinks": [
@@ -29,14 +34,81 @@ const menu: Record<string, [name: string, priceUSD: string, soldOut?: boolean][]
 };
 
 async function main() {
-  const old = await prisma.business.findMany({ where: { name: BUSINESS_NAME }, select: { id: true } });
-  if (old.length > 0) {
-    const ids = old.map((b) => b.id);
-    // Items first: MenuItem → MenuCategory is RESTRICT, so the business cascade can't remove them in one go.
-    await prisma.menuItem.deleteMany({ where: { businessId: { in: ids } } });
-    await prisma.business.deleteMany({ where: { id: { in: ids } } });
+  // ─────────────────────────────────────────────────────────────
+  // 1. Delete ALL dependent rows of the previous demo business.
+  //    Order matters: deepest dependents first.
+  // ─────────────────────────────────────────────────────────────
+  const previous = await prisma.business.findMany({
+    where: { name: BUSINESS_NAME },
+    select: { id: true },
+  });
+
+  if (previous.length > 0) {
+    const ids = previous.map((b) => b.id);
+
+    await prisma.$transaction(async (tx) => {
+      // Payments → reference TableSession
+      await tx.payment.deleteMany({
+        where: { session: { businessId: { in: ids } } },
+      });
+
+      // GuestSessions → reference TableSession
+      await tx.guestSession.deleteMany({
+        where: { session: { businessId: { in: ids } } },
+      });
+
+      // OrderLines → reference DiningOrder
+      await tx.orderLine.deleteMany({
+        where: { order: { businessId: { in: ids } } },
+      });
+
+      // Submissions → reference Business + DiningOrder
+      await tx.submission.deleteMany({
+        where: { businessId: { in: ids } },
+      });
+
+      // Now DiningOrders have no lines, no submissions → safe to delete
+      await tx.diningOrder.deleteMany({
+        where: { businessId: { in: ids } },
+      });
+
+      // Now TableSessions have no payments, no guests, no orders → safe to delete
+      await tx.tableSession.deleteMany({
+        where: { businessId: { in: ids } },
+      });
+
+      // DiningTables have no sessions, no orders → safe to delete
+      await tx.diningTable.deleteMany({
+        where: { businessId: { in: ids } },
+      });
+
+      // MenuItems have no order lines → safe to delete
+      await tx.menuItem.deleteMany({
+        where: { businessId: { in: ids } },
+      });
+
+      // MenuCategories have no items → safe to delete
+      await tx.menuCategory.deleteMany({
+        where: { businessId: { in: ids } },
+      });
+
+      // Users → reference Business
+      await tx.user.deleteMany({
+        where: { businessId: { in: ids } },
+      });
+
+      // Finally the Business itself
+      await tx.business.deleteMany({
+        where: { id: { in: ids } },
+      });
+    });
+
+    console.log(`Deleted previous "${BUSINESS_NAME}" and all dependent rows.`);
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // 2. Create the demo business + tables + menu + owner
+  // ─────────────────────────────────────────────────────────────
   const business = await prisma.business.create({
     data: {
       name: BUSINESS_NAME,
@@ -44,7 +116,11 @@ async function main() {
       exchangeRate: EXCHANGE_RATE,
       timezone: "Asia/Beirut",
       tables: {
-        create: ["T1", "T2"].map((label) => ({ label, slug: makeSlug(label, "table"), qrToken: demoToken(label) })),
+        create: ["T1", "T2"].map((label) => ({
+          label,
+          slug: makeSlug(label, "table"),
+          qrToken: demoToken(label),
+        })),
       },
     },
     include: { tables: true },
@@ -61,14 +137,30 @@ async function main() {
           categoryId: category.id,
           name,
           priceUSD,
-          priceLBP: new Prisma.Decimal(priceUSD).times(EXCHANGE_RATE).toDecimalPlaces(0),
+          priceLBP: new Prisma.Decimal(priceUSD)
+            .times(EXCHANGE_RATE)
+            .toDecimalPlaces(0),
           soldOut,
         },
       });
     }
   }
 
+  // One account per role, all with the same password, so each staff screen can be tried.
+  const passwordHash = await bcrypt.hash(OWNER_PASSWORD, 10);
+  const accounts = [
+    { name: "Demo Owner", email: OWNER_EMAIL, role: "OWNER" },
+    { name: "Demo Waiter", email: "waiter@tawilati.com", role: "WAITER" },
+    { name: "Demo Kitchen", email: "kitchen@tawilati.com", role: "KITCHEN" },
+  ] as const;
+  await prisma.user.createMany({
+    data: accounts.map((account) => ({ ...account, businessId: business.id, passwordHash })),
+  });
+
   console.log(`Seeded "${business.name}".`);
+  for (const account of accounts) {
+    console.log(`  ${account.role.padEnd(7)} ${account.email} / ${OWNER_PASSWORD}`);
+  }
   for (const table of business.tables) {
     console.log(`  ${table.label} customer link: /menu/${business.slug}/${table.slug}?t=${table.qrToken}`);
     console.log(`  ${table.label} API:           /api/menu?b=${business.slug}&t=${table.qrToken}`);

@@ -1,3 +1,4 @@
+import { StatusBadge } from "@/components/ui";
 import type { PublicMenuItem } from "@/service/MenuService";
 import { formatLBP, formatUSD } from "@/utils/money";
 
@@ -18,12 +19,7 @@ export function MenuItemCard({ item }: { item: PublicMenuItem }) {
           <span className="text-[13px] text-ink-muted">{formatLBP(item.priceLBP)}</span>
         </p>
       </div>
-      {item.soldOut && (
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-soldout-tint px-2.5 py-1 text-[13px] font-semibold whitespace-nowrap text-soldout">
-          <span className="size-[7px] rounded-full bg-current" aria-hidden="true" />
-          Sold out
-        </span>
-      )}
+      {item.soldOut && <StatusBadge status="SOLD_OUT" className="shrink-0" />}
     </li>
   );
 }

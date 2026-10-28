@@ -1,6 +1,7 @@
 // src/proxy.ts
-// API-only middleware: verifies JWT, injects x-user-* headers,
-// rotates refresh tokens, returns JSON 401 on failure.
+// Runs on /api/* and on the staff screens (/dashboard, /kitchen, /waiter): verifies the JWT,
+// injects x-user-* headers, rotates refresh tokens. On failure: JSON 401 for the API,
+// a redirect to /login for a screen.
 
 import { NextRequest, NextResponse } from "next/server";
 import { authService } from "./service/AuthService";
@@ -20,10 +21,11 @@ const publicApiRoutes = [
   // Staff auth
   "/api/auth/login",
   "/api/auth/register",
+  "/api/auth/business-name", // GET ?name= — sign-up form checks the name is free
   "/api/auth/refresh",
-  "/api/auth/forgot-password",
-  "/api/auth/reset-password",
-  "/api/auth/verify-reset",
+  // "/api/auth/forgot-password",
+  // "/api/auth/reset-password",
+  // "/api/auth/verify-reset",
 
   // Customer-facing (anonymous)
   "/api/menu",            // GET /api/menu?b=&t= — QR resolve
@@ -42,6 +44,19 @@ function isPublicApi(pathname: string): boolean {
   return publicApiRoutes.some((route) => isPathUnder(pathname, route));
 }
 
+// Set only by this proxy. Any copy sent by the browser is dropped first, so a route or
+// screen can trust them.
+const IDENTITY_HEADERS = ["x-user-id", "x-user-role", "x-business-id"];
+
+// The API answers JSON; a screen sends the person to sign in. Either way the dead cookies go.
+function unauthenticated(req: NextRequest): NextResponse {
+  const response = req.nextUrl.pathname.startsWith("/api/")
+    ? NextResponse.json({ success: false, message: "unauthorized" }, { status: 401 })
+    : NextResponse.redirect(new URL("/login", req.url));
+  authService.clearAuthCookies(response);
+  return response;
+}
+
 // ─────────────────────────────────────────────
 // Middleware
 // ─────────────────────────────────────────────
@@ -49,10 +64,12 @@ function isPublicApi(pathname: string): boolean {
 export async function proxy(req: NextRequest) {
   try {
     const currentPath = req.nextUrl.pathname;
+    const requestHeaders = new Headers(req.headers);
+    for (const header of IDENTITY_HEADERS) requestHeaders.delete(header);
 
     // 1. Skip public API routes
     if (isPublicApi(currentPath)) {
-      return NextResponse.next();
+      return NextResponse.next({ request: { headers: requestHeaders } });
     }
 
     const authToken = req.cookies.get("auth_token")?.value;
@@ -65,7 +82,6 @@ export async function proxy(req: NextRequest) {
       try {
         const payload = await authService.validateAccessToken(authToken);
 
-        const requestHeaders = new Headers(req.headers);
         requestHeaders.set("x-user-id", payload.userId);
         requestHeaders.set("x-user-role", payload.userRole);
         requestHeaders.set("x-business-id", payload.businessId);
@@ -90,7 +106,6 @@ export async function proxy(req: NextRequest) {
 
         const payload = authService.validateAccessToken(newAccessToken);
 
-        const requestHeaders = new Headers(req.headers);
         requestHeaders.set("x-user-id", payload.userId);
         requestHeaders.set("x-user-role", payload.userRole);
         requestHeaders.set("x-business-id", payload.businessId);
@@ -116,32 +131,20 @@ export async function proxy(req: NextRequest) {
     }
 
     // ─────────────────────────────────────────
-    // 4. No valid tokens → JSON 401
+    // 4. No valid tokens → JSON 401 (API) or /login (screen)
     // ─────────────────────────────────────────
     logger.warn(`[Middleware] No auth for ${currentPath}`);
-
-    const response = NextResponse.json(
-      { success: false, message: "Authentication required" },
-      { status: 401 }
-    );
-    authService.clearAuthCookies(response);
-    return response;
+    return unauthenticated(req);
   } catch (err) {
     logger.error("[Middleware] Unexpected error", err);
-
-    const response = NextResponse.json(
-      { success: false, message: "Authentication error" },
-      { status: 401 }
-    );
-    authService.clearAuthCookies(response);
-    return response;
+    return unauthenticated(req);
   }
 }
 
 // ─────────────────────────────────────────────
-// Matcher — API routes only
+// Matcher — the API and the staff screens (`:path*` also matches the bare /dashboard)
 // ─────────────────────────────────────────────
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: ["/api/:path*", "/dashboard/:path*", "/kitchen/:path*", "/waiter/:path*"],
 };

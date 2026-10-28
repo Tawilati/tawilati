@@ -8,7 +8,7 @@ export class AuthorizationException extends HttpException {
 }
 export class InsufficientPermissionsException extends AuthorizationException {
     constructor(){
-        super("Insufficient permissions");
+        super("forbidden");
         this.name = "InsufficientPermissionsException";
     }
 }

@@ -1,0 +1,308 @@
+// ─────────────────────────────────────────────────────────────
+// REGISTER ENDPOINT — TEST CASES
+// POST /api/auth/register
+// Body: { businessName, ownerName, email, password }
+// ─────────────────────────────────────────────────────────────
+
+
+//**
+// TEST 1 — Successful registration
+//
+// Request:
+//   POST /api/auth/register
+//   Content-Type: application/json
+//   {
+//     "businessName": "Tawilati Test Café",
+//     "ownerName": "Ali Test",
+//     "email": "ali.test@tawilati.com",
+//     "password": "Secret123"
+//   }
+//
+// Expected:
+//   - Status: 201 Created
+//   - Body: {
+//       success: true,
+//       message: "Registration successful",
+//       data: {
+//         businessId: "...",
+//         userId: "...",
+//         role: "OWNER",
+//         slug: "tawilati-test-cafe"   ← URL-safe
+//       }
+//     }
+//   - Headers: Set-Cookie: auth_token=...; refresh_token=...
+//**
+
+
+//**
+// TEST 2 — Duplicate email
+//
+// Request:
+//   Same email as Test 1, different business name.
+//   {
+//     "businessName": "Another Café",
+//     "ownerName": "Sara",
+//     "email": "ali.test@tawilati.com",   ← duplicate
+//     "password": "Secret456"
+//   }
+//
+// Expected:
+//   - Status: 409 Conflict
+//   - Body: { success: false, message: "email_already_in_use" }
+//**
+
+
+//**
+// TEST 3 — Validation errors (missing / invalid fields)
+//
+// Request:
+//   {
+//     "businessName": "",
+//     "ownerName": "Ali",
+//     "email": "not-an-email",
+//     "password": "123"
+//   }
+//
+// Expected:
+//   - Status: 400 Bad Request
+//   - Body: {
+//       success: false,
+//       message: "validation_error",
+//       details: {
+//         businessName: ["..."],
+//         email:        ["..."],
+//         password:     ["..."]
+//       }
+//     }
+//**
+
+
+//**
+// TEST 4 — Extra fields rejected (strict mode)
+//
+// Request:
+//   {
+//     "businessName": "Strict Café",
+//     "ownerName": "Ali",
+//     "email": "strict@tawilati.com",
+//     "password": "Secret123",
+//     "slug": "hacked-slug",    ← not in schema
+//     "role": "OWNER"           ← not in schema
+//   }
+//
+// Expected (if schema uses .strict()):
+//   - Status: 400
+//   - Body: { success: false, message: "validation_error",
+//             details: [{ path: [], message: "Unrecognized key(s)..." }] }
+//
+// Expected (if schema does NOT use .strict()):
+//   - Status: 201
+//   - extras are silently stripped — slug/role never reach the service
+//**
+
+
+//**
+// TEST 5 — Auto-login after register
+//
+// Steps:
+//   1. POST /api/auth/register → 201 + cookies
+//   2. GET /api/auth/me with the returned cookies
+//
+// Expected:
+//   - Step 1: 201, Set-Cookie: auth_token + refresh_token
+//   - Step 2: 200 { success: true, data: { userId, businessId, email, role } }
+//
+// Proves:
+//   - cookies are set by persistAuth
+//   - JWT is valid
+//   - proxy.ts verifies and injects x-user-* headers
+//   - authGuard reads them correctly
+//**
+
+
+//**
+// TEST 6 — No cookie → 401 on protected endpoint
+//
+// Request:
+//   GET /api/auth/me
+//   (no Cookie header)
+//
+// Expected:
+//   - Status: 401 Unauthorized
+//   - Body: { success: false, message: "unauthorized" }
+//**
+
+
+//**
+// TEST 7 — Full auth chain (register → create staff)
+//
+// Steps:
+//   1. POST /api/auth/register → 201 + cookies
+//   2. POST /api/staff with cookies:
+//      {
+//        "email": "waiter@tawilati.com",
+//        "name": "Waiter One",
+//        "password": "Waiter1234",
+//        "role": "WAITER"
+//      }
+//
+// Expected:
+//   - Step 1: 201
+//   - Step 2: 201 { success: true, data: { id, email, role: "WAITER", isActive: true } }
+//
+// Proves:
+//   - cookies → middleware → authGuard → service → DB all work together
+//   - OWNER has STAFF_CREATE permission
+//   - P2002 (if email taken) → 409 via handleRouteError
+//**
+
+
+//**
+// TEST 8 — Waiter cannot create staff (403)
+//
+// Steps:
+//   1. Register owner → 201 + owner cookies
+//   2. Create waiter → 201
+//   3. Login as waiter → 200 + waiter cookies
+//   4. POST /api/staff with waiter cookies
+//
+// Expected:
+//   - Step 4: 403 Forbidden
+//   - Body: { success: false, message: "forbidden" }
+//     (from InsufficientPermissionsException)
+//
+// Proves:
+//   - RBAC: WAITER lacks STAFF_CREATE permission
+//   - authGuard throws InsufficientPermissionsException → handleRouteError → 403
+//**
+
+
+//**
+// TEST 9 — Malformed JSON body
+//
+// Request:
+//   Body: "{ not valid JSON" (missing closing brace)
+//
+// Expected:
+//   - Status: 500 (if request.json() throws SyntaxError → handleRouteError → 500)
+//   - OR 400 if you wrap request.json() in try/catch:
+//       try { body = await request.json(); }
+//       catch { throw new BadRequestException("Malformed JSON body"); }
+//
+// Recommendation: add the try/catch for a clean 400.
+//**
+
+
+//**
+// TEST 10 — Weak password
+//
+// Request:
+//   { businessName: "Café", ownerName: "Ali",
+//     email: "weak@tawilati.com", password: "123" }
+//
+// Expected:
+//   - Status: 400
+//   - Body: { success: false, message: "validation_error",
+//             details: { password: ["..."] } }
+//
+// Proves:
+//   - Zod .min(8) / .regex() rejects weak passwords
+//   - handleRouteError maps ZodError → 400 with details
+//**
+
+
+//**
+// TEST 11 — Empty body
+//
+// Request:
+//   POST /api/auth/register
+//   Body: {}
+//
+// Expected:
+//   - Status: 400
+//   - Body: { success: false, message: "validation_error",
+//             details: { businessName: ["..."], ownerName: ["..."],
+//                        email: ["..."], password: ["..."] } }
+//
+// Proves:
+//   - All required fields are validated
+//   - details array shows every missing field
+//**
+
+
+//**
+// TEST 12 — Whitespace in names is trimmed
+//
+// Request:
+//   { businessName: "  Café Test  ", ownerName: "  Ali  ",
+//     email: "  trim@tawilati.com  ", password: "Secret123" }
+//
+// Expected:
+//   - Status: 201
+//   - Body: { data: { slug: "cafe-test" } }
+//     (business name trimmed, slug derived from trimmed name)
+//   - DB: Business.name = "Café Test", User.name = "Ali",
+//         User.email = "trim@tawilati.com" (trimmed + lowercased)
+//
+// Proves:
+//   - Zod .trim() and .toLowerCase() on email
+//   - Slug derivation strips whitespace
+//**
+
+
+//**
+// TEST 13 — Arabic-only business name (slug fallback)
+//
+// Request:
+//   { businessName: "مقهى توكيلاتي", ownerName: "Ali",
+//     email: "arabic@tawilati.com", password: "Secret123" }
+//
+// Expected:
+//   - Status: 201
+//   - Body: { data: { slug: "business-<6-hex>" } }
+//     (slugify returns "" for Arabic → makeSlug falls back to "business-a3f9c2")
+//
+// Proves:
+//   - makeSlug fallback works when slugify produces empty string
+//   - Business registers successfully even with non-Latin name
+//**
+
+
+//**
+// TEST 14 — Duplicate business name (different email) → rejected
+//
+// Steps:
+//   1. Register "Cafe Beirut" with email A → 201, slug "cafe-beirut"
+//   2. Register "Cafe Beirut" with email B → 409
+//
+// Expected:
+//   - Step 2: { success: false, message: "business_name_taken" }
+//   - Only one Business row named "Cafe Beirut"
+//
+// Proves:
+//   - Business names are unique (Business.name @unique in the schema)
+//   - Two different names with the same slug ("Café Beirut", "Cafe Beirut")
+//     still both register: uniqueBusinessSlug gives the second "cafe-beirut-2"
+//**
+
+
+//**
+// SUMMARY — expected status codes
+//
+// | Test | Scenario                   | Status |
+// |------|----------------------------|--------|
+// | 1    | Success                    | 201    |
+// | 2    | Duplicate email            | 409    |
+// | 3    | Invalid input              | 400    |
+// | 4    | Extra fields               | 400/201|
+// | 5    | Auto-login                 | 200    |
+// | 6    | No cookie                  | 401    |
+// | 7    | Owner creates staff        | 201    |
+// | 8    | Waiter creates staff       | 403    |
+// | 9    | Malformed JSON             | 400/500|
+// | 10   | Weak password              | 400    |
+// | 11   | Empty body                 | 400    |
+// | 12   | Whitespace trimmed         | 201    |
+// | 13   | Arabic name → fallback slug| 201    |
+// | 14   | Duplicate business name    | 409    |
+//**

@@ -157,9 +157,7 @@ export class MenuItemService {
       data.priceLBP = this.calculatePriceLBP(priceUSD, exchangeRate);
     }
 
-    const updated = await this.repo.update(itemId, businessId, data);
-    if (!updated) throw new NotFoundException("menu_item_not_found");
-    return updated;
+    return this.repo.update(itemId, businessId, data);
   }
 
   // Archive a menu item without deleting its historical data.
@@ -174,9 +172,7 @@ export class MenuItemService {
       throw new ConflictException("menu_item_already_archived");
     }
 
-    const updated = await this.repo.setArchived(itemId, businessId, new Date());
-    if (!updated) throw new NotFoundException("menu_item_not_found");
-    return updated;
+    return this.repo.setArchived(itemId, businessId, new Date());
   }
 
   // Restore an archived menu item.
@@ -191,9 +187,7 @@ export class MenuItemService {
       throw new ConflictException("menu_item_not_archived");
     }
 
-    const updated = await this.repo.setArchived(itemId, businessId, null);
-    if (!updated) throw new NotFoundException("menu_item_not_found");
-    return updated;
+    return this.repo.setArchived(itemId, businessId, null);
   }
 
   // Delete a menu item that was never ordered. An ordered item can only be archived.

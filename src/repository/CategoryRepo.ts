@@ -1,7 +1,5 @@
 
 import { prisma } from "@/lib/db";
-import { Prisma } from "@/app/generated/prisma/client";
-import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 
 export type CategoryRecord = {
   id: string;
@@ -183,18 +181,14 @@ export class CategoryRepo implements CategoryRepository {
     categoryId: string,
     businessId: string,
   ): Promise<boolean> {
-    try {
-      const result = await prisma.menuCategory.deleteMany({
-        where: { id: categoryId, businessId },
-      });
-      return result.count > 0;
-    } catch (error) {
-      // An item can be added between the service's count check and this delete.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-        throw new ConflictException("category_has_items");
-      }
-      throw error;
-    }
+    const result = await prisma.menuCategory.deleteMany({
+      where: {
+        id: categoryId,
+        businessId,
+      },
+    });
+
+    return result.count > 0;
   }
 }
 

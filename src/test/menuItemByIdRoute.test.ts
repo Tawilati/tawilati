@@ -17,10 +17,6 @@ vi.mock("@/lib/auth/requestHelper", () => ({
   getBusinessIdFromRequest: mocks.getBusinessIdFromRequest,
 }));
 
-vi.mock("@/lib/http", () => ({
-  handle: async (callback: () => Promise<unknown>) => callback(),
-}));
-
 vi.mock("@/service/MenuItemsService", () => ({
   menuItemService: {
     update: mocks.update,
@@ -62,7 +58,7 @@ describe("PATCH /api/menu-items/:id", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.menuItem).toEqual(updatedItem);
+    expect(body.data).toEqual(updatedItem);
     expect(mocks.update).toHaveBeenCalledWith(
       businessId,
       itemId,
@@ -113,18 +109,16 @@ describe("PATCH /api/menu-items/:id", () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when the business context is missing", async () => {
-    mocks.getBusinessIdFromRequest.mockReturnValue(null);
-
+  it("returns 400 validation_error for an id that is not a UUID", async () => {
     const response = await PATCH(
       request({ name: "Iced Coffee" }),
-      { params: Promise.resolve({ id: itemId }) },
+      { params: Promise.resolve({ id: "not-a-uuid" }) },
     );
     const body = await response.json();
 
     expect(response.status).toBe(400);
-    expect(body.success).toBe(false);
-    expect(body.message).toBe("missing_business_context");
+    expect(body.message).toBe("validation_error");
+    expect(body.details.id).toBeDefined();
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });

@@ -1,77 +1,31 @@
-
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { authGuard } from "@/lib/auth/gaurd";
 import { getBusinessIdFromRequest } from "@/lib/auth/requestHelper";
-import { PERMISSION } from "@/types/Roles";
-import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
-import { createCategorySchema } from "@/validation/categorySchemas";
+import { handle, parseBody } from "@/lib/http";
 import { categoryService } from "@/service/CategoryService";
+import { PERMISSION } from "@/types/Roles";
+import { createCategorySchema } from "@/validation/categorySchemas";
 
-//import the shared route error handler from its actual file
-import { handleRouteError } from "@/utils/handleRouteError";
-
-function requireBusinessId(request: NextRequest): string {
-  const businessId = getBusinessIdFromRequest(request);
-
-  if (!businessId) {
-    throw new BadRequestException("missing_business_context");
-  }
-
-  return businessId;
-}
-
-// GET /api/categories
+// GET /api/categories (staff): every category in the business, with its item count.
 export async function GET(request: NextRequest) {
-  try {
-    const authResponse = authGuard(request, {
-      requirePermission: PERMISSION.CATEGORY_READ,
-    });
+  return handle(async () => {
+    const denied = authGuard(request, { requirePermission: PERMISSION.CATEGORY_READ });
+    if (denied) return denied;
 
-    if (authResponse) return authResponse;
-
-    const businessId = requireBusinessId(request);
-    const categories = await categoryService.listCategories(businessId);
-
-    return Response.json({ categories });
-  } catch (error) {
-    //convert thrown errors into the correct HTTP response
-    return handleRouteError(error);
-  }
+    // The guard has checked the identity headers, so the business id is there.
+    const categories = await categoryService.listCategories(getBusinessIdFromRequest(request)!);
+    return NextResponse.json({ success: true, message: "categories list", data: categories });
+  });
 }
 
-// POST /api/categories
+// POST /api/categories (OWNER): add a category; a name already used in the business is a 409.
 export async function POST(request: NextRequest) {
-  try {
-    const authResponse = authGuard(request, {
-      requirePermission: PERMISSION.CATEGORY_WRITE,
-    });
+  return handle(async () => {
+    const denied = authGuard(request, { requirePermission: PERMISSION.CATEGORY_WRITE });
+    if (denied) return denied;
 
-    if (authResponse) return authResponse;
-
-    const businessId = requireBusinessId(request);
-
-    let body: unknown;
-
-    try {
-      body = await request.json();
-    } catch {
-      throw new BadRequestException("validation_error");
-    }
-
-    const result = createCategorySchema.safeParse(body);
-
-    if (!result.success) {
-      throw result.error;
-    }
-
-    const category = await categoryService.createCategory(
-      businessId,
-      result.data.name,
-    );
-
-    return Response.json({ category }, { status: 201 });
-  } catch (error) {
-    //use the shared error handler for validation, HTTP, and database errors
-    return handleRouteError(error);
-  }
+    const { name } = await parseBody(request, createCategorySchema);
+    const category = await categoryService.createCategory(getBusinessIdFromRequest(request)!, name);
+    return NextResponse.json({ success: true, message: "category created", data: category }, { status: 201 });
+  });
 }

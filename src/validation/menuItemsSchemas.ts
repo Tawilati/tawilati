@@ -29,3 +29,6 @@ export const updateMenuItemSchema = z
 
 export type CreateMenuItemInput = z.infer<typeof createMenuItemSchema>;
 export type UpdateMenuItemInput = z.infer<typeof updateMenuItemSchema>;
+
+// The :id in /api/menu-items/:id/... is client input, so a malformed one is a 400 before any query.
+export const menuItemIdSchema = z.object({ id: z.string().uuid() });

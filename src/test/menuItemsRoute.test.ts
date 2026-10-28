@@ -18,10 +18,6 @@ vi.mock("@/lib/auth/requestHelper", () => ({
   getBusinessIdFromRequest: mocks.getBusinessIdFromRequest,
 }));
 
-vi.mock("@/lib/http", () => ({
-  handle: async (callback: () => Promise<unknown>) => callback(),
-}));
-
 vi.mock("@/service/MenuItemsService", () => ({
   menuItemService: {
     getAll: mocks.getAll,
@@ -68,7 +64,7 @@ describe("/api/menu-items", () => {
       const body = await response.json();
 
       expect(response.status).toBe(200);
-      expect(body.menuItems).toEqual([item]);
+      expect(body.data).toEqual([item]);
       expect(mocks.getAll).toHaveBeenCalledWith(businessId);
       expect(mocks.authGuard).toHaveBeenCalledWith(
         expect.anything(),
@@ -90,16 +86,12 @@ describe("/api/menu-items", () => {
       expect(mocks.getAll).not.toHaveBeenCalled();
     });
 
-    it("returns 400 when the business context is missing", async () => {
-      mocks.getBusinessIdFromRequest.mockReturnValue(null);
+    it("wraps the list in the success envelope", async () => {
+      mocks.getAll.mockResolvedValue([item]);
 
-      const response = await GET(request("GET"));
-      const body = await response.json();
+      const body = await (await GET(request("GET"))).json();
 
-      expect(response.status).toBe(400);
-      expect(body.success).toBe(false);
-      expect(body.message).toBe("missing_business_context");
-      expect(mocks.getAll).not.toHaveBeenCalled();
+      expect(body).toEqual({ success: true, message: "menu items list", data: [item] });
     });
   });
 
@@ -117,7 +109,7 @@ describe("/api/menu-items", () => {
       const body = await response.json();
 
       expect(response.status).toBe(201);
-      expect(body.menuItem).toEqual(item);
+      expect(body.data).toEqual(item);
       expect(mocks.create).toHaveBeenCalledWith(
         businessId,
         validInput,
@@ -140,6 +132,20 @@ describe("/api/menu-items", () => {
 
       expect(response.status).toBe(400);
       expect(body.success).toBe(false);
+      expect(mocks.create).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 invalid_json when the body is not JSON", async () => {
+      const response = await POST(
+        new NextRequest("http://localhost/api/menu-items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{ not json",
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ success: false, message: "invalid_json" });
       expect(mocks.create).not.toHaveBeenCalled();
     });
 

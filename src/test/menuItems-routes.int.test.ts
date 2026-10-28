@@ -145,18 +145,18 @@ describe("Menu item integration", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(body.menuItem).toMatchObject({
+    expect(body.data).toMatchObject({
       name: "Espresso",
       businessId: businessAId,
       categoryId: categoryAId,
       soldOut: false,
     });
 
-    expect(body.menuItem.id).toBeTruthy();
-    expect(String(body.menuItem.priceUSD)).toBe("2.5");
-    expect(String(body.menuItem.priceLBP)).toBe("223750");
+    expect(body.data.id).toBeTruthy();
+    expect(String(body.data.priceUSD)).toBe("2.5");
+    expect(String(body.data.priceLBP)).toBe("223750");
 
-    createdItemId = body.menuItem.id;
+    createdItemId = body.data.id;
 
     const savedItem = await prisma.menuItem.findFirst({
       where: {
@@ -179,7 +179,7 @@ describe("Menu item integration", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.menuItems).toEqual(
+    expect(body.data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: createdItemId,
@@ -190,7 +190,7 @@ describe("Menu item integration", () => {
     );
 
     expect(
-      body.menuItems.every(
+      body.data.every(
         (item: { businessId: string }) =>
           item.businessId === businessAId,
       ),
@@ -209,12 +209,12 @@ describe("Menu item integration", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.menuItem).toMatchObject({
+    expect(body.data).toMatchObject({
       id: createdItemId,
       name: "Espresso Large",
     });
-    expect(String(body.menuItem.priceUSD)).toBe("3.25");
-    expect(String(body.menuItem.priceLBP)).toBe("290875");
+    expect(String(body.data.priceUSD)).toBe("3.25");
+    expect(String(body.data.priceLBP)).toBe("290875");
 
     const savedItem = await prisma.menuItem.findFirst({
       where: {
@@ -274,8 +274,8 @@ describe("Menu item integration", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.menuItem.id).toBe(createdItemId);
-    expect(body.menuItem.archivedAt).toBeTruthy();
+    expect(body.data.id).toBe(createdItemId);
+    expect(body.data.archivedAt).toBeTruthy();
 
     const savedItem = await prisma.menuItem.findUnique({
       where: { id: createdItemId },
@@ -307,8 +307,8 @@ describe("Menu item integration", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.menuItem.id).toBe(createdItemId);
-    expect(body.menuItem.archivedAt).toBeNull();
+    expect(body.data.id).toBe(createdItemId);
+    expect(body.data.archivedAt).toBeNull();
 
     const savedItem = await prisma.menuItem.findUnique({
       where: { id: createdItemId },

@@ -1,5 +1,19 @@
-import { describe, expect, it } from "vitest";
-import { ApiError, formatLBP, formatUSD, parsePriceUSD, sentenceFor } from "@/components/dashboard/menu/menuApi";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError, formatLBP, formatUSD, menuApi, parsePriceUSD, priceHint, sentenceFor } from "@/components/dashboard/menu/menuApi";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("menu API response handling", () => {
+  it.each(["not JSON", "null", '{"success":true}'])("rejects an invalid success response: %s", async (body) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+    await expect(menuApi.items()).rejects.toMatchObject({ code: "invalid_response" });
+  });
+
+  it("maps an expired session even when the response is not JSON", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("expired", { status: 401 })));
+    await expect(menuApi.items()).rejects.toMatchObject({ code: "unauthorized", status: 401 });
+  });
+});
 
 describe("parsePriceUSD", () => {
   it("accepts amounts with up to two decimals, comma or dot", () => {
@@ -30,5 +44,26 @@ describe("sentenceFor", () => {
   it("falls back to a generic sentence", () => {
     expect(sentenceFor(new ApiError("weird", 500))).toMatch(/went wrong/);
     expect(sentenceFor(new Error("x"))).toMatch(/went wrong/);
+  });
+});
+
+describe("priceHint", () => {
+  it("says nothing for an empty or valid price", () => {
+    expect(priceHint("")).toBeUndefined();
+    expect(priceHint("3.50")).toBeUndefined();
+    expect(priceHint("3,5")).toBeUndefined();
+  });
+
+  it("explains a price that is zero, too precise, too high or not a number", () => {
+    expect(priceHint("0")).toMatch(/at least/);
+    expect(priceHint("0.00")).toMatch(/at least/);
+    expect(priceHint("1.234")).toMatch(/two decimals/);
+    expect(priceHint("100000")).toMatch(/more than/);
+    expect(priceHint("abc")).toMatch(/numbers only/);
+  });
+
+  it("parsePriceUSD refuses a price above the ceiling", () => {
+    expect(parsePriceUSD("99999")).toBe(99999);
+    expect(parsePriceUSD("100000")).toBeNull();
   });
 });

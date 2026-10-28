@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { PlusIcon, XIcon } from "@/components/icons";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { PlusIcon } from "@/components/icons";
 import { Button, Card, StatusBadge, Toast } from "@/components/ui";
+import { FloatingToast } from "@/components/ui/FloatingToast";
 import { CategoryTabs } from "@/components/menu/CategoryTabs";
 import { CategoriesPanel } from "./CategoriesPanel";
 import { ItemForm } from "./ItemForm";
@@ -18,7 +25,8 @@ import {
 } from "./menuApi";
 
 type Loaded = { categories: Category[]; items: MenuItem[] };
-type Notice = { tone: "success" | "error"; title: string };
+// `id` is new for every message, so the same text shown twice restarts its timer.
+type Notice = { id: number; tone: "success" | "error"; title: string };
 
 // The owner's menu screen: items grouped by category, with add/edit, sold-out and archive, plus category management.
 export function MenuManager() {
@@ -30,7 +38,10 @@ export function MenuManager() {
   const [deleting, setDeleting] = useState<MenuItem | null>(null);
   const [editing, setEditing] = useState<MenuItem | "new" | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const noticeCount = useRef(0);
   const [workingOn, setWorkingOn] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
+  const mutationLock = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +50,7 @@ export function MenuManager() {
         menuApi.items(),
       ]);
       setData({ categories, items });
+      setFilter((selected) => selected === "all" || categories.some((category) => category.id === selected) ? selected : "all");
       setLoadError(null);
     } catch (error) {
       setLoadError(sentenceFor(error));
@@ -60,16 +72,22 @@ export function MenuManager() {
     action: () => Promise<unknown>,
     done: string,
   ): Promise<string | null> {
+    if (mutationLock.current) return "Please wait for the current change to finish.";
+    mutationLock.current = true;
+    setMutating(true);
     try {
       await action();
+      setNotice({ id: ++noticeCount.current, tone: "success", title: done });
+      await load();
+      return null;
     } catch (error) {
       const sentence = sentenceFor(error);
-      setNotice({ tone: "error", title: sentence });
+      setNotice({ id: ++noticeCount.current, tone: "error", title: sentence });
       return sentence;
+    } finally {
+      mutationLock.current = false;
+      setMutating(false);
     }
-    setNotice({ tone: "success", title: done });
-    await load();
-    return null;
   }
 
   async function onItemAction(
@@ -92,15 +110,7 @@ export function MenuManager() {
     return error;
   }
 
-  // A notice fades away by itself: quickly for a success, a little slower for an error to read.
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(
-      () => setNotice(null),
-      notice.tone === "error" ? 7000 : 3500,
-    );
-    return () => clearTimeout(timer);
-  }, [notice]);
+  const dismissNotice = useCallback(() => setNotice(null), []);
 
   // The page title, with the owner's two main actions on the same row (top right).
   const heading = (actions?: ReactNode) => (
@@ -110,7 +120,7 @@ export function MenuManager() {
     </div>
   );
 
-  if (loadError) {
+  if (loadError && !data) {
     return (
       <div className="flex flex-col gap-6">
         {heading()}
@@ -160,12 +170,14 @@ export function MenuManager() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="ghost"
+              disabled={mutating || !!loadError}
               aria-expanded={showCategories}
               onClick={() => setShowCategories((open) => !open)}
             >
               Categories
             </Button>
             <Button
+              disabled={mutating || !!loadError}
               onClick={() => {
                 setNotice(null);
                 setEditing("new");
@@ -178,23 +190,23 @@ export function MenuManager() {
       )}
 
       {notice && (
-        <div
-          className="fixed inset-x-3 z-50 sm:left-auto sm:right-6 sm:w-72"
-          style={{ top: "max(12px, env(safe-area-inset-top, 0px))" }}
-        >
-          <div className="relative shadow-[var(--shadow-raised)] [&_.tw-toast]:items-center [&_.tw-toast]:gap-3 [&_.tw-toast]:py-2.5 [&_.tw-toast]:pl-3 [&_.tw-toast]:pr-10 [&_.tw-toast\_\_mark]:size-7! [&_.tw-toast\_\_mark_svg]:size-4! [&_.tw-toast\_\_title]:text-sm!">
-            <Toast tone={notice.tone} title={notice.title} />
-            <button
-              type="button"
-              aria-label="Dismiss"
-              onClick={() => setNotice(null)}
-              className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
-            >
-              <XIcon className="size-4" />
-            </button>
-          </div>
-        </div>
+        <FloatingToast
+          key={notice.id}
+          tone={notice.tone}
+          title={notice.title}
+          duration={notice.tone === "error" ? 7000 : 3500}
+          onDismiss={dismissNotice}
+        />
       )}
+
+      {loadError && (
+        <Card className="flex flex-col items-start gap-3">
+          <Toast tone="error" title={`Your last change may already be saved. Refresh the menu before making another change. ${loadError}`} />
+          <Button onClick={() => void load()}>Refresh menu</Button>
+        </Card>
+      )}
+
+      <fieldset disabled={mutating || !!loadError} className="contents">
 
       {deleting && (
         <Card
@@ -214,9 +226,9 @@ export function MenuManager() {
               onClick={async () => {
                 const item = deleting;
                 setWorkingOn(item.id);
-                await run(() => menuApi.deleteItem(item.id), "Item deleted");
+                const error = await run(() => menuApi.deleteItem(item.id), "Item deleted");
                 setWorkingOn(null);
-                setDeleting(null);
+                if (!error) setDeleting(null);
               }}
             >
               Delete item
@@ -268,9 +280,9 @@ export function MenuManager() {
       )}
 
       <ul
-        role="tabpanel"
+        role={editing || categories.length === 0 ? undefined : "tabpanel"}
         id={`panel-${filter}`}
-        aria-labelledby={`tab-${filter}`}
+        aria-labelledby={editing || categories.length === 0 ? undefined : `tab-${filter}`}
         className="flex flex-col gap-2.5"
       >
         {visible.map((item) => {
@@ -401,6 +413,7 @@ export function MenuManager() {
             : `Show archived items (${archivedCount})`}
         </Button>
       )}
+      </fieldset>
     </div>
   );
 }

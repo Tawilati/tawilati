@@ -14,6 +14,7 @@ import {
   GET,
   POST,
 } from "@/app/api/categories/route";
+import { PATCH, DELETE } from "@/app/api/categories/[id]/route";
 
 const run = randomBytes(4).toString("hex");
 
@@ -66,6 +67,7 @@ afterAll(async () => {
 
   // Delete only this test's categories and business.
   try {
+    await prisma.menuItem.deleteMany({ where: { businessId } });
     await prisma.menuCategory.deleteMany({
       where: { businessId },
     });
@@ -79,6 +81,51 @@ afterAll(async () => {
 });
 
 describe("/api/categories integration", () => {
+  it("renames an empty category, rejects duplicates, and deletes it", async () => {
+    const first = await prisma.menuCategory.create({ data: { businessId: businessId!, name: "Rename me" } });
+    const other = await prisma.menuCategory.create({ data: { businessId: businessId!, name: "Taken" } });
+    const context = () => ({ params: Promise.resolve({ id: first.id }) });
+    const renamed = await PATCH(request("PATCH", { name: "  Renamed  " }), context());
+    expect(renamed.status).toBe(200);
+    expect((await renamed.json()).data).toMatchObject({ name: "Renamed", itemCount: 0 });
+    const duplicate = await PATCH(request("PATCH", { name: other.name }), context());
+    expect(duplicate.status).toBe(409);
+    expect((await duplicate.json()).message).toBe("category_already_exists");
+    expect((await DELETE(request("DELETE"), context())).status).toBe(204);
+    expect((await DELETE(request("DELETE"), context())).status).toBe(404);
+    expect(await prisma.menuCategory.findUnique({ where: { id: first.id } })).toBeNull();
+  });
+
+  it("blocks deleting categories containing archived items", async () => {
+    const category = await prisma.menuCategory.create({ data: { businessId: businessId!, name: "Archived category" } });
+    await prisma.menuItem.create({ data: {
+      businessId: businessId!, categoryId: category.id, name: "Archived item",
+      priceUSD: "1", priceLBP: "89500", archivedAt: new Date(),
+    } });
+    const response = await DELETE(request("DELETE"), { params: Promise.resolve({ id: category.id }) });
+    expect(response.status).toBe(409);
+    expect((await response.json()).message).toBe("category_has_items");
+    expect(await prisma.menuCategory.findUnique({ where: { id: category.id } })).not.toBeNull();
+  });
+
+  it("rejects category writes by a waiter", async () => {
+    const req = request("POST", { name: "Forbidden" });
+    req.headers.set("x-user-role", "waiter");
+    expect((await POST(req)).status).toBe(403);
+  });
+
+  it("does not rename or delete a category from another business", async () => {
+    const category = await prisma.menuCategory.create({ data: { businessId: businessId!, name: "Scoped category" } });
+    const context = () => ({ params: Promise.resolve({ id: category.id }) });
+    const rename = request("PATCH", { name: "Intruder" });
+    rename.headers.set("x-business-id", "11111111-1111-4111-8111-111111111111");
+    expect((await PATCH(rename, context())).status).toBe(404);
+    const remove = request("DELETE");
+    remove.headers.set("x-business-id", "11111111-1111-4111-8111-111111111111");
+    expect((await DELETE(remove, context())).status).toBe(404);
+    expect((await prisma.menuCategory.findUnique({ where: { id: category.id } }))?.name).toBe("Scoped category");
+  });
+
   it("creates a category in the database and returns 201", async () => {
     const response = await POST(
       request("POST", { name: "  Drinks  " }),

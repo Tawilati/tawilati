@@ -28,6 +28,7 @@ export function CategoriesPanel({
 
   async function add(event: FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (!newName.trim())
       return setAddError("Enter a category name, like Hot drinks.");
     setBusy(true);
@@ -39,6 +40,7 @@ export function CategoriesPanel({
 
   async function rename(event: FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (!renaming) return;
     if (!renaming.name.trim())
       return setRenaming({ ...renaming, error: "Enter a category name." });
@@ -50,15 +52,18 @@ export function CategoriesPanel({
   }
 
   async function remove(id: string) {
+    if (busy) return;
     setBusy(true);
-    await onDelete(id);
+    const error = await onDelete(id);
     setBusy(false);
-    setConfirmingDelete(null);
+    if (!error) setConfirmingDelete(null);
   }
 
   return (
     <Card className="flex flex-col gap-4">
       <h2 className="text-lg font-bold">Categories</h2>
+      <p className="text-sm text-ink-muted">Only empty categories can be deleted. Item counts include archived items.</p>
+      <fieldset disabled={busy} className="contents">
 
       {categories.length === 0 && (
         <p className="text-sm text-ink-muted">
@@ -119,6 +124,7 @@ export function CategoriesPanel({
                 </Button>
                 {category.itemCount === 0 &&
                   (confirmingDelete === category.id ? (
+                    <>
                     <Button
                       size="sm"
                       variant="accent"
@@ -127,6 +133,8 @@ export function CategoriesPanel({
                     >
                       Confirm delete
                     </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmingDelete(null)}>Cancel</Button>
+                    </>
                   ) : (
                     <Button
                       size="sm"
@@ -159,6 +167,7 @@ export function CategoriesPanel({
           Add category
         </Button>
       </form>
+      </fieldset>
     </Card>
   );
 }

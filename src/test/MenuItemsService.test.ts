@@ -417,3 +417,15 @@ describe("MenuItemService.delete", () => {
     });
   });
 });
+
+describe("items removed during a mutation", () => {
+  it.each(["update", "archive", "unarchive"] as const)("returns 404 if an item disappears during %s", async (action) => {
+    repo.findById.mockResolvedValue({ ...item, archivedAt: action === "unarchive" ? new Date() : null });
+    repo.update.mockResolvedValue(null);
+    repo.setArchived.mockResolvedValue(null);
+    const result = action === "update"
+      ? menuItemService.update(BUSINESS_ID, ITEM_ID, { name: "Tea" })
+      : menuItemService[action](BUSINESS_ID, ITEM_ID);
+    await expect(result).rejects.toMatchObject({ status: 404, message: "menu_item_not_found" });
+  });
+});

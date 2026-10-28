@@ -37,7 +37,13 @@ async function call<T = undefined>(path: string, method: string, body?: unknown)
   }
   if (response.status === 204) return undefined as T;
   const json = await response.json().catch(() => null);
-  if (!response.ok) throw new ApiError(String(json?.message ?? "internal_server_error"), response.status);
+  if (!response.ok) {
+    const fallback = response.status === 401 ? "unauthorized" : response.status === 403 ? "forbidden" : "internal_server_error";
+    throw new ApiError(String(json?.message ?? fallback), response.status);
+  }
+  if (!json || json.success !== true || json.data == null) {
+    throw new ApiError("invalid_response", response.status);
+  }
   return json.data as T;
 }
 
@@ -77,11 +83,26 @@ export function sentenceFor(error: unknown): string {
 }
 
 // "2.5" or "2,50" → 2.5. Null when it isn't a positive amount with at most two decimals.
+// Same ceiling as the server (MAX_PRICE_USD in menuItemsSchemas.ts).
+const MAX_PRICE_USD = 99_999;
+
 export function parsePriceUSD(text: string): number | null {
   const cleaned = text.trim().replace(",", ".");
   if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   const value = Number(cleaned);
-  return value > 0 ? value : null;
+  return value > 0 && value <= MAX_PRICE_USD ? value : null;
+}
+
+// The sentence to show under the price field, or undefined when the text is fine (or still empty).
+export function priceHint(text: string): string | undefined {
+  const cleaned = text.trim().replace(",", ".");
+  if (!cleaned) return undefined;
+  if (!/^\d*(\.\d*)?$/.test(cleaned) || cleaned === ".") return "Use numbers only, like 3.50.";
+  if (/\.\d{3,}/.test(cleaned)) return "Use at most two decimals, like 3.50.";
+  const value = Number(cleaned);
+  if (value <= 0) return "The price must be at least $0.01.";
+  if (value > MAX_PRICE_USD) return "The price can't be more than $99,999.";
+  return undefined;
 }
 
 export function formatUSD(amount: string): string {

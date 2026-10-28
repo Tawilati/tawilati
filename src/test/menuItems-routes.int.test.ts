@@ -14,7 +14,7 @@ import {
   GET,
   POST,
 } from "@/app/api/menu-items/route";
-import { PATCH } from "@/app/api/menu-items/[id]/route";
+import { DELETE, PATCH } from "@/app/api/menu-items/[id]/route";
 import { POST as archivePOST } from "@/app/api/menu-items/[id]/archive/route";
 import { POST as unarchivePOST } from "@/app/api/menu-items/[id]/unarchive/route";
 
@@ -389,5 +389,13 @@ describe("Menu item integration", () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it("deletes an unused item and returns 404 on a second delete", async () => {
+    const response = await DELETE(makeRequest("DELETE", businessAId!), routeContext(createdItemId!));
+    expect(response.status).toBe(204);
+    expect(await prisma.menuItem.findUnique({ where: { id: createdItemId! } })).toBeNull();
+    const again = await DELETE(makeRequest("DELETE", businessAId!), routeContext(createdItemId!));
+    expect(again.status).toBe(404);
   });
 });

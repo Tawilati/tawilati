@@ -64,6 +64,11 @@ export function handleRouteError(err: unknown): Response {
       return json(409, "business_name_taken");
     }
 
+    // MenuCategory_businessId_name_key: two requests adding the same name at once.
+    if (constraint.startsWith("MenuCategory_")) {
+      return json(409, "category_already_exists");
+    }
+
     if (constraint.includes("label")) {
       return json(409, "label_already_taken");
     }

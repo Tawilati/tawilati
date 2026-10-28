@@ -1,15 +1,6 @@
-import type { Metadata } from "next";
-import { Card } from "@/components/ui";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Overview · Tawilati" };
-
+// There is no overview screen: /dashboard opens the owner's first screen, the menu.
 export default function OwnerHomePage() {
-  return (
-    <div className="flex max-w-3xl flex-col gap-4">
-      <h1 className="text-2xl font-bold">Overview</h1>
-      <Card>
-        <p className="text-sm text-ink-muted">Today&apos;s orders, sales and tables will show here.</p>
-      </Card>
-    </div>
-  );
+  redirect("/dashboard/menu");
 }

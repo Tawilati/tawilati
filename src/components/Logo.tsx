@@ -9,10 +9,13 @@ const LOGOS = {
 export function Logo({
   variant = "horizontal",
   className,
+  priority = false,
 }: {
   variant?: keyof typeof LOGOS;
   className?: string;
+  // Set it when the logo is above the fold: it loads straight away instead of lazily.
+  priority?: boolean;
 }) {
   const { src, width, height } = LOGOS[variant];
-  return <Image src={src} width={width} height={height} alt="tawilati." className={className} unoptimized />;
+  return <Image src={src} width={width} height={height} alt="tawilati." className={className} priority={priority} unoptimized />;
 }

@@ -18,6 +18,8 @@ export function RegisterForm() {
     registerUserRequestSchema,
   );
   const [password, setPassword] = useState("");
+  // The button stays off until every field has something in it.
+  const [allFilled, setAllFilled] = useState(false);
   // Bumped on every keystroke in the name field, so an older "is it free?" answer is ignored.
   const nameCheck = useRef(0);
 
@@ -27,6 +29,11 @@ export function RegisterForm() {
     const data = new FormData(form);
     const shown = await submit(Object.fromEntries(FIELDS.map((field) => [field, String(data.get(field) ?? "")])));
     focusFirstError(form, shown);
+  }
+
+  function onFormChange(event: FormEvent<HTMLFormElement>) {
+    const data = new FormData(event.currentTarget);
+    setAllFilled(FIELDS.every((field) => String(data.get(field) ?? "").trim() !== ""));
   }
 
   function onLeave(field: AuthField) {
@@ -44,7 +51,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form noValidate onSubmit={onSubmit} onChange={onFormChange} className="flex flex-col gap-4">
       {errors.form && (
         <Toast tone="error" title={errors.form.title}>
           {errors.form.body}
@@ -103,7 +110,7 @@ export function RegisterForm() {
         onBlur={onLeave("password")}
       />
       <PasswordRules id={PASSWORD_RULES_ID} password={password} showMissing={Boolean(errors.fields.password)} />
-      <Button type="submit" block loading={pending} className="mt-1">
+      <Button type="submit" block loading={pending} disabled={!allFilled} className="mt-1">
         Create my business
       </Button>
     </form>

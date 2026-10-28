@@ -99,6 +99,7 @@ describe("CategoryService", () => {
   describe("updateCategory", () => {
     it("updates and returns the category", async () => {
       const updatedCategory = { ...category, name: "Desserts" };
+      repo.findByBusinessAndName.mockResolvedValue(null);
       repo.update.mockResolvedValue(updatedCategory);
 
       await expect(
@@ -117,6 +118,7 @@ describe("CategoryService", () => {
     });
 
     it("throws NotFoundException when the category does not exist", async () => {
+      repo.findByBusinessAndName.mockResolvedValue(null);
       repo.update.mockResolvedValue(null);
 
       await expect(
@@ -126,6 +128,25 @@ describe("CategoryService", () => {
           "Desserts",
         ),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it("throws ConflictException when another category already has the name", async () => {
+      repo.findByBusinessAndName.mockResolvedValue({ id: "category-2" });
+
+      await expect(
+        categoryService.updateCategory("category-1", "business-1", "Desserts"),
+      ).rejects.toThrow(ConflictException);
+
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it("allows saving a category under its own name", async () => {
+      repo.findByBusinessAndName.mockResolvedValue({ id: "category-1" });
+      repo.update.mockResolvedValue(category);
+
+      await expect(
+        categoryService.updateCategory("category-1", "business-1", "Drinks"),
+      ).resolves.toEqual(category);
     });
   });
 

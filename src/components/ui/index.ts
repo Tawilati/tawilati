@@ -1,8 +1,12 @@
 // Shared UI built on the brand kit (brand/components.css + brand/tokens.css). Preview them all at /styleguide.
-export { Button, buttonClassName, type ButtonVariant } from "./Button";
+export { Button } from "./Button";
+export { buttonClassName, type ButtonVariant } from "./buttonStyles";
+export { ConfirmDialog } from "./ConfirmDialog";
 export { Card } from "./Card";
+export { Modal, useModalGuard } from "./Modal";
 export { PasswordField } from "./PasswordField";
 export { AddButton, QuantityStepper } from "./QuantityStepper";
+export { SelectField, type SelectOption } from "./SelectField";
 export { StatusBadge, type BadgeStatus } from "./StatusBadge";
 export { TextField, type TextFieldProps } from "./TextField";
 export { Toast } from "./Toast";

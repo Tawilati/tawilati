@@ -23,7 +23,7 @@ describe("checkFields", () => {
 
   it("checks a single field when it is left, and leaves an empty one alone", () => {
     expect(checkField("register", registerUserRequestSchema, "email", { email: "souad@" })).toBe(
-      "Enter a valid email address, like name@cafe.com.",
+      "Enter a valid email address, like name@business.com.",
     );
     expect(checkField("register", registerUserRequestSchema, "email", { email: "souad@cafe.com" })).toBeUndefined();
     expect(checkField("register", registerUserRequestSchema, "email", { email: "  " })).toBeUndefined();
@@ -41,7 +41,7 @@ describe("checkFields", () => {
 });
 
 describe("errorsFromResponse", () => {
-  it("puts a taken email and a taken café name under their fields", () => {
+  it("puts a taken email and a taken business name under their fields", () => {
     expect(errorsFromResponse("register", { message: "email_already_in_use" }).fields.email).toMatch(/already uses this email/);
     expect(errorsFromResponse("register", { message: "business_name_taken" }).fields.businessName).toMatch(
       /already uses this name/,
@@ -56,6 +56,13 @@ describe("errorsFromResponse", () => {
     expect(JSON.stringify(form)).not.toContain("invalid_credentials");
   });
 
+  it("shows a turned-off account (403 inactive user) with the same message as a wrong password", () => {
+    const { form } = errorsFromResponse("login", { message: "inactive user" });
+
+    expect(form).toEqual(errorsFromResponse("login", { message: "invalid_credentials" }).form);
+    expect(JSON.stringify(form)).not.toContain("inactive");
+  });
+
   it("maps validation_error details to the field sentences", () => {
     const { fields, form } = errorsFromResponse("register", {
       message: "validation_error",
@@ -63,7 +70,7 @@ describe("errorsFromResponse", () => {
     });
 
     expect(fields).toEqual({
-      email: "Enter a valid email address, like name@cafe.com.",
+      email: "Enter a valid email address, like name@business.com.",
       password: "Use at least 8 characters, with a letter and a number.",
     });
     expect(form).toBeUndefined();
@@ -78,7 +85,7 @@ describe("errorsFromResponse", () => {
 
 describe("destinationFor", () => {
   it("sends each role to its first screen", () => {
-    expect(destinationFor("OWNER")).toBe("/dashboard");
+    expect(destinationFor("OWNER")).toBe("/dashboard/menu");
     expect(destinationFor("KITCHEN")).toBe("/kitchen");
     expect(destinationFor("WAITER")).toBe("/waiter");
   });

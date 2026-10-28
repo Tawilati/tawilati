@@ -1,4 +1,3 @@
-
 import { Prisma } from "@/app/generated/prisma/client";
 
 import {
@@ -15,15 +14,16 @@ import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 
+// Decimal(12,2) holds values below 10^10.
+const MAX_PRICE_LBP = new Prisma.Decimal("10000000000");
+
 export class MenuItemService {
   // Stores the single MenuItemService instance.
   private static instance: MenuItemService;
 
   //Prevents external code from creating service instances.
   //The repository is injected into the service.
-  private constructor(
-    private readonly repo: MenuItemRepository,
-  ) {}
+  private constructor(private readonly repo: MenuItemRepository) {}
 
   // Returns the existing instance or creates it once.
   static getInstance(): MenuItemService {
@@ -39,9 +39,18 @@ export class MenuItemService {
     priceUSD: Prisma.Decimal,
     exchangeRate: Prisma.Decimal,
   ): Prisma.Decimal {
-    return priceUSD
+    const priceLBP = priceUSD
       .mul(exchangeRate)
       .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+
+    // priceLBP is Decimal(12,2); a high rate can push a valid USD price past it.
+    if (priceLBP.gte(MAX_PRICE_LBP)) {
+      throw new BadRequestException("validation_error", {
+        priceUSD: ["Price is too high for the current exchange rate"],
+      });
+    }
+
+    return priceLBP;
   }
 
   // List menu items belonging to a business.
@@ -71,8 +80,7 @@ export class MenuItemService {
       throw new BadRequestException("category_not_in_business");
     }
 
-    const exchangeRate =
-      await this.repo.findBusinessExchangeRate(businessId);
+    const exchangeRate = await this.repo.findBusinessExchangeRate(businessId);
 
     if (!exchangeRate) {
       throw new NotFoundException("business_not_found");
@@ -95,11 +103,7 @@ export class MenuItemService {
   }
 
   // Update a menu item belonging to a business.
-  async update(
-    businessId: string,
-    itemId: string,
-    input: UpdateMenuItemInput,
-  ) {
+  async update(businessId: string, itemId: string, input: UpdateMenuItemInput) {
     const existingItem = await this.repo.findById(itemId, businessId);
 
     if (!existingItem) {
@@ -138,8 +142,7 @@ export class MenuItemService {
     }
 
     if (input.priceUSD !== undefined) {
-      const exchangeRate =
-        await this.repo.findBusinessExchangeRate(businessId);
+      const exchangeRate = await this.repo.findBusinessExchangeRate(businessId);
 
       if (!exchangeRate) {
         throw new NotFoundException("business_not_found");
@@ -185,6 +188,19 @@ export class MenuItemService {
     }
 
     return this.repo.setArchived(itemId, businessId, null);
+  }
+
+  // Delete a menu item that was never ordered. An ordered item can only be archived.
+  async delete(businessId: string, itemId: string): Promise<void> {
+    const result = await this.repo.delete(itemId, businessId);
+
+    if (result === "not_found") {
+      throw new NotFoundException("menu_item_not_found");
+    }
+
+    if (result === "in_use") {
+      throw new ConflictException("menu_item_in_use");
+    }
   }
 }
 

@@ -39,6 +39,8 @@ export interface MenuItemRepository {
   create(businessId: string, data: CreateMenuItemData): Promise<MenuItemRecord>;
   update(itemId: string, businessId: string, data: UpdateMenuItemData): Promise<MenuItemRecord | null>;
   setArchived(itemId: string, businessId: string, archivedAt: Date | null): Promise<MenuItemRecord | null>;
+  // "in_use": an order line points at the item, so only archiving is possible.
+  delete(itemId: string, businessId: string): Promise<"deleted" | "not_found" | "in_use">;
 }
 
 const menuItemSelect = {
@@ -149,6 +151,24 @@ private constructor() {}
     });
 
     return updated[0] ?? null;
+  }
+
+  async delete(
+    itemId: string,
+    businessId: string,
+  ): Promise<"deleted" | "not_found" | "in_use"> {
+    try {
+      const { count } = await prisma.menuItem.deleteMany({
+        where: { id: itemId, businessId },
+      });
+      return count > 0 ? "deleted" : "not_found";
+    } catch (error) {
+      // P2003: the foreign key from OrderLine (RESTRICT) refused the delete.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        return "in_use";
+      }
+      throw error;
+    }
   }
 }
 

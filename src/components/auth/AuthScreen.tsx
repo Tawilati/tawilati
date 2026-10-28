@@ -18,7 +18,7 @@ export function AuthScreen({
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:py-8">
       <div className="flex w-full max-w-[420px] flex-col gap-4">
-        <Logo className="mx-auto h-auto w-40" />
+        <Logo priority className="mx-auto h-auto w-40" />
         <Card className="flex flex-col gap-5 sm:px-8 sm:py-7">
           <header className="flex flex-col gap-1.5">
             <h1 className="text-2xl font-bold text-balance">{title}</h1>

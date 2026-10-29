@@ -59,7 +59,7 @@ Stretch: split the bill by person. Scored extras: pricing page with test-mode ch
 - Guest auth: `GuestSession.token` (32 random bytes hex) issued by `POST /api/guest-sessions`, stored in `sessionStorage`, valid while `revokedAt IS NULL AND expiresAt > now()`; `expiresAt = TableSession.openedAt + 4h`. Closing the tab revokes all its sessions.
 - Money: `Decimal`, never float. `priceLBP = round(priceUSD × Business.exchangeRate, 2)` (half up), computed when an item is created or its USD price is edited, and for every item of the business (archived too) when the owner changes the rate (`PATCH /api/business`, same transaction as the rate); never recomputed on read. A rate that would push any item past `priceLBP`'s Decimal(12,2) is refused with 400 `invalid_exchange_rate` and nothing is saved. Order lines snapshot `priceUSD`, `priceLBP`, `rateSnapshot`, so a rate change never alters past orders.
 - Passwords: bcrypt cost ≥ 10 (12 used in the spec). Emails normalised with `trim().toLowerCase()` before lookup and insert.
-- Invalid login (unknown email, wrong password, deactivated) always returns the same generic 401.
+- Invalid login (unknown email, wrong password) always returns the same generic 401 `invalid_credentials`; bcrypt runs even for an unknown email so timing gives nothing away. A deactivated account returns 403 `account_deactivated`, but only after the password has matched (a wrong password on it is still the generic 401), so the message reaches only someone who already knows the password; the login form tells them to ask the owner.
 
 ## Data model (`src/prisma/schema.prisma`, matches the team's latest ERD)
 
@@ -113,6 +113,7 @@ Codes the built endpoints add (the UI maps each to a sentence):
 - Any route: `unauthorized` 401, `forbidden` 403 (wrong role), `invalid_json` 400, `validation_error` 400, `duplicate_value` 409 (an unexpected unique clash), `database_error` / `internal_server_error` 500.
 - Categories: `category_already_exists` 409 (create or rename), `category_not_found` 404, `category_has_items` 409 (archived items count too, so a category holding only archived items can't be deleted).
 - Menu items: `category_not_in_business` 400, `menu_item_not_found` 404, `menu_item_already_archived` 409, `menu_item_not_archived` 409. (The spec's `item_not_found`, `item_archived` and `item_sold_out` belong to order submission.)
+- Auth: `account_deactivated` 403 (login with the right password on a turned-off account).
 - Staff: `email_already_in_use` 409, `not_found` 404.
 - Business settings: `invalid_exchange_rate` 400 (out of range, more than 4 decimals, or too high for the current menu prices), `invalid_timezone` 400, `validation_error` 400 (empty body or a field other than `exchangeRate` / `timezone`), `not_found` 404.
 

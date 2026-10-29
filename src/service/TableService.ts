@@ -29,6 +29,9 @@ function isTableSlugConflict(error: unknown): boolean {
 export class TableService {
   private static instance: TableService;
 
+  // Prevents other files from creating instances with `new`.
+  private constructor() {}
+
   static getInstance(): TableService {
     if (!TableService.instance) {
       TableService.instance = new TableService();
@@ -113,11 +116,8 @@ export class TableService {
     businessId: string,
     input: CreateTableInput,
   ): Promise<TableResponse> {
-    const label = input.label.trim();
-
-    if (!label) {
-      throw new Error("Table label cannot be empty");
-    }
+    // createTableSchema has already trimmed the label and refused an empty one.
+    const { label } = input;
 
     const existingTable = await tableRepo.findByLabelInBusiness(label, businessId);
 

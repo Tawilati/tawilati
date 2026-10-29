@@ -56,7 +56,8 @@ export function TablesManager() {
   const notify = (tone: Notice["tone"], title: string) => setNotice({ id: ++noticeCount.current, tone, title });
 
   // Runs one change, reloads the list, and reports the outcome. Returns the error sentence, or null when it worked.
-  async function run(action: () => Promise<unknown>, done: string): Promise<string | null> {
+  // `errorInForm`: the add and rename forms show the error under the name field, so no toast repeats it.
+  async function run(action: () => Promise<unknown>, done: string, errorInForm = false): Promise<string | null> {
     if (mutationLock.current) return "Please wait for the current change to finish.";
     mutationLock.current = true;
     setMutating(true);
@@ -67,7 +68,7 @@ export function TablesManager() {
       return null;
     } catch (error) {
       const sentence = tableSentenceFor(error);
-      notify("error", sentence);
+      if (!errorInForm) notify("error", sentence);
       return sentence;
     } finally {
       mutationLock.current = false;
@@ -79,8 +80,8 @@ export function TablesManager() {
     const current = editing;
     const error =
       current && current !== "new"
-        ? await run(() => tablesApi.rename(current.id, label), "Table renamed")
-        : await run(() => tablesApi.add(label), `${label} added. Download its sticker to print it.`);
+        ? await run(() => tablesApi.rename(current.id, label), "Table renamed", true)
+        : await run(() => tablesApi.add(label), `${label} added. Download its sticker to print it.`, true);
     if (!error) setEditing(null);
     return error;
   }

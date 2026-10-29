@@ -40,7 +40,8 @@ export async function downloadSticker(table: DiningTable): Promise<void> {
   link.href = url;
   link.download = `tawilati-${table.slug}.png`;
   link.click();
-  URL.revokeObjectURL(url);
+  // The download starts after click() returns; Safari can still be reading the file then, so free it a moment later.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const SENTENCES: Record<string, string> = {

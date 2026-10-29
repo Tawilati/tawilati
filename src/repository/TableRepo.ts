@@ -16,6 +16,9 @@ const tableSelect = {
 export class TableRepo {
   private static instance: TableRepo;
 
+  // Prevents other files from creating instances with `new`.
+  private constructor() {}
+
   static getInstance(): TableRepo {
     if (!TableRepo.instance) {
       TableRepo.instance = new TableRepo();

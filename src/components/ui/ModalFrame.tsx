@@ -35,7 +35,12 @@ export function ModalFrame({
     if (openModals.length === 0) originalBodyOverflow = document.body.style.overflow;
     openModals.push(me);
     const opener = document.activeElement as HTMLElement | null;
-    panel.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+    // The first field, else the first button. One selector list would match the Close button first, as it comes
+    // before the fields: typing would go nowhere and Enter would close the pop-up.
+    (
+      panel.current?.querySelector<HTMLElement>("input, select, textarea") ??
+      panel.current?.querySelector<HTMLElement>("button")
+    )?.focus();
     document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
       if (openModals[openModals.length - 1] !== me) return;

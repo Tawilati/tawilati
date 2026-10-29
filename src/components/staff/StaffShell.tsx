@@ -85,7 +85,8 @@ export function StaffShell({
     // Logout clears the auth cookies; whatever the answer, leave the staff area.
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     // A full page load, not router.replace + refresh: those two raced, leaving this dialog spinning on the old screen.
-    window.location.assign("/login");
+    // `replace`, so Back doesn't return to the staff screen that was just signed out of.
+    window.location.replace("/login");
   }
   const items = NAV_BY_ROLE[role];
   const sidebarItems = items.filter((item) => !item.accountMenu);

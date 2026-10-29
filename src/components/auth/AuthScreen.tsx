@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/Logo";
 import { Card } from "@/components/ui";
@@ -18,7 +19,13 @@ export function AuthScreen({
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4 py-6 sm:py-8">
       <div className="flex w-full max-w-[420px] flex-col gap-4">
-        <Logo priority className="mx-auto h-auto w-40" />
+        <Link
+          href="/"
+          aria-label="tawilati. home"
+          className="mx-auto rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+        >
+          <Logo priority className="h-auto w-40" />
+        </Link>
         <Card className="flex flex-col gap-5 sm:px-8 sm:py-7">
           <header className="flex flex-col gap-1.5">
             <h1 className="text-2xl font-bold text-balance">{title}</h1>

@@ -4,7 +4,7 @@ export type TableResponse = {
   slug: string;
   isDisabled: boolean;
   createdAt: Date;
-  updatedAt: Date;
+  
 };
 
 export type TableRecord = {
@@ -13,5 +13,5 @@ export type TableRecord = {
   slug: string;
   isDisabled: boolean;
   createdAt: Date;
-  updatedAt: Date;
+  
 };

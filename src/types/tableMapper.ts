@@ -7,6 +7,5 @@ export function maptoTableResponse(table: TableRecord): TableResponse {
     slug: table.slug,
     isDisabled: table.isDisabled,
     createdAt: table.createdAt,
-    updatedAt: table.updatedAt,
   };
 }

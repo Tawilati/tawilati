@@ -9,7 +9,7 @@ const tableSelect = {
   slug: true,
   isDisabled: true,
   createdAt: true,
-  updatedAt:true,
+  
 } as const;
 
 export class TableRepo {

@@ -1,0 +1,115 @@
+MENU ITEMS COLLECTION API - TEST GUIDE
+
+Routes
+  GET  /api/menu-items - list every menu item in the current business.
+  POST /api/menu-items - add a menu item.
+
+Authentication and permissions
+  Both routes require a valid staff session.
+  GET needs MENU_ITEM_READ (OWNER, WAITER, KITCHEN).
+  POST needs MENU_ITEM_WRITE (OWNER only).
+  The businessId is always taken from the authenticated identity header, never
+  from the request body.
+
+Prices
+  priceUSD and priceLBP are returned as decimal strings ("2.5", "223750").
+  priceLBP = round(priceUSD x business exchange rate), worked out by the server
+  when the item is created; the client never sends it.
+  Example with the default rate 89500: priceUSD 2.5 -> priceLBP "223750".
+
+GET /api/menu-items
+
+Success
+  Status: 200
+  { "success": true, "message": "menu items list", "data": [
+      { "id": "...", "businessId": "...", "categoryId": "...", "name": "Espresso",
+        "priceUSD": "2.5", "priceLBP": "223750", "soldOut": false,
+        "archivedAt": null, "createdAt": "ISO date", "updatedAt": "ISO date" }
+  ] }
+  Archived items are included (archivedAt is set).
+  Empty result is a successful data: [] response.
+  Results are ordered by createdAt ascending, then name.
+
+GET TEST CASES
+
+1. OWNER, WAITER and KITCHEN list items
+  Expect 200 with only the current business's items.
+  Confirm items from other businesses are absent.
+
+2. Archived items
+  Archive an item, then list.
+  Expect it in the list with archivedAt set.
+
+3. Business has no items
+  Expect 200 with an empty array.
+
+4. Unauthenticated request
+  Expect 401 unauthorized.
+
+5. Database unavailable
+  Expect 500 database_error.
+
+POST /api/menu-items
+
+Body
+  {
+    "name": "Espresso",
+    "categoryId": "<uuid of a category in this business>",
+    "priceUSD": 2.5,
+    "soldOut": false
+  }
+  name: trimmed, 1 to 100 characters.
+  categoryId: UUID of a category in the same business.
+  priceUSD: number (or numeric string), at least 0.01 after rounding to cents,
+  at most 99999.
+  soldOut: optional boolean, default false.
+  No other field is accepted (priceLBP and businessId included).
+
+Success
+  Status: 201
+  { "success": true, "message": "menu item created", "data": { ...menu item } }
+
+POST TEST CASES
+
+6. OWNER creates an item
+  Expect 201, soldOut false, archivedAt null and priceLBP computed from the rate.
+
+7. Price rounding
+  Submit priceUSD 2.555.
+  Expect priceUSD "2.56" and priceLBP worked out from 2.56.
+
+8. Price too small or invalid
+  Try 0, -5, 0.001, "abc" and a missing priceUSD.
+  Expect 400 validation_error with details.priceUSD.
+
+9. Price too large
+  Try 100000.
+  Expect 400 validation_error with details.priceUSD.
+
+10. Category from another business
+  Use a categoryId that belongs to a different business.
+  Expect 400 category_not_in_business.
+
+11. Unknown category
+  Use a random UUID as categoryId.
+  Expect 400 category_not_in_business.
+
+12. Invalid fields
+  Try {}, empty name, 101-character name, malformed categoryId, non-boolean
+  soldOut.
+  Expect 400 validation_error with field details.
+
+13. Client sends priceLBP or businessId
+  Expect 400 validation_error (the schema is strict).
+
+14. Malformed JSON
+  Expect 400 invalid_json.
+
+15. WAITER or KITCHEN tries to create an item
+  Expect 403 forbidden.
+
+16. Unauthenticated request
+  Expect 401 unauthorized.
+
+17. Database unavailable
+  Expect 500 database_error.

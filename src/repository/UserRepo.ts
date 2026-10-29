@@ -1,12 +1,14 @@
 //here i put tx optional since not use in staff creation//
-import { Prisma, type User, type UserRole } from "@/app/generated/prisma/client";
+import { Prisma, type User } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import type { DbClient } from "@/types/Db";
+import type { CreateUserData, StaffProfileRecord } from "@/types/User";
 import { DBException, ItemNotFoundException } from "@/utils/exceptions/RepoException";
-
-type DbClient = Prisma.TransactionClient | typeof prisma;
 
 export class UserRepo {
     private static instance: UserRepo;
+    //Prevents other files from creating instances with `new`.
+    private constructor() {}
     static getInstance(): UserRepo {
         if (!UserRepo.instance) {
             UserRepo.instance = new UserRepo();
@@ -46,7 +48,7 @@ export class UserRepo {
     }
     // The signed-in person for a staff screen: their status and role now (not as signed in the token),
     // plus their business's name for the header.
-    async findStaffProfile(userId: string) {
+    async findStaffProfile(userId: string): Promise<StaffProfileRecord | null> {
         try {
             return await prisma.user.findUnique({
                 where: { id: userId },
@@ -77,14 +79,7 @@ export class UserRepo {
 }
 
     async create(
-        data: {
-            businessId: string;
-            name: string;
-            email: string;
-            passwordHash: string;
-            role: UserRole;
-           
-        },
+        data: CreateUserData,
         tx: DbClient = prisma,
     ): Promise<User> {
         try {

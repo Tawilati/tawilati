@@ -2,6 +2,7 @@
 import { userRepo } from "@/repository/UserRepo";
 import {
   mapToRegisterResponse,
+  mapToStaffProfile,
   type AuthenticatedUser,
   type RegisterRequest,
   type RegisterResponse,
@@ -24,6 +25,9 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync("tawilati-no-such-user", 10);
 
 export class UserService {
   private static instance: UserService;
+
+  //Prevents other files from creating instances with `new`.
+  private constructor() {}
 
   static getInstance(): UserService {
     if (!UserService.instance) {
@@ -59,13 +63,7 @@ export class UserService {
   async getStaffProfile(userId: string, businessId: string): Promise<StaffProfile | null> {
     const user = await userRepo.findStaffProfile(userId);
     if (!user || !user.isActive || user.businessId !== businessId) return null;
-    return {
-      userId: user.id,
-      name: user.name,
-      role: user.role,
-      businessId: user.businessId,
-      businessName: user.business.name,
-    };
+    return mapToStaffProfile(user);
   }
 
   // For the sign-up form, before it is sent. Business names are public (guests see them on the

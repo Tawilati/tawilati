@@ -31,6 +31,51 @@ export interface StaffProfile {
   businessName: string;
 }
 
+// What userRepo.findStaffProfile returns.
+export type StaffProfileRecord = {
+  id: string;
+  name: string;
+  role: UserRole;
+  isActive: boolean;
+  businessId: string;
+  business: { name: string };
+};
+
+// What userRepo.create needs: the password is already hashed.
+export type CreateUserData = {
+  businessId: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: UserRole;
+};
+
+// What registrationRepo.registerOwner needs and returns.
+export type RegisterOwnerData = {
+  businessName: string;
+  ownerName: string;
+  email: string;
+  passwordHash: string;
+  slug: string;
+};
+
+export type RegistrationRecord = {
+  businessId: string;
+  userId: string;
+  role: UserRole;
+  slug: string;
+};
+
+export function mapToStaffProfile(user: StaffProfileRecord): StaffProfile {
+  return {
+    userId: user.id,
+    name: user.name,
+    role: user.role,
+    businessId: user.businessId,
+    businessName: user.business.name,
+  };
+}
+
 export interface LoginResponse{
   id:string,
   name:string,

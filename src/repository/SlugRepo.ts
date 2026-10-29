@@ -4,6 +4,9 @@ import { DBException } from "@/utils/exceptions/RepoException";
 export class SlugRepo {
   private static instance: SlugRepo;
 
+  //Prevents other files from creating instances with `new`.
+  private constructor() {}
+
   static getInstance(): SlugRepo {
     if (!SlugRepo.instance) {
       SlugRepo.instance = new SlugRepo();

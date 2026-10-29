@@ -82,6 +82,51 @@ describe("MenuItemService", () => {
   });
 
   describe("create", () => {
+    
+it("uses the current exchange rate when creating an item", async () => {
+  repo.categoryBelongsToBusiness.mockResolvedValue(true);
+  repo.findBusinessExchangeRate.mockResolvedValue(
+    new Prisma.Decimal("89500"),
+  );
+  repo.create.mockResolvedValue(item);
+
+  await menuItemService.create(BUSINESS_ID, {
+    name: "Coffee",
+    categoryId: CATEGORY_ID,
+    priceUSD: 2,
+  });
+
+  expect(repo.create).toHaveBeenCalledWith(
+    BUSINESS_ID,
+    expect.objectContaining({
+      priceUSD: new Prisma.Decimal("2.00"),
+      priceLBP: new Prisma.Decimal("179000.00"),
+    }),
+  );
+});
+
+it("rounds the calculated LBP price to two decimal places", async () => {
+  repo.categoryBelongsToBusiness.mockResolvedValue(true);
+  repo.findBusinessExchangeRate.mockResolvedValue(
+    new Prisma.Decimal("100.5555"),
+  );
+  repo.create.mockResolvedValue(item);
+
+  await menuItemService.create(BUSINESS_ID, {
+    name: "Coffee",
+    categoryId: CATEGORY_ID,
+    priceUSD: 0.01,
+  });
+
+  expect(repo.create).toHaveBeenCalledWith(
+    BUSINESS_ID,
+    expect.objectContaining({
+      priceUSD: new Prisma.Decimal("0.01"),
+      priceLBP: new Prisma.Decimal("1.01"),
+    }),
+  );
+});
+
     it("creates an item and calculates its LBP price", async () => {
       repo.categoryBelongsToBusiness.mockResolvedValue(true);
       repo.findBusinessExchangeRate.mockResolvedValue(exchangeRate);

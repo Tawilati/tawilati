@@ -1,6 +1,5 @@
 
-import { maptoTableResponse } from "../types/tableMapper";
-import { mapToTableSticker, type TableResponse, type TableSticker } from "@/types/Table";
+import { maptoTableResponse, mapToTableSticker, type TableResponse, type TableSticker } from "@/types/Table";
 import { randomBytes } from "node:crypto";
 import { Prisma } from "@/app/generated/prisma/client";
 import { tableRepo } from "@/repository/TableRepo";

@@ -9,9 +9,9 @@ Routes
   (The QR sticker, GET /api/tables/:id/qr, has its own guide in [id]/qr/guide.txt.)
 
 Authentication and permissions
-  GET: OWNER and WAITER (TABLE_READ). Everything else: OWNER only
-  (TABLE_WRITE for create, TABLE_UPDATE for rename, disable and enable).
-  KITCHEN gets 403 on every route. The business is always the one in the
+  GET: OWNER, WAITER and KITCHEN (TABLE_READ). Everything else: OWNER only
+  (TABLE_WRITE for create, TABLE_UPDATE for rename, disable and enable), so
+  WAITER and KITCHEN get 403 there. The business is always the one in the
   authenticated identity header, never from the body.
 
 What a table looks like
@@ -64,8 +64,8 @@ TEST CASES
   Expect 201, the label stored as typed, slug "table-" + 6 hex characters.
 
 7. List
-  As OWNER and as WAITER: expect 200 with this business's tables only, and no
-  qrToken anywhere in the body. As KITCHEN: expect 403.
+  As OWNER, WAITER and KITCHEN: expect 200 with this business's tables only,
+  and no qrToken anywhere in the body.
 
 8. Rename
   PATCH "T1" to "Terrace 1".

@@ -142,12 +142,12 @@ describe("GET /api/tables", () => {
     expect(JSON.stringify(data)).not.toContain(tableOfB.qrToken);
   });
 
-  it("lets a waiter read the list", async () => {
+  it("lets a waiter and a kitchen account read the list", async () => {
     expect((await list(waiterA)).status).toBe(200);
+    expect((await list(kitchenA)).status).toBe(200);
   });
 
-  it("refuses kitchen accounts and anonymous requests", async () => {
-    expect((await list(kitchenA)).status).toBe(403);
+  it("refuses anonymous requests", async () => {
     expect((await list(null)).status).toBe(401);
   });
 });

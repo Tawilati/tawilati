@@ -2,6 +2,7 @@
 import { maptoTableResponse } from "../types/tableMapper";
 import { mapToTableSticker, type TableResponse, type TableSticker } from "@/types/Table";
 import { randomBytes } from "node:crypto";
+import { Prisma } from "@/app/generated/prisma/client";
 import { tableRepo } from "@/repository/TableRepo";
 import { slugService } from "@/service/SlugService";
 import { makeSlug } from "@/utils/slug";
@@ -11,6 +12,20 @@ import type {
 } from "@/validation/tableSchemas";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
+
+function isTableSlugConflict(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return false;
+  // Prisma's pg adapter reports the index name instead of meta.target.
+  const meta = error.meta as {
+    target?: unknown;
+    driverAdapterError?: { cause?: { constraint?: { index?: string } } };
+  } | undefined;
+  const constraint = meta?.driverAdapterError?.cause?.constraint?.index ?? meta?.target;
+  return constraint === "DiningTable_businessId_slug_key" || (
+    Array.isArray(constraint) && constraint.length === 2 &&
+    constraint.includes("businessId") && constraint.includes("slug")
+  );
+}
 export class TableService {
   private static instance: TableService;
 
@@ -95,43 +110,38 @@ export class TableService {
   }
 
   async createTable(
-  businessId: string,
-  input: CreateTableInput,
-): Promise<TableResponse> {
-  const label = input.label.trim();
+    businessId: string,
+    input: CreateTableInput,
+  ): Promise<TableResponse> {
+    const label = input.label.trim();
 
-  if (!label) {
-    throw new Error("Table label cannot be empty");
+    if (!label) {
+      throw new Error("Table label cannot be empty");
+    }
+
+    const existingTable = await tableRepo.findByLabelInBusiness(label, businessId);
+
+    if (existingTable) {
+      throw new ConflictException("table_label_exists");
+    }
+
+    const baseSlug = makeSlug(label, "table");
+    const qrToken = randomBytes(32).toString("hex");
+
+    // Another request can claim the slug between allocation and insertion.
+    // Recheck availability after that specific conflict; never retry label or infrastructure errors.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = await slugService.uniqueTableSlug(businessId, baseSlug);
+      try {
+        const table = await tableRepo.create({ businessId, label, slug, qrToken });
+        return maptoTableResponse(table);
+      } catch (error) {
+        if (!isTableSlugConflict(error)) throw error;
+      }
+    }
+
+    throw new ConflictException("slug_already_taken");
   }
-
-  const existingTable = await tableRepo.findByLabelInBusiness(
-    label,
-    businessId,
-  );
-
-  if (existingTable) {
-    // Replace with your project's existing conflict exception.
-    throw new ConflictException("table_label_exists");
-  }
-
-  const baseSlug = makeSlug(label, "table");
-
-  const slug = await slugService.uniqueTableSlug(
-    businessId,
-    baseSlug,
-  );
-
-  const qrToken = randomBytes(32).toString("hex");
-
-  const table = await tableRepo.create({
-    businessId,
-    label,
-    slug,
-    qrToken,
-  });
-
-  return maptoTableResponse(table);
-}
 }
 
 export const tableService = TableService.getInstance();

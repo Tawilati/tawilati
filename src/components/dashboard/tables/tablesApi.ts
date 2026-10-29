@@ -51,6 +51,7 @@ const SENTENCES: Record<string, string> = {
   // table_label_exists from adding, label_already_taken from a rename that clashes in the database.
   table_label_exists: "You already have a table with this name. Pick another one.",
   label_already_taken: "You already have a table with this name. Pick another one.",
+  slug_already_taken: "Another table was added at the same time. Please try again.",
   not_found: "That table no longer exists. Refresh the page.",
 };
 

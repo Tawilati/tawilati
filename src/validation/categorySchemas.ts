@@ -19,3 +19,6 @@ export const updateCategorySchema = z
 
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+
+// The :id in /api/categories/:id is client input, so a malformed one is a 400 before any query.
+export const categoryIdSchema = z.object({ id: z.string().uuid() });

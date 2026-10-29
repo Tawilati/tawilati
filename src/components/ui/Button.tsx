@@ -1,22 +1,7 @@
 "use client";
 
 import type { ButtonHTMLAttributes, MouseEvent } from "react";
-
-export type ButtonVariant = "primary" | "secondary" | "accent" | "ghost";
-
-type ButtonLook = {
-  variant?: ButtonVariant;
-  size?: "md" | "sm";
-  block?: boolean;
-  className?: string;
-};
-
-// The brand button classes, for a <Link> that should look like a button.
-export function buttonClassName({ variant = "primary", size = "md", block = false, className }: ButtonLook = {}) {
-  return ["tw-btn", `tw-btn--${variant}`, size === "sm" && "tw-btn--sm", block && "tw-btn--block", className]
-    .filter(Boolean)
-    .join(" ");
-}
+import { buttonClassName, type ButtonLook } from "./buttonStyles";
 
 // Primary = Forest Green, for the main action on a screen. Accent (amber) is for promotions only.
 // While `loading`, the label is kept for width, a spinner shows, and clicks are ignored (no double submits).

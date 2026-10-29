@@ -24,8 +24,21 @@ export function CategoryTabs({
             role="tab"
             id={`tab-${category.id}`}
             aria-selected={selected}
+            tabIndex={selected ? 0 : -1}
             aria-controls={`panel-${category.id}`}
             onClick={() => onSelect(category.id)}
+            onKeyDown={(event) => {
+              const index = categories.findIndex((entry) => entry.id === activeId);
+              const next = event.key === "ArrowRight" ? (index + 1) % categories.length
+                : event.key === "ArrowLeft" ? (index - 1 + categories.length) % categories.length
+                : event.key === "Home" ? 0
+                : event.key === "End" ? categories.length - 1 : null;
+              if (next === null) return;
+              event.preventDefault();
+              onSelect(categories[next].id);
+              const tabs = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+              tabs?.[next]?.focus();
+            }}
             className={`min-h-12 shrink-0 grow basis-auto cursor-pointer border-b-[3px] px-4 text-sm font-semibold whitespace-nowrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${
               selected ? "border-primary text-primary" : "border-transparent text-ink-muted"
             }`}

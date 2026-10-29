@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 import { PERMISSION } from "@/types/Roles";
+import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 
 const mocks = vi.hoisted(() => ({
   authGuard: vi.fn(),
@@ -16,10 +17,6 @@ vi.mock("@/lib/auth/gaurd", () => ({
 
 vi.mock("@/lib/auth/requestHelper", () => ({
   getBusinessIdFromRequest: mocks.getBusinessIdFromRequest,
-}));
-
-vi.mock("@/lib/http", () => ({
-  handle: async (callback: () => Promise<unknown>) => callback(),
 }));
 
 vi.mock("@/service/MenuItemsService", () => ({
@@ -61,7 +58,7 @@ describe("POST /api/menu-items/:id/archive", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.menuItem).toEqual({
+    expect(body.data).toEqual({
       ...archivedItem,
       archivedAt: archivedItem.archivedAt.toISOString(),
     });
@@ -70,6 +67,18 @@ describe("POST /api/menu-items/:id/archive", () => {
       expect.anything(),
       { requirePermission: PERMISSION.MENU_ITEM_ARCHIVE },
     );
+  });
+
+  it("returns the service's 409 as the error shape", async () => {
+    mocks.archive.mockRejectedValue(new ConflictException("menu_item_already_archived"));
+
+    const response = await archivePOST(
+      request(`/api/menu-items/${itemId}/archive`),
+      { params },
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ success: false, message: "menu_item_already_archived" });
   });
 
   it("does not archive when access is denied", async () => {
@@ -105,7 +114,7 @@ describe("POST /api/menu-items/:id/unarchive", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.menuItem).toEqual(restoredItem);
+    expect(body.data).toEqual(restoredItem);
     expect(mocks.unarchive).toHaveBeenCalledWith(businessId, itemId);
     expect(mocks.authGuard).toHaveBeenCalledWith(
       expect.anything(),

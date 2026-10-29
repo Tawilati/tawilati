@@ -21,11 +21,11 @@ export async function requireStaff(area: ROLE): Promise<StaffSession> {
   const requestHeaders = await headers();
   const userId = requestHeaders.get("x-user-id");
   const businessId = requestHeaders.get("x-business-id");
-  if (!userId || !businessId) redirect("/login");
+  if (!userId || !businessId) redirect("/login?reason=unauthorized");
 
   const profile = await userService.getStaffProfile(userId, businessId);
   const role = profile && toRole(profile.role);
-  if (!profile || !role) redirect("/login");
+  if (!profile || !role) redirect("/login?reason=unauthorized");
   if (role !== area) redirect(homeFor(role));
 
   return { ...profile, role };

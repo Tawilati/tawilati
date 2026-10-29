@@ -52,7 +52,7 @@ const IDENTITY_HEADERS = ["x-user-id", "x-user-role", "x-business-id"];
 function unauthenticated(req: NextRequest): NextResponse {
   const response = req.nextUrl.pathname.startsWith("/api/")
     ? NextResponse.json({ success: false, message: "unauthorized" }, { status: 401 })
-    : NextResponse.redirect(new URL("/login", req.url));
+    : NextResponse.redirect(new URL("/login?reason=unauthorized", req.url));
   authService.clearAuthCookies(response);
   return response;
 }

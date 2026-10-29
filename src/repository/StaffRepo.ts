@@ -54,7 +54,7 @@ export class StaffRepo {
       throw new DBException("Error loading staff", err as Error);
     }
   }
-
+/** 
   async update(id: string, businessId: string, data:{name?: string;role?: StaffRole; isActive?: boolean}): Promise<User> {
     const {  ...fields } = data;
     try {
@@ -70,7 +70,35 @@ export class StaffRepo {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") throw err;
       throw new DBException("Error updating staff", err as Error);
     }
+  }*/
+ async update(
+  id: string,
+  businessId: string,
+  data: { name?: string; role?: StaffRole; isActive?: boolean }
+): Promise<User> {
+  // Build the update payload explicitly
+  const updateData: Prisma.UserUpdateInput = {
+    ...(data.name !== undefined && { name: data.name }),
+    ...(data.role !== undefined && { role: data.role }),
+    ...(data.isActive !== undefined && { isActive: data.isActive }),
+  };
+
+  // If deactivating, clear the refresh tokens
+  if (data.isActive === false) {
+    updateData.refreshToken = null;
+    updateData.refreshTokenExpiresAt = null;
   }
+
+  try {
+    return await prisma.user.update({
+      where: { id, businessId },
+      data: updateData,
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") throw err;
+    throw new DBException("Error updating staff", err as Error);
+  }
+}
 }
 
 export const staffRepo = StaffRepo.getInstance();

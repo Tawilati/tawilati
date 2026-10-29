@@ -15,6 +15,7 @@ const { repo } = vi.hoisted(() => ({
     create: vi.fn(),
     update: vi.fn(),
     setArchived: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -154,6 +155,16 @@ it("rounds the calculated LBP price to two decimal places", async () => {
         priceLBP: new Prisma.Decimal("315000.00"),
         soldOut: false,
       });
+    });
+
+    it("rejects a price whose LBP value would overflow the column, without writing", async () => {
+      repo.categoryBelongsToBusiness.mockResolvedValue(true);
+      repo.findBusinessExchangeRate.mockResolvedValue(new Prisma.Decimal("200000"));
+
+      await expect(
+        menuItemService.create(BUSINESS_ID, { name: "Gold", categoryId: CATEGORY_ID, priceUSD: 99999 }),
+      ).rejects.toMatchObject({ status: 400, message: "validation_error" });
+      expect(repo.create).not.toHaveBeenCalled();
     });
 
     it("rounds the USD price to two decimal places using half-up rounding", async () => {
@@ -425,6 +436,29 @@ it("rounds the calculated LBP price to two decimal places", async () => {
       ).rejects.toThrow(ConflictException);
 
       expect(repo.setArchived).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("MenuItemService.delete", () => {
+  it("deletes an item nobody ordered", async () => {
+    repo.delete.mockResolvedValue("deleted");
+
+    await expect(menuItemService.delete(BUSINESS_ID, ITEM_ID)).resolves.toBeUndefined();
+    expect(repo.delete).toHaveBeenCalledWith(ITEM_ID, BUSINESS_ID);
+  });
+
+  it("is a 404 for an item outside the business", async () => {
+    repo.delete.mockResolvedValue("not_found");
+
+    await expect(menuItemService.delete(BUSINESS_ID, ITEM_ID)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("is a 409 for an item that was ordered", async () => {
+    repo.delete.mockResolvedValue("in_use");
+
+    await expect(menuItemService.delete(BUSINESS_ID, ITEM_ID)).rejects.toMatchObject({
+      message: "menu_item_in_use",
     });
   });
 });

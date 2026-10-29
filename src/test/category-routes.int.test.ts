@@ -89,15 +89,15 @@ describe("/api/categories integration", () => {
     expect(response.status).toBe(201);
 
     // Verify the API response.
-    expect(body.category).toMatchObject({
+    expect(body.data).toMatchObject({
       name: "Drinks",
     });
-    expect(body.category.id).toBeTruthy();
+    expect(body.data.id).toBeTruthy();
 
     // Verify the category really exists under this business.
     const savedCategory = await prisma.menuCategory.findFirst({
       where: {
-        id: body.category.id,
+        id: body.data.id,
         businessId,
       },
     });
@@ -112,7 +112,7 @@ describe("/api/categories integration", () => {
 
     expect(response.status).toBe(200);
 
-    expect(body.categories).toEqual(
+    expect(body.data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: "Drinks",

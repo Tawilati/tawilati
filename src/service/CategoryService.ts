@@ -63,6 +63,12 @@ return this.repo.create(businessId, name);
     businessId: string,
     name: string,
   ): Promise<CategoryRecord> {
+    //Renaming onto another category's name is the same 409 as creating a duplicate.
+    const existingCategory = await this.repo.findByBusinessAndName(businessId, name);
+    if (existingCategory && existingCategory.id !== categoryId) {
+      throw new ConflictException("category_already_exists");
+    }
+
     const category = await this.repo.update(
       categoryId,
       businessId,

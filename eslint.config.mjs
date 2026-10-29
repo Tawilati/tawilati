@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Session notes written by the Remember plugin, not app code.
+    ".remember/**",
   ]),
 ]);
 

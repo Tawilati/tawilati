@@ -72,6 +72,7 @@ export default function StyleguidePage() {
         <StatusBadge status="SERVED" />
         <StatusBadge status="CLOSED" />
         <StatusBadge status="SOLD_OUT" />
+        <StatusBadge status="DISABLED" />
       </Section>
 
       <Section title="Cart controls" note="Tap + to add, then use the stepper. Going below 1 removes the item.">

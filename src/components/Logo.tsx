@@ -13,9 +13,21 @@ export function Logo({
 }: {
   variant?: keyof typeof LOGOS;
   className?: string;
-  // Set it when the logo is above the fold: it loads straight away instead of lazily.
+  // Set it when the logo is above the fold: the browser fetches it first.
   priority?: boolean;
 }) {
   const { src, width, height } = LOGOS[variant];
-  return <Image src={src} width={width} height={height} alt="tawilati." className={className} priority={priority} unoptimized />;
+  // Every copy loads eagerly: the file is tiny, and Next.js tracks images by src, so one lazy copy lower on the page
+  // (footer, table stand) would make the above-the-fold nav logo report as a lazy LCP image.
+  return (
+    <Image
+      src={src}
+      width={width}
+      height={height}
+      alt="tawilati."
+      className={className}
+      unoptimized
+      {...(priority ? { priority } : { loading: "eager" })}
+    />
+  );
 }

@@ -167,19 +167,29 @@ describe("POST /api/auth/login", () => {
     expect(cookieNames(res)).toEqual(["auth_token", "refresh_token"]);
   });
 
-  it("gives the same 401 for a wrong password, an unknown email and a deactivated account", async () => {
+  it("gives the same 401 for a wrong password, an unknown email and a deactivated account's wrong password", async () => {
     const wrongPassword = await post(login, "/api/auth/login", { email: owner.email, password: "Wrong12345" });
     const unknownEmail = await post(login, "/api/auth/login", {
       email: `nobody-${run}@tawilati.test`,
       password: owner.password,
     });
     await prisma.user.update({ where: { email: owner.email }, data: { isActive: false } });
-    const deactivated = await post(login, "/api/auth/login", { email: owner.email, password: owner.password });
+    // A deactivated account with a wrong password must look like any other wrong password.
+    const deactivatedWrongPassword = await post(login, "/api/auth/login", { email: owner.email, password: "Wrong12345" });
 
-    for (const res of [wrongPassword, unknownEmail, deactivated]) {
+    for (const res of [wrongPassword, unknownEmail, deactivatedWrongPassword]) {
       expect(res.status).toBe(401);
       expect(await res.json()).toEqual({ success: false, message: "invalid_credentials" });
       expect(res.headers.getSetCookie()).toEqual([]);
     }
+  });
+
+  it("answers 403 account_deactivated only once the password is right, with no cookies", async () => {
+    await prisma.user.update({ where: { email: owner.email }, data: { isActive: false } });
+    const res = await post(login, "/api/auth/login", { email: owner.email, password: owner.password });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ success: false, message: "account_deactivated" });
+    expect(res.headers.getSetCookie()).toEqual([]);
   });
 });

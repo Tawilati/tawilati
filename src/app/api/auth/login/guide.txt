@@ -105,10 +105,15 @@
 //   - Owner deactivates a waiter: PATCH /api/staff/:id { isActive: false }
 //   - Attempt to log in with that waiter's credentials.
 //
-// Expected:
-//   - Status: 401 Unauthorized
-//   - Body: { success: false, message: "invalid_credentials" }
-//     (same as Tests 2 and 3: never say the account is deactivated)
+// Expected (right password):
+//   - Status: 403 Forbidden
+//   - Body: { success: false, message: "account_deactivated" }
+//     (the login form says "Your account is turned off" and to ask the owner)
+//   - NO cookies set
+//
+// Expected (wrong password for the deactivated account):
+//   - Status: 401, { success: false, message: "invalid_credentials" }
+//     (same as Tests 2 and 3: without the right password, never say the account is deactivated)
 //   - NO cookies set
 //
 // Proves:

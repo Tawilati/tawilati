@@ -35,8 +35,9 @@ export class UserService {
     }
     return UserService.instance;
   }
-  // Unknown email, wrong password and deactivated account all get the same 401
-  // invalid_credentials, so the answer never tells which emails have an account.
+  // Unknown email and wrong password get the same 401 invalid_credentials, so the answer never tells
+  // which emails have an account. A deactivated account gets 403 account_deactivated, but only once
+  // the password has matched: only someone who already knows it learns the account is turned off.
   async validateUser(email: string, pass: string): Promise<AuthenticatedUser> {
     let targetUser: AuthenticatedUser | null = null;
     try {
@@ -53,8 +54,8 @@ export class UserService {
       throw new AuthenticationException("invalid_credentials");
     }
     if(!targetUser.isActive){
-      logger.error('user is inactivated account');
-      throw new ForbiddenException('inactive user')
+      logger.warn("Login attempt failed: account deactivated");
+      throw new ForbiddenException("account_deactivated");
     }
     return targetUser;
   }

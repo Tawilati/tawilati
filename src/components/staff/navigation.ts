@@ -28,7 +28,7 @@ export type NavItem = {
 export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
   [ROLE.OWNER]: [
     { href: "/dashboard/menu", label: "Menu", icon: MenuIcon },
-    { href: "/dashboard/tables", label: "Tables", icon: TablesIcon, soon: true },
+    { href: "/dashboard/tables", label: "Tables", icon: TablesIcon },
     { href: "/dashboard/staff", label: "Staff", icon: StaffIcon },
     { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon, soon: true },
     { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, phoneMore: true, accountMenu: true },

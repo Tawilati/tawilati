@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-// Order round statuses (DiningOrder.status), the closed tab, and sold-out items.
-export type BadgeStatus = "NEW" | "PREPARING" | "READY" | "SERVED" | "CLOSED" | "SOLD_OUT";
+// Order round statuses (DiningOrder.status), the closed tab, sold-out items and disabled tables.
+export type BadgeStatus = "NEW" | "PREPARING" | "READY" | "SERVED" | "CLOSED" | "SOLD_OUT" | "DISABLED";
 
 const LOOK: Record<BadgeStatus, { className: string; label: string }> = {
   NEW: { className: "tw-badge--new", label: "New" },
@@ -10,6 +10,7 @@ const LOOK: Record<BadgeStatus, { className: string; label: string }> = {
   SERVED: { className: "tw-badge--served", label: "Served" },
   CLOSED: { className: "tw-badge--closed", label: "Closed" },
   SOLD_OUT: { className: "tw-badge--soldout", label: "Sold out" },
+  DISABLED: { className: "tw-badge--disabled", label: "Disabled" },
 };
 
 // Always shows a word: colour never carries the status alone (brand rule).

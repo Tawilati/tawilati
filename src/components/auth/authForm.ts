@@ -74,13 +74,21 @@ export function errorsFromResponse(mode: AuthMode, body: unknown): AuthErrors {
       return Object.keys(fields).length > 0 ? { fields } : { fields, form: SERVER_TROUBLE };
     }
     case "invalid_credentials":
-    case "inactive user": // 403 from the login route for a turned-off account with the right password
-      // Same sentence for a wrong password, an unknown email and a turned-off account.
+      // Same sentence for a wrong password and an unknown email.
       return {
         fields: {},
         form: {
           title: "Email or password is incorrect",
           body: "Check them and try again. If you're staff and still can't sign in, ask the business owner.",
+        },
+      };
+    case "account_deactivated":
+      // 403 from the login route: the password was right, but the owner has turned the account off.
+      return {
+        fields: {},
+        form: {
+          title: "Your account is turned off",
+          body: "Ask the business owner to turn it back on, then sign in again.",
         },
       };
     case "email_already_in_use":

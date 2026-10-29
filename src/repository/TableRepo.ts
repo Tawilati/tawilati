@@ -1,6 +1,7 @@
 
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import type { TableStickerRecord } from "@/types/Table";
 import { DBException } from "@/utils/exceptions/RepoException";
 
 const tableSelect = {
@@ -14,6 +15,9 @@ const tableSelect = {
 
 export class TableRepo {
   private static instance: TableRepo;
+
+  // Prevents other files from creating instances with `new`.
+  private constructor() {}
 
   static getInstance(): TableRepo {
     if (!TableRepo.instance) {
@@ -54,6 +58,23 @@ export class TableRepo {
       });
     } catch (err) {
       throw new DBException("Error loading table", err as Error);
+    }
+  }
+
+  // What a table's QR sticker needs: the token stays server-side, so only the sticker endpoint reads it.
+  async findStickerInBusiness(id: string, businessId: string): Promise<TableStickerRecord | null> {
+    try {
+      return await prisma.diningTable.findFirst({
+        where: { id, businessId },
+        select: {
+          label: true,
+          slug: true,
+          qrToken: true,
+          business: { select: { name: true, slug: true } },
+        },
+      });
+    } catch (err) {
+      throw new DBException("Error loading table sticker", err as Error);
     }
   }
 

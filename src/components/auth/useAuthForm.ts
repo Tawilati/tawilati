@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { z } from "zod";
 import {
   checkField,
@@ -19,9 +18,19 @@ const NO_ERRORS: AuthErrors = { fields: {} };
 // Checks the form, posts it to /api/auth/{login|register} and, on success, opens the role's first screen.
 // The auth cookies come back on that response, so nothing is stored in the browser here.
 export function useAuthForm(mode: AuthMode, schema: z.ZodType) {
-  const router = useRouter();
   const [errors, setErrors] = useState<AuthErrors>(NO_ERRORS);
   const [pending, setPending] = useState(false);
+
+  // After a successful submit the form stays "loading" until the next screen replaces it. If the browser
+  // later restores this page from its back/forward cache (Back after signing out), it would come back
+  // frozen: spinner on, old credentials filled in. Reload it so it starts fresh.
+  useEffect(() => {
+    const onShow = (event: PageTransitionEvent) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   // Returns the errors it shows, so the form can move focus to the first one.
   async function submit(values: Partial<Record<AuthField, string>>): Promise<AuthErrors> {
@@ -45,8 +54,11 @@ export function useAuthForm(mode: AuthMode, schema: z.ZodType) {
     if (response.ok) {
       const destination = destinationFor(body?.data?.role);
       if (destination) {
-        // Stay "loading" until the next screen replaces this one.
-        router.replace(destination);
+        // Stay "loading" until the next screen replaces this one. A full page load, not router.replace:
+        // with cacheComponents the router keeps this page alive in the background, so going back to
+        // /login later showed the same form, still spinning with the old credentials in it.
+        // `replace`, so Back from the staff screen skips the sign-in page.
+        window.location.replace(destination);
         return NO_ERRORS;
       }
     }

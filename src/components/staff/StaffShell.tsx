@@ -85,7 +85,8 @@ export function StaffShell({
     // Logout clears the auth cookies; whatever the answer, leave the staff area.
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     // A full page load, not router.replace + refresh: those two raced, leaving this dialog spinning on the old screen.
-    window.location.assign("/login");
+    // `replace`, so Back doesn't return to the staff screen that was just signed out of.
+    window.location.replace("/login");
   }
   const items = NAV_BY_ROLE[role];
   const sidebarItems = items.filter((item) => !item.accountMenu);
@@ -104,7 +105,8 @@ export function StaffShell({
 
   return (
     <div className="flex min-h-full flex-1">
-      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col gap-5 border-r border-border-subtle bg-surface px-3 py-5 md:flex">
+      {/* print:!hidden on the menus: a printed page (the table stickers) shows only the screen's content. */}
+      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col gap-5 border-r border-border-subtle bg-surface px-3 py-5 md:flex print:!hidden">
         <Link href={items[0].href} className="ml-2 self-start">
           <Logo priority className="h-auto w-32" />
         </Link>
@@ -154,18 +156,18 @@ export function StaffShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header
-          className="sticky z-20 flex items-center justify-between border-b border-border-subtle bg-surface px-4 py-3 md:hidden"
+          className="sticky z-20 flex items-center justify-between border-b border-border-subtle bg-surface px-4 py-3 md:hidden print:!hidden"
           style={{ top: "env(safe-area-inset-top, 0px)" }}
         >
           <Logo priority className="h-auto w-[104px]" />
           <span className="text-xs font-semibold text-secondary-ink">{ROLE_LABEL[role]}</span>
         </header>
 
-        <main className="flex-1 px-4 py-5 pb-24 md:px-8 md:py-7 md:pb-7">{children}</main>
+        <main className="flex-1 px-4 py-5 pb-24 md:px-8 md:py-7 md:pb-7 print:!p-0">{children}</main>
 
         <nav
           aria-label="Staff"
-          className="fixed inset-x-0 bottom-0 z-20 grid border-t border-border-subtle bg-surface px-1 pt-1.5 md:hidden"
+          className="fixed inset-x-0 bottom-0 z-20 grid border-t border-border-subtle bg-surface px-1 pt-1.5 md:hidden print:!hidden"
           style={{
             gridTemplateColumns: `repeat(${barItems.length + 1}, minmax(0, 1fr))`,
             paddingBottom: "max(10px, env(safe-area-inset-bottom, 0px))",

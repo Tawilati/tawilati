@@ -18,7 +18,10 @@
   --color-primary-tint: var(--brand-primary-tint);
   --color-on-primary: var(--on-primary);
   --color-secondary-ink: var(--brand-secondary-ink);
-  --color-surface: var(--surface-primary);
+  --color-accent: var(--brand-accent);
+  --color-accent-ink: var(--brand-accent-ink);
+  --color-accent-tint: var(--brand-accent-tint);
+  --color-surface:var(--surface-primary);
   --color-surface-secondary: var(--surface-secondary);
   --color-surface-muted: var(--surface-muted);
   --color-ink: var(--text-primary);
@@ -31,6 +34,99 @@
   --color-soldout-tint: var(--status-soldout-bg);
   --font-sans: var(--font-ui);
   --font-display: var(--font-brand);
+}
+
+/* Nav links scroll to their section smoothly, unless the visitor asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Motion for the landing page. All of it is off for visitors who have asked for less motion. */
+@keyframes tw-rise {
+  from { opacity: 0; translate: 0 18px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes tw-pop {
+  from { opacity: 0; scale: 0.92; }
+  to { opacity: 1; scale: 1; }
+}
+@keyframes tw-float {
+  from { translate: 0 0; }
+  to { translate: 0 -10px; }
+}
+@keyframes tw-open {
+  from { opacity: 0; translate: 0 -6px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* On load: hero text and phone rise in one after the other (--d is the delay). */
+  .tw-rise {
+    animation: tw-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: var(--d, 0s);
+  }
+  /* Hero cards pop in, then keep drifting (--rise-delay, --float-delay). */
+  .tw-pop {
+    animation:
+      tw-pop 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both,
+      tw-float 5s ease-in-out infinite alternate;
+    animation-delay: var(--rise-delay, 0s), var(--float-delay, 0s);
+  }
+  /* FAQ answers ease open. */
+  details[open] > p {
+    animation: tw-open 0.3s ease-out;
+  }
+  /* Down the page: blocks fade up as they scroll into view. Browsers without scroll-driven animation just show them. */
+  @supports (animation-timeline: view()) {
+    .tw-reveal {
+      animation: tw-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 40%;
+    }
+  }
+}
+
+@keyframes tw-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
+@keyframes tw-ping {
+  0% { box-shadow: 0 0 0 0 rgb(229 164 91 / 0.55); }
+  100% { box-shadow: 0 0 0 9px rgb(229 164 91 / 0); }
+}
+@keyframes tw-step {
+  from { opacity: 0; translate: 0 10px; scale: 0.985; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* A new order arriving: the amber dot pulses a few times, then stops. */
+  .tw-ping { animation: tw-ping 1.4s ease-out 3; }
+  /* The two cards beside the hero phone bob gently; tw-bob-late runs half a cycle behind so they move out of step. */
+  .tw-bob { animation: tw-bob 6s ease-in-out infinite; }
+  .tw-bob-late { animation: tw-bob 6s ease-in-out -3s infinite; }
+  /* The picture beside "How it works" and the feature tabs swaps with a short fade. */
+  .tw-step { animation: tw-step 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  /* Buttons lift a little on hover. */
+  .tw-lift { transition: translate 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease; }
+  .tw-lift:hover { translate: 0 -2px; box-shadow: 0 6px 14px rgb(37 77 59 / 0.22); }
+  .tw-lift:active { translate: 0 0; box-shadow: none; }
+  /* The hero phone stands up straight when pointed at. */
+  .tw-phone { transition: rotate 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), translate 0.5s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .tw-phone-stage:hover .tw-phone { rotate: 0deg; translate: 0 -4px; }
+}
+
+/* Marker underline under a highlighted word (amber, behind the text). */
+.tw-mark {
+  box-shadow: inset 0 -0.3em 0 rgb(229 164 91 / 0.55);
+}
+
+/* A paper receipt: zigzag torn edge along the bottom. The shadow goes on the wrapper because a mask would clip it. */
+.tw-receipt {
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%;
+}
+.tw-receipt-shadow {
+  filter: drop-shadow(0 6px 8px rgb(32 43 38 / 0.12));
 }
 
 body {

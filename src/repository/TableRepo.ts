@@ -9,6 +9,7 @@ const tableSelect = {
   slug: true,
   isDisabled: true,
   createdAt: true,
+  updatedAt:true,
 } as const;
 
 export class TableRepo {
@@ -20,6 +21,19 @@ export class TableRepo {
     }
     return TableRepo.instance;
   }
+  async findByLabelInBusiness(label: string, businessId: string) {
+  try {
+    return await prisma.diningTable.findFirst({
+      where: {
+        businessId,
+        label,
+      },
+      select: tableSelect,
+    });
+  } catch (err) {
+    throw new DBException("Error checking table label", err as Error);
+  }
+}
 
   async listByBusiness(businessId: string) {
     try {

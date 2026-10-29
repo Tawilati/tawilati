@@ -1,4 +1,6 @@
 
+import { maptoTableResponse } from "../types/tableMapper";
+import type { TableResponse } from "@/types/Table";
 import { randomBytes } from "node:crypto";
 import { tableRepo } from "@/repository/TableRepo";
 import { slugService } from "@/service/SlugService";
@@ -7,9 +9,8 @@ import type {
   CreateTableInput,
   UpdateTableInput,
 } from "@/validation/tableSchemas";
-
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
-
+import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 export class TableService {
   private static instance: TableService;
 
@@ -20,65 +21,106 @@ export class TableService {
     return TableService.instance;
   }
 
-  async listTables(businessId: string) {
-    return tableRepo.listByBusiness(businessId);
-  }
-async updateTable(
-  businessId: string,
-  id: string,
-  patch: UpdateTableInput,
-) {
-  const table = await tableRepo.findInBusiness(id, businessId);
+  async listTables(
+    businessId: string,
+  ): Promise<TableResponse[]> {
+    const tables = await tableRepo.listByBusiness(businessId);
 
-  if (!table) {
-    throw new NotFoundException("not_found");
+    return tables.map(maptoTableResponse);
   }
 
-  return tableRepo.update(id, businessId, patch);
-}
+  async updateTable(
+    businessId: string,
+    id: string,
+    patch: UpdateTableInput,
+  ): Promise<TableResponse> {
+    const table = await tableRepo.findInBusiness(id, businessId);
 
-async disableTable(businessId: string, id: string) {
-  const table = await tableRepo.findInBusiness(id, businessId);
+    if (!table) {
+      throw new NotFoundException("not_found");
+    }
 
-  if (!table) {
-    throw new NotFoundException("not_found");
-  }
-
-  return tableRepo.update(id, businessId, {
-    isDisabled: true,
-  });
-}
-
-async enableTable(businessId: string, id: string) {
-  const table = await tableRepo.findInBusiness(id, businessId);
-
-  if (!table) {
-    throw new NotFoundException("not_found");
-  }
-
-  return tableRepo.update(id, businessId, {
-    isDisabled: false,
-  });
-}
-
-  async createTable(businessId: string, input: CreateTableInput) {
-    const baseSlug = makeSlug(input.label, "table");
-
-    const slug = await slugService.uniqueTableSlug(
+    const updatedTable = await tableRepo.update(
+      id,
       businessId,
-      baseSlug,
+      patch,
     );
 
-    // 32 random bytes encoded as 64 lowercase hexadecimal characters.
-    const qrToken = randomBytes(32).toString("hex");
-
-    return tableRepo.create({
-      businessId,
-      label: input.label,
-      slug,
-      qrToken,
-    });
+    return maptoTableResponse(updatedTable);
   }
+
+  async disableTable(
+    businessId: string,
+    id: string,
+  ): Promise<TableResponse> {
+    const table = await tableRepo.findInBusiness(id, businessId);
+
+    if (!table) {
+      throw new NotFoundException("not_found");
+    }
+
+    const updatedTable = await tableRepo.update(id, businessId, {
+      isDisabled: true,
+    });
+
+    return maptoTableResponse(updatedTable);
+  }
+
+  async enableTable(
+    businessId: string,
+    id: string,
+  ): Promise<TableResponse> {
+    const table = await tableRepo.findInBusiness(id, businessId);
+
+    if (!table) {
+      throw new NotFoundException("not_found");
+    }
+
+    const updatedTable = await tableRepo.update(id, businessId, {
+      isDisabled: false,
+    });
+
+    return maptoTableResponse(updatedTable);
+  }
+
+  async createTable(
+  businessId: string,
+  input: CreateTableInput,
+): Promise<TableResponse> {
+  const label = input.label.trim();
+
+  if (!label) {
+    throw new Error("Table label cannot be empty");
+  }
+
+  const existingTable = await tableRepo.findByLabelInBusiness(
+    label,
+    businessId,
+  );
+
+  if (existingTable) {
+    // Replace with your project's existing conflict exception.
+    throw new ConflictException("table_label_exists");
+  }
+
+  const baseSlug = makeSlug(label, "table");
+
+  const slug = await slugService.uniqueTableSlug(
+    businessId,
+    baseSlug,
+  );
+
+  const qrToken = randomBytes(32).toString("hex");
+
+  const table = await tableRepo.create({
+    businessId,
+    label,
+    slug,
+    qrToken,
+  });
+
+  return maptoTableResponse(table);
+}
 }
 
 export const tableService = TableService.getInstance();

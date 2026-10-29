@@ -1,6 +1,6 @@
-import type { TableRecord, TableResponse } from "@/types/TableTypes";
+import type { TableRecord, TableResponse } from "@/types/Table";
 
-export function mapTable(table: TableRecord): TableResponse {
+export function maptoTableResponse(table: TableRecord): TableResponse {
   return {
     id: table.id,
     label: table.label,

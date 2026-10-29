@@ -17,7 +17,7 @@ export async function PATCH(
 ) {
   return handle(async () => {
     const denied = authGuard(request, {
-      requirePermission: PERMISSION.TABLE_WRITE,
+      requirePermission: PERMISSION.TABLE_UPDATE,
     });
     if (denied) return denied;
 

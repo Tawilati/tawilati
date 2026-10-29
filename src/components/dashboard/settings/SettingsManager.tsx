@@ -49,6 +49,11 @@ export function SettingsManager() {
     setNotice({ id: ++noticeCount.current, tone, title });
   }, []);
   const dismissNotice = useCallback(() => setNotice(null), []);
+  // Each PATCH returns a full snapshot, which may predate a save in the other card.
+  // Merge only the field that this request changed.
+  const applySaved = useCallback((patch: Partial<Pick<BusinessSettings, "exchangeRate" | "timezone">>) => {
+    setSettings((current) => current ? { ...current, ...patch } : current);
+  }, []);
 
   const heading = (
     <div className="flex flex-col gap-1">
@@ -93,15 +98,15 @@ export function SettingsManager() {
         />
       )}
 
-      <ExchangeRateCard settings={settings} onSaved={setSettings} notify={notify} />
-      <TimezoneCard settings={settings} onSaved={setSettings} notify={notify} />
+      <ExchangeRateCard settings={settings} onSaved={applySaved} notify={notify} />
+      <TimezoneCard settings={settings} onSaved={applySaved} notify={notify} />
     </div>
   );
 }
 
 type CardProps = {
   settings: BusinessSettings;
-  onSaved: (settings: BusinessSettings) => void;
+  onSaved: (patch: Partial<Pick<BusinessSettings, "exchangeRate" | "timezone">>) => void;
   notify: (tone: Notice["tone"], title: string) => void;
 };
 
@@ -130,7 +135,7 @@ function ExchangeRateCard({ settings, onSaved, notify }: CardProps) {
     setSaving(true);
     try {
       const updated = await settingsApi.setExchangeRate(rate);
-      onSaved(updated);
+      onSaved({ exchangeRate: updated.exchangeRate });
       setText(normaliseRate(updated.exchangeRate));
       setConfirming(null);
       notify("success", "Exchange rate saved. Menu prices in LBP are updated.");
@@ -219,7 +224,7 @@ function TimezoneCard({ settings, onSaved, notify }: CardProps) {
     setSaving(true);
     try {
       const updated = await settingsApi.setTimezone(timezone);
-      onSaved(updated);
+      onSaved({ timezone: updated.timezone });
       setTimezone(updated.timezone);
       notify("success", `Timezone set to ${timezoneLabel(updated.timezone)}.`);
     } catch (error) {

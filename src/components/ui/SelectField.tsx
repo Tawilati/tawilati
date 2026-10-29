@@ -28,12 +28,18 @@ export function SelectField<T extends string>({
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState({ above: false, maxHeight: 240 });
+  const list = useRef<HTMLUListElement>(null);
   const selectedIndex = Math.max(
     0,
     options.findIndex((option) => option.value === value),
   );
   const [active, setActive] = useState(selectedIndex);
   const selected = options[selectedIndex];
+
+  useEffect(() => {
+    if (open) list.current?.children[active]?.scrollIntoView({ block: "nearest" });
+  }, [open, active]);
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +63,13 @@ export function SelectField<T extends string>({
   }, [open]);
 
   function show() {
+    const bounds = trigger.current?.getBoundingClientRect();
+    if (bounds) {
+      const below = window.innerHeight - bounds.bottom - 8;
+      const above = bounds.top - 8;
+      const openAbove = below < 240 && above > below;
+      setPlacement({ above: openAbove, maxHeight: Math.max(44, Math.min(240, openAbove ? above : below)) });
+    }
     setActive(selectedIndex);
     setOpen(true);
   }
@@ -116,10 +129,12 @@ export function SelectField<T extends string>({
       </button>
       {open && (
         <ul
+          ref={list}
           id={listId}
           role="listbox"
           aria-labelledby={`${id}-label`}
-          className="absolute inset-x-0 top-full z-10 mt-1 flex max-h-60 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border-strong bg-surface p-1.5 shadow-[0_8px_24px_rgba(32,43,38,0.18)]"
+          style={{ maxHeight: placement.maxHeight }}
+          className={`absolute inset-x-0 z-30 flex flex-col gap-0.5 overflow-y-auto rounded-lg border border-border-strong bg-surface p-1.5 shadow-[0_8px_24px_rgba(32,43,38,0.18)] ${placement.above ? "bottom-full mb-1" : "top-full mt-1"}`}
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;

@@ -120,6 +120,15 @@
   color: var(--text-primary);
 }
 .tw-field__input::placeholder { color: var(--text-muted); }
+/* Chrome paints autofilled inputs light blue and ignores `background`; cover it with the field's surface. */
+.tw-field__input:-webkit-autofill,
+.tw-field__input:-webkit-autofill:hover,
+.tw-field__input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-primary) inset;
+  box-shadow: 0 0 0 1000px var(--surface-primary) inset;
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+}
 .tw-field__action {
   display: inline-flex;
   align-items: center;

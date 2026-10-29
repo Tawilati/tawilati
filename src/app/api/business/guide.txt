@@ -1,0 +1,132 @@
+BUSINESS SETTINGS API - TEST GUIDE
+
+Routes
+  GET   /api/business - read the current business's settings.
+  PATCH /api/business - change the exchange rate and/or the timezone.
+
+Authentication and permissions
+  GET requires a valid staff session and BUSINESS_READ (OWNER, WAITER, KITCHEN).
+  PATCH requires BUSINESS_UPDATE (OWNER only).
+  The business is always the one in the authenticated identity header; there is
+  no id in the URL, query or body.
+
+GET /api/business
+
+Success
+  Status: 200
+  { "success": true, "message": "business settings", "data": {
+      "id": "...", "name": "Tawilati Demo Cafe",
+      "exchangeRate": "890000", "timezone": "Asia/Beirut"
+  } }
+  exchangeRate is a decimal sent as a string.
+  Only these four fields are returned (no slug, no createdAt).
+
+TEST CASES
+
+1. OWNER, WAITER and KITCHEN read the settings
+  Expect 200 with their own business.
+
+2. New business defaults
+  Sign up a new business, then read its settings.
+  Expect exchangeRate "890000" and timezone "Asia/Beirut".
+
+3. Tenant isolation
+  Sign in as staff of business A.
+  Expect business A's settings, never business B's.
+
+4. Forged business identity headers
+  Send client-supplied x-business-id for another tenant.
+  The proxy must discard client-provided identity headers; the answer remains
+  the verified session's business.
+
+5. Business id in the query or body
+  Call GET /api/business?businessId=<another business>.
+  Expect the signed-in user's own business; the parameter is ignored.
+
+6. Unauthenticated request
+  Expect 401 unauthorized from the proxy.
+
+7. Business deleted while the session is still valid
+  Expect 404 not_found.
+
+8. Database unavailable
+  Expect 500 database_error without internal details.
+
+9. Method not supported
+  Try POST /api/business.
+  Expect Next.js 405 Method Not Allowed.
+
+PATCH /api/business
+
+Body (either field, at least one)
+  { "exchangeRate": 90000, "timezone": "Asia/Dubai" }
+  exchangeRate: a number or numeric string, above 0, below 1,000,000, at most 4
+  decimal places.
+  timezone: one of Asia/Beirut, Asia/Dubai, Europe/Paris, UTC.
+  No other field is accepted (name, slug and businessId are not editable here).
+
+What a new exchange rate does
+  Saves the rate and, in the same transaction, recomputes every menu item's
+  priceLBP = round(priceUSD x new rate, 2), archived items included.
+  Order lines already placed keep the prices they were sold at (snapshots).
+
+Success
+  Status: 200
+  { "success": true, "message": "business updated", "data": {
+      "id": "...", "name": "...", "exchangeRate": "90000", "timezone": "Asia/Dubai"
+  } }
+
+PATCH TEST CASES
+
+10. OWNER changes the rate
+  Item at priceUSD 2.5, rate 89500 -> priceLBP 223750.
+  PATCH { "exchangeRate": 90000 }.
+  Expect 200, and GET /api/menu-items now shows priceLBP "225000" for that item.
+
+11. Guest menu follows
+  After test 10, GET /api/menu shows priceLBP "225000".
+
+12. Archived items are repriced too
+  Archive an item, change the rate, unarchive it.
+  Expect its priceLBP to match the new rate.
+
+13. OWNER changes only the timezone
+  PATCH { "timezone": "Asia/Dubai" }.
+  Expect 200; exchange rate and menu prices unchanged.
+
+14. Invalid exchange rate
+  Try 0, -1, 1000000 and 89500.12345.
+  Expect 400 invalid_exchange_rate with details.exchangeRate. Nothing changes.
+
+15. Rate too high for the menu
+  With an item at priceUSD 99999, try exchangeRate 200000.
+  Expect 400 invalid_exchange_rate ("Too high for the current menu prices").
+
+16. Invalid timezone
+  Try "Mars/Olympus".
+  Expect 400 invalid_timezone with details.timezone.
+
+17. Wrong shape
+  Try {}, { "exchangeRate": "abc" }, { "timezone": 3 }, { "name": "New" },
+  { "slug": "x" } or a businessId in the body.
+  Expect 400 validation_error.
+
+18. Malformed JSON
+  Expect 400 invalid_json.
+
+19. WAITER or KITCHEN tries to update
+  Expect 403 forbidden.
+
+20. Unauthenticated request
+  Expect 401 unauthorized.
+
+21. Tenant isolation
+  Change business A's rate.
+  Expect business B's rate and menu prices unchanged.
+
+22. Placed orders keep their prices
+  Place an order, then change the rate.
+  Expect the order lines' priceLBP and rateSnapshot unchanged.
+
+23. Database unavailable
+  Expect 500 database_error; neither the rate nor any item price changes.

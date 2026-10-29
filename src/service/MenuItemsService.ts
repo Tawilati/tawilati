@@ -13,7 +13,7 @@ import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 
 // Decimal(12,2) holds values below 10^10.
-const MAX_PRICE_LBP = new Prisma.Decimal("10000000000");
+export const MAX_PRICE_LBP =new Prisma.Decimal("10000000000");
 
 export class MenuItemService {
   // Stores the single MenuItemService instance.

@@ -1,4 +1,4 @@
-import type { PublicMenu } from "@/service/MenuService";
+import type { PublicMenu } from "@/types/Menu";
 
 // Names of items that were available in `before` and are sold out in `after`,
 // so the guest can be told what just changed on the menu they're reading.

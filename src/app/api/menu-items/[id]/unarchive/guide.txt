@@ -1,0 +1,56 @@
+MENU ITEM UNARCHIVE API - TEST GUIDE
+
+Route
+  POST /api/menu-items/:id/unarchive - put an archived item back on the menu.
+
+Authentication and permissions
+  Requires a valid staff session and MENU_ITEM_ARCHIVE (OWNER only).
+  The businessId is always taken from the authenticated identity header.
+  :id must be a UUID; anything else is 400 validation_error before any query.
+  No request body.
+
+What unarchiving does
+  Clears archivedAt. Prices, category and soldOut are left as they were when the
+  item was archived (priceLBP is not recomputed).
+
+Success
+  Status: 200
+  { "success": true, "message": "menu item restored", "data": {
+      ...menu item, "archivedAt": null
+  } }
+
+TEST CASES
+
+1. OWNER restores an archived item
+  Expect 200 with archivedAt null.
+
+2. Guest menu shows it again
+  Open GET /api/menu for a table of the same business.
+  Expect the item back in its category, with its soldOut state unchanged.
+
+3. Item is not archived
+  Unarchive an active item.
+  Expect 409 menu_item_not_archived.
+
+4. Unarchive twice
+  Expect 200, then 409 menu_item_not_archived.
+
+5. Unknown id or another business's item
+  Expect 404 menu_item_not_found, and the other business's item is untouched.
+
+6. Malformed id
+  Use "abc" as the id.
+  Expect 400 validation_error with details.id.
+
+7. WAITER or KITCHEN tries to unarchive
+  Expect 403 forbidden.
+
+8. Unauthenticated request
+  Expect 401 unauthorized.
+
+9. Database unavailable
+  Expect 500 database_error.
+
+10. Method not supported
+  Try GET /api/menu-items/:id/unarchive.
+  Expect Next.js 405 Method Not Allowed.

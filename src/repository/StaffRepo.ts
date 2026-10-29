@@ -1,7 +1,8 @@
 import { Prisma, type User } from "@/app/generated/prisma/client";
 import { UserRole } from "@/app/generated/prisma/enums";
 import { prisma } from "@/lib/db";
-import type { StaffRole } from "@/types/Staff";
+import type { CreateStaffData } from "@/types/Staff";
+import type { UpdateStaffInput } from "@/validation/staff";
 import { DBException } from "@/utils/exceptions/RepoException";
 
 // Owners are not staff: they are never listed or edited through /api/staff.
@@ -9,6 +10,9 @@ const STAFF_ROLES: UserRole[] = [UserRole.WAITER, UserRole.KITCHEN];
 
 export class StaffRepo {
   private static instance: StaffRepo;
+
+  //Prevents other files from creating instances with `new`.
+  private constructor() {}
 
   static getInstance(): StaffRepo {
     if (!StaffRepo.instance) {
@@ -26,7 +30,7 @@ export class StaffRepo {
     }
   }
 
-  async create( data:{businessId: string; name: string;email: string; passwordHash: string;role: StaffRole}): Promise<User> {
+  async create(data: CreateStaffData): Promise<User> {
     try {
       return await prisma.user.create({ data });
     } catch (err) {
@@ -54,27 +58,11 @@ export class StaffRepo {
       throw new DBException("Error loading staff", err as Error);
     }
   }
-/** 
-  async update(id: string, businessId: string, data:{name?: string;role?: StaffRole; isActive?: boolean}): Promise<User> {
-    const {  ...fields } = data;
-    try {
-      return await prisma.user.update({
-        where: { id, businessId },
-        data: {
-          ...fields,
-         
-        },
-      });
-    } catch (err) {
-      // Record gone between the check and the update: handleRouteError answers 404.
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") throw err;
-      throw new DBException("Error updating staff", err as Error);
-    }
-  }*/
+
  async update(
   id: string,
   businessId: string,
-  data: { name?: string; role?: StaffRole; isActive?: boolean }
+  data: UpdateStaffInput
 ): Promise<User> {
   // Build the update payload explicitly
   const updateData: Prisma.UserUpdateInput = {

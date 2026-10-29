@@ -3,11 +3,11 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { Prisma } from "@/app/generated/prisma/client";
 import type {
   MenuCategoryRecord,
-  MenuItemRecord,
+  PublicMenuItemRecord,
   TableWithBusiness,
-} from "@/repository/MenuRepo";
+} from "@/types/Menu";
 import { HttpException } from "@/utils/exceptions/http/HttpException";
-import { MenuService } from "@/service/MenuService";
+import { menuService } from "@/service/MenuService";
 
 // ── Mock the repo module ─────────────────────────────────────
 // The service imports `menuRepo` directly from this module.
@@ -40,7 +40,7 @@ function table(overrides: Partial<TableWithBusiness> = {}): TableWithBusiness {
   };
 }
 
-function item(overrides: Partial<MenuItemRecord> = {}): MenuItemRecord {
+function item(overrides: Partial<PublicMenuItemRecord> = {}): PublicMenuItemRecord {
   return {
     id: "item-10",
     name: "Espresso",
@@ -72,8 +72,7 @@ describe("MenuService.getPublicMenu", () => {
       { id: "cat-1", name: "Hot drinks", items: [item()] },
     ]);
 
-    const service = new MenuService();
-    const menu = await service.getPublicMenu(query);
+    const menu = await menuService.getPublicMenu(query);
 
     expect(menu).toEqual({
       business: { id: "biz-1", name: "Café Hamra", slug: "cafe-hamra" },
@@ -94,7 +93,7 @@ describe("MenuService.getPublicMenu", () => {
     mockedRepo.findTableByQrToken.mockResolvedValue(table());
     mockedRepo.findMenuCategories.mockResolvedValue([]);
 
-    await new MenuService().getPublicMenu(query);
+    await menuService.getPublicMenu(query);
 
     expect(mockedRepo.findMenuCategories).toHaveBeenCalledWith("biz-1");
   });
@@ -105,7 +104,7 @@ describe("MenuService.getPublicMenu", () => {
       { id: "cat-1", name: "Hot drinks", items: [item({ soldOut: true })] },
     ]);
 
-    const menu = await new MenuService().getPublicMenu(query);
+    const menu = await menuService.getPublicMenu(query);
 
     expect(menu.categories[0].items[0].soldOut).toBe(true);
   });
@@ -122,7 +121,7 @@ describe("MenuService.getPublicMenu", () => {
       { id: "cat-3", name: "Empty", items: [] },
     ]);
 
-    const menu = await new MenuService().getPublicMenu(query);
+    const menu = await menuService.getPublicMenu(query);
 
     expect(menu.categories.map((c) => c.id)).toEqual(["cat-1"]);
     expect(menu.categories[0].items.map((i) => i.id)).toEqual(["item-10"]);
@@ -132,7 +131,7 @@ describe("MenuService.getPublicMenu", () => {
     mockedRepo.findTableByQrToken.mockResolvedValue(null);
 
     await expectHttpError(
-      new MenuService().getPublicMenu({ ...query, qrToken: "b".repeat(64) }),
+      menuService.getPublicMenu({ ...query, qrToken: "b".repeat(64) }),
       404,
       "invalid_qr",
     );
@@ -143,13 +142,13 @@ describe("MenuService.getPublicMenu", () => {
       table({ business: { id: "biz-2", name: "Other café", slug: "other-cafe" } }),
     );
 
-    await expectHttpError(new MenuService().getPublicMenu(query), 404, "invalid_qr");
+    await expectHttpError(menuService.getPublicMenu(query), 404, "invalid_qr");
     expect(mockedRepo.findMenuCategories).not.toHaveBeenCalled();
   });
 
   it("rejects a disabled table with table_disabled", async () => {
     mockedRepo.findTableByQrToken.mockResolvedValue(table({ isDisabled: true }));
 
-    await expectHttpError(new MenuService().getPublicMenu(query), 409, "table_disabled");
+    await expectHttpError(menuService.getPublicMenu(query), 409, "table_disabled");
   });
 });

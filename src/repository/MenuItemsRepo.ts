@@ -1,6 +1,7 @@
 
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import type { DbClient } from "@/types/Db";
 import { DBException } from "@/utils/exceptions/RepoException";
 import type {
   CreateMenuItemData,
@@ -145,6 +146,33 @@ export class MenuItemRepo {
       return updated[0] ?? null;
     } catch (err) {
       throw new DBException("Error archiving menu item", err as Error);
+    }
+  }
+
+  // The highest USD price in the business (archived items included), or null with no items.
+  async findMaxPriceUSD(businessId: string): Promise<Prisma.Decimal | null> {
+    try {
+      const result = await prisma.menuItem.aggregate({
+        where: { businessId },
+        _max: { priceUSD: true },
+      });
+      return result._max.priceUSD;
+    } catch (err) {
+      throw new DBException("Error loading the highest menu price", err as Error);
+    }
+  }
+
+  // Recomputes priceLBP = round(priceUSD x rate, 2) for every item of the business, archived ones too.
+  // Raw SQL because Prisma's updateMany cannot set one column from another. Order lines keep their snapshots.
+  async repriceLBP(tx: DbClient, businessId: string, exchangeRate: Prisma.Decimal): Promise<number> {
+    try {
+      return await tx.$executeRaw`
+        UPDATE "MenuItem"
+        SET "priceLBP" = ROUND("priceUSD" * ${exchangeRate.toString()}::numeric, 2),
+            "updatedAt" = NOW()
+        WHERE "businessId" = ${businessId}`;
+    } catch (err) {
+      throw new DBException("Error repricing menu items", err as Error);
     }
   }
 

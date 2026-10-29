@@ -18,8 +18,11 @@
 
 import { Prisma, type Business } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { menuItemRepo } from "@/repository/MenuItemsRepo";
+import type { UpdateBusinessData } from "@/types/Business";
 import type { DbClient } from "@/types/Db";
-import { DBException } from "@/utils/exceptions/RepoException";
+import { DBException, ItemNotFoundException } from "@/utils/exceptions/RepoException";
+import logger from "@/utils/logger";
 
 export class BusinessRepo {
   private static instance: BusinessRepo;
@@ -56,7 +59,7 @@ export class BusinessRepo {
         data: {
           name,
           slug,
-          exchangeRate: new Prisma.Decimal("8,90,000"),
+          exchangeRate: new Prisma.Decimal("890000"),
           timezone: "Asia/Beirut",
         },
       });
@@ -67,6 +70,52 @@ export class BusinessRepo {
     }
       const error = err instanceof Error ? err : new Error(String(err));
       throw new DBException("Error creating business", error);
+    }
+  }
+  async getById(id:string):Promise<Business>{
+    try{
+      const targetBusiness=await prisma.business.findUnique({
+        where:{id:id}
+      })
+      if(targetBusiness==null){
+        logger.error('business doesnot exist');
+        throw new ItemNotFoundException('business not found')
+      }
+      return targetBusiness;
+    }
+    catch(error){
+      // The not-found thrown above must stay a 404, not become a 500.
+      if (error instanceof ItemNotFoundException) {
+        throw error;
+      }
+      logger.error('error when retrieving');
+      throw new DBException('error whil getting the business',error as Error);
+    }
+  }
+
+  // Saves the new settings; a new exchange rate also reprices every menu item, in the same transaction.
+  async updateSettings(businessId: string, data: UpdateBusinessData): Promise<Business> {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const business = await tx.business.update({
+          where: { id: businessId },
+          data,
+        });
+
+        if (data.exchangeRate !== undefined) {
+          await menuItemRepo.repriceLBP(tx, businessId, data.exchangeRate);
+        }
+
+        return business;
+      });
+    } catch (err) {
+      // P2025: the business row is gone.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+        throw new ItemNotFoundException("business not found");
+      }
+      // Already wrapped by menuItemRepo.repriceLBP.
+      if (err instanceof DBException) throw err;
+      throw new DBException("Error updating business settings", err as Error);
     }
   }
 }

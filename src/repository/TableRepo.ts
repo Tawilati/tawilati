@@ -104,6 +104,28 @@ export class TableRepo {
       throw new DBException("Error creating table", err as Error);
     }
   }
+  async findQrDetailsInBusiness(id: string, businessId: string) {
+  try {
+    return await prisma.diningTable.findFirst({
+      where: { id, businessId },
+      select: {
+        id: true,
+        qrToken: true,
+        isDisabled: true,
+        business: {
+          select: {
+            slug: true,
+          },
+        },
+      },
+    });
+  } catch (err) {
+    throw new DBException(
+      "Error loading table QR details",
+      err as Error,
+    );
+  }
+}
 }
 
 export const tableRepo = TableRepo.getInstance();

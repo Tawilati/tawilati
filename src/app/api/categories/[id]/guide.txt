@@ -1,0 +1,116 @@
+CATEGORY BY ID API - TEST GUIDE
+
+Routes
+  GET    /api/categories/:id - read one category.
+  PATCH  /api/categories/:id - rename a category.
+  DELETE /api/categories/:id - delete an empty category.
+
+Authentication and permissions
+  All routes require a valid staff session.
+  GET needs CATEGORY_READ (OWNER, WAITER, KITCHEN).
+  PATCH and DELETE need CATEGORY_WRITE (OWNER only).
+  The businessId is always taken from the authenticated identity header.
+  :id must be a UUID; anything else is 400 validation_error before any query.
+  A category from another business answers exactly like an unknown id (404).
+
+GET /api/categories/:id
+
+Success
+  Status: 200
+  { "success": true, "message": "category", "data": {
+      "id": "...", "name": "Hot drinks", "createdAt": "ISO date", "itemCount": 3
+  } }
+
+GET TEST CASES
+
+1. OWNER, WAITER and KITCHEN read a category
+  Expect 200 with the category and its itemCount.
+
+2. Unknown id
+  Use a random UUID.
+  Expect 404 category_not_found.
+
+3. Another business's category
+  Use a category id that belongs to a different business.
+  Expect 404 category_not_found (no data leaks across tenants).
+
+4. Malformed id
+  Use "abc" as the id.
+  Expect 400 validation_error with details.id.
+
+5. Unauthenticated request
+  Expect 401 unauthorized.
+
+PATCH /api/categories/:id
+
+Body
+  { "name": "Cold drinks" }
+  Same rules as create: trimmed, 1 to 50 characters, no other field.
+
+Success
+  Status: 200
+  { "success": true, "message": "category updated", "data": {
+      "id": "...", "name": "Cold drinks", "createdAt": "ISO date", "itemCount": 3
+  } }
+
+PATCH TEST CASES
+
+6. OWNER renames a category
+  Expect 200 with the new name and the same itemCount.
+
+7. Rename to its own current name
+  Expect 200 (not a conflict).
+
+8. Rename onto another category's name
+  Expect 409 category_already_exists.
+
+9. WAITER or KITCHEN tries to rename
+  Expect 403 forbidden.
+
+10. Invalid body
+  Try {}, "name": "", a 51-character name, or an extra field.
+  Expect 400 validation_error.
+
+11. Malformed JSON
+  Expect 400 invalid_json.
+
+12. Unknown id or another business's category
+  Expect 404 category_not_found.
+
+13. Concurrent rename onto the same name
+  Rename two categories to the same name at once.
+  At most one should return 200; the other returns 409 category_already_exists.
+
+DELETE /api/categories/:id
+
+Success
+  Status: 204 with no body.
+
+DELETE TEST CASES
+
+14. OWNER deletes an empty category
+  Expect 204. A following GET on the id returns 404 category_not_found.
+
+15. Category still has items
+  Expect 409 category_has_items.
+
+16. Category has only archived items
+  Archived items still count.
+  Expect 409 category_has_items.
+
+17. Item added while the delete runs
+  Add an item to the category between the empty check and the delete.
+  The database foreign key refuses the delete: expect 409 category_has_items,
+  not 500.
+
+18. WAITER or KITCHEN tries to delete
+  Expect 403 forbidden.
+
+19. Unknown id or another business's category
+  Expect 404 category_not_found, and the other business's category is untouched.
+
+20. Delete twice
+  Expect 204, then 404 category_not_found.
+
+21. Database unavailable
+  Expect 500 database_error on any of the three routes.

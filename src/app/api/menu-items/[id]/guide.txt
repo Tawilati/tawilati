@@ -1,0 +1,102 @@
+MENU ITEM BY ID API - TEST GUIDE
+
+Routes
+  PATCH  /api/menu-items/:id - edit an item.
+  DELETE /api/menu-items/:id - delete an item that was never ordered.
+
+  There is no GET on this path; read items through GET /api/menu-items.
+
+Authentication and permissions
+  Both routes require a valid staff session and MENU_ITEM_WRITE (OWNER only).
+  The businessId is always taken from the authenticated identity header.
+  :id must be a UUID; anything else is 400 validation_error before any query.
+  An item from another business answers exactly like an unknown id (404).
+
+PATCH /api/menu-items/:id
+
+Body (any of these, at least one)
+  {
+    "name": "Double espresso",
+    "categoryId": "<uuid of a category in this business>",
+    "priceUSD": 3.25,
+    "soldOut": true
+  }
+  Same field rules as create. No other field is accepted.
+  A new priceUSD recomputes priceLBP with the business's current rate.
+  Without priceUSD, priceLBP is left as it is.
+
+Success
+  Status: 200
+  { "success": true, "message": "menu item updated", "data": { ...menu item } }
+
+PATCH TEST CASES
+
+1. Rename only
+  Expect 200 with the new name; prices unchanged.
+
+2. Change price
+  Send priceUSD 3.25 with the default rate 89500.
+  Expect priceUSD "3.25" and priceLBP "290875".
+
+3. Move to another category of the same business
+  Expect 200 with the new categoryId.
+
+4. Move to another business's category
+  Expect 400 category_not_in_business.
+
+5. Toggle soldOut
+  Expect 200 with the new soldOut value.
+
+6. Empty body
+  Send {}.
+  Expect 400 validation_error ("At least one field must be provided").
+
+7. Invalid fields or extra field
+  Try empty name, priceUSD 0, malformed categoryId, or priceLBP in the body.
+  Expect 400 validation_error.
+
+8. Malformed JSON
+  Expect 400 invalid_json.
+
+9. Unknown id or another business's item
+  Expect 404 menu_item_not_found, and the other business's item is untouched.
+
+10. Malformed id
+  Use "abc" as the id.
+  Expect 400 validation_error with details.id.
+
+11. WAITER or KITCHEN tries to edit
+  Expect 403 forbidden.
+
+DELETE /api/menu-items/:id
+
+Success
+  Status: 204 with no body.
+
+DELETE TEST CASES
+
+12. OWNER deletes an item that was never ordered
+  Expect 204. It no longer appears in GET /api/menu-items.
+
+13. Item that appears on an order
+  The order line keeps the item (foreign key RESTRICT).
+  Expect 409 menu_item_in_use; archive it instead.
+
+14. Unknown id or another business's item
+  Expect 404 menu_item_not_found.
+
+15. Delete twice
+  Expect 204, then 404 menu_item_not_found.
+
+16. WAITER or KITCHEN tries to delete
+  Expect 403 forbidden.
+
+17. Unauthenticated request
+  Expect 401 unauthorized on both routes.
+
+18. Database unavailable
+  Expect 500 database_error on both routes.
+
+19. Method not supported
+  Try GET /api/menu-items/:id.
+  Expect Next.js 405 Method Not Allowed.

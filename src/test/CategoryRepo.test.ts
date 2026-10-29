@@ -20,6 +20,8 @@ describe("category deletion", () => {
   it("does not hide database failures", async () => {
     const failure = new Error("Database unavailable");
     deleteMany.mockRejectedValue(failure);
-    await expect(categoryRepo.delete("category", "business")).rejects.toBe(failure);
+    await expect(categoryRepo.delete("category", "business")).rejects.toMatchObject({
+      name: "DBException", message: "Error deleting category: Database unavailable",
+    });
   });
 });

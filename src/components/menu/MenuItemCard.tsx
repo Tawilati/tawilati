@@ -1,5 +1,5 @@
 import { StatusBadge } from "@/components/ui";
-import type { PublicMenuItem } from "@/service/MenuService";
+import type { PublicMenuItem } from "@/types/Menu";
 import { formatLBP, formatUSD } from "@/utils/money";
 
 // One menu item in its own box: name, then USD first and LBP after (brand rule).

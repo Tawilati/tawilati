@@ -18,12 +18,14 @@
 
 import { Prisma, type Business } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import type { DbClient } from "@/types/Db";
 import { DBException } from "@/utils/exceptions/RepoException";
-
-type DbClient = Prisma.TransactionClient | typeof prisma;
 
 export class BusinessRepo {
   private static instance: BusinessRepo;
+
+  //Prevents other files from creating instances with `new`.
+  private constructor() {}
 
   static getInstance(): BusinessRepo {
     if (!BusinessRepo.instance) {

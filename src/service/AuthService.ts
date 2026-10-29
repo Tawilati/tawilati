@@ -1,5 +1,5 @@
 import  config from "@/lib/jwtconfig";
-import { UserPayload } from "@/types/tokenPayload";
+import { mapToUserPayload, UserPayload } from "@/types/tokenPayload";
 import jwt from "jsonwebtoken";
 import ms from "ms";
 import crypto from 'crypto';
@@ -10,7 +10,8 @@ import { userRepo } from "@/repository/UserRepo";
 import bcrypt from "bcryptjs";
 export class AuthService {
     private static instance: AuthService;
-   constructor(
+   //Prevents other files from creating instances with `new`.
+   private constructor(
         private accessSecret=config.auth.jwtSecret,
         private expiration=config.auth.expiration,
         private refreshSecret=config.auth.refreshSecret,
@@ -26,22 +27,14 @@ export class AuthService {
     }
      generateAccessToken(payload: UserPayload): string {
   // ✅ Build clean payload
-  const cleanPayload: UserPayload = {
-    userId: payload.userId,
-    businessId: payload.businessId,
-    userRole: payload.userRole,
-  };
+  const cleanPayload = mapToUserPayload(payload);
 
   return jwt.sign(cleanPayload, this.accessSecret, {
     expiresIn: this.expiration,
   });
 }
  generateRefreshToken(payload: UserPayload): string {
-  const cleanPayload: UserPayload = {
-    userId: payload.userId,
-    businessId: payload.businessId,
-    userRole: payload.userRole,
-  };
+  const cleanPayload = mapToUserPayload(payload);
 
   return jwt.sign(cleanPayload, this.refreshSecret, {
     expiresIn: this.refreshExpiration,
@@ -67,11 +60,7 @@ validateAccessToken(token: string): UserPayload {
     };
 
     // ✅ Return clean
-    return {
-      userId: decoded.userId,
-      businessId: decoded.businessId,
-      userRole: decoded.userRole,
-    };
+    return mapToUserPayload(decoded);
   } catch {
     logger.error('Invalid token');
     throw new AuthenticationException('invalid access token');
@@ -84,11 +73,7 @@ validateAccessToken(token: string): UserPayload {
       exp?: number;
     };
 
-    return {
-      userId: decoded.userId,
-      businessId: decoded.businessId,
-      userRole: decoded.userRole,
-    };
+    return mapToUserPayload(decoded);
   } catch {
     throw new InvalidTokenException();
   }

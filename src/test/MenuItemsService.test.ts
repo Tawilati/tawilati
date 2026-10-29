@@ -1,7 +1,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/app/generated/prisma/client";
-import type { MenuItemRecord } from "@/repository/MenuItemsRepo";
+import type { MenuItemRecord } from "@/types/MenuItem";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";

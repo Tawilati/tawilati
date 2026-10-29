@@ -20,6 +20,7 @@ What a table looks like
   The slug is set once from the label and never changes, so printed QR codes
   survive a rename. Two labels with the same slug get "bar", "bar-2", ...
   A label with no Latin letters or digits (Arabic, emoji) gets "table-xxxxxx".
+  The response never includes the businessId or qrToken.
 
 POST /api/tables
   Body: { "label": "T1" }   label: trimmed, 1 to 50 characters. No other field.
@@ -27,7 +28,7 @@ POST /api/tables
 
 GET /api/tables
   Success: 200 { "success": true, "message": "table list", "data": [ ...tables ] }
-  Oldest first.
+  Ordered by createdAt ascending, then label ascending. An empty list is data: [].
 
 PATCH /api/tables/:id
   Body: { "label": "Terrace 1" }   same rules as create. Only label can change.
@@ -49,7 +50,8 @@ TEST CASES
   Expect 409 { "success": false, "message": "table_label_exists" }.
 
 3. Bad labels
-  Try "   ", 51 characters, {} and { "label": "T1", "isDisabled": true }.
+  Try "   ", 51 characters, {}, a non-string label, and
+  { "label": "T1", "isDisabled": true }.
   Expect 400 validation_error with details.
 
 4. Malformed JSON
@@ -67,38 +69,61 @@ TEST CASES
   As OWNER, WAITER and KITCHEN: expect 200 with this business's tables only,
   and no qrToken anywhere in the body.
 
-8. Rename
+8. Empty list and ordering
+  With no tables, expect 200 and data: [].
+  Add multiple tables and confirm they are ordered by createdAt ascending,
+  then label ascending when createdAt is equal.
+
+9. Rename
   PATCH "T1" to "Terrace 1".
   Expect 200, the new label, and the SAME slug "t1". Download its sticker: the
   QR code opens the same link as before.
 
-9. Rename onto a taken label
+10. Rename onto a taken label
   With tables "T1" and "T2", rename T2 to "T1".
   Expect 409 { "success": false, "message": "label_already_taken" }; T2 keeps its name.
 
-10. Rename with other fields
+11. Rename with invalid body
   PATCH {} or { "isDisabled": true } or { "slug": "x" }.
   Expect 400 validation_error.
 
-11. Disable, then enable
+12. Malformed PATCH JSON
+  Send malformed JSON to PATCH /api/tables/:id.
+  Expect 400 { "success": false, "message": "invalid_json" }.
+
+13. Disable, then enable
   Disable: expect 200, isDisabled true. Scanning its QR code shows the guest
   "this table isn't taking orders" screen. Enable: expect 200, isDisabled
   false, and the menu opens again.
+  Repeating disable or enable is harmless and still returns 200.
 
-12. Id that is not a UUID / unknown id
+14. Id that is not a UUID / unknown id
   Expect 400 validation_error / 404 { "success": false, "message": "not_found" }.
 
-13. Waiter or kitchen changes a table
+15. Waiter or kitchen changes a table
   POST, PATCH, disable, enable as WAITER or KITCHEN.
   Expect 403 { "success": false, "message": "forbidden" } and nothing saved.
 
-14. Not signed in
+16. Not signed in
   Expect 401 { "success": false, "message": "unauthorized" } on every route.
 
-15. Another business's table (tenant isolation)
+17. Another business's table (tenant isolation)
   Sign in as the owner of business A, then PATCH, disable or enable a table id
   of business B. Expect 404 not_found, and B's table unchanged. B's list never
   shows A's tables.
+
+18. Forged business identity header
+  Send a client-supplied x-business-id for another business while listing or
+  changing tables. The proxy must discard client-provided identity headers;
+  results and writes remain scoped to the verified session.
+
+19. Database unavailable
+  Expect 500 { "success": false, "message": "database_error" } without
+  internal details.
+
+20. Unsupported method
+  Try PATCH /api/tables without an id, or GET /api/tables/:id.
+  Expect Next.js 405 Method Not Allowed.
 
 Automated: src/test/tablesRoutes.test.ts (routes, service mocked) and
 src/test/tables-routes.int.test.ts (real database, two businesses).

@@ -21,6 +21,7 @@ import { prisma } from "@/lib/db";
 import { menuItemRepo } from "@/repository/MenuItemsRepo";
 import type { UpdateBusinessData } from "@/types/Business";
 import type { DbClient } from "@/types/Db";
+import { HttpException } from "@/utils/exceptions/http/HttpException";
 import { DBException, ItemNotFoundException } from "@/utils/exceptions/RepoException";
 import logger from "@/utils/logger";
 
@@ -113,8 +114,8 @@ export class BusinessRepo {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
         throw new ItemNotFoundException("business not found");
       }
-      // Already wrapped by menuItemRepo.repriceLBP.
-      if (err instanceof DBException) throw err;
+      // Already shaped by menuItemRepo.repriceLBP: invalid_exchange_rate (400) or a DBException.
+      if (err instanceof HttpException || err instanceof DBException) throw err;
       throw new DBException("Error updating business settings", err as Error);
     }
   }

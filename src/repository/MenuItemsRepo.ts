@@ -2,6 +2,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { DbClient } from "@/types/Db";
+import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 import { DBException } from "@/utils/exceptions/RepoException";
 import type {
   CreateMenuItemData,
@@ -9,6 +10,13 @@ import type {
   MenuItemRecord,
   UpdateMenuItemData,
 } from "@/types/MenuItem";
+
+// Postgres 22003 (numeric value out of range), as the pg driver adapter reports it from a raw query (P2010).
+function isNumericOverflow(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== "P2010") return false;
+  const meta = err.meta as { driverAdapterError?: { cause?: { originalCode?: string } } } | undefined;
+  return meta?.driverAdapterError?.cause?.originalCode === "22003";
+}
 
 const menuItemSelect = {
   id: true,
@@ -172,6 +180,13 @@ export class MenuItemRepo {
             "updatedAt" = NOW()
         WHERE "businessId" = ${businessId}`;
     } catch (err) {
+      // A price raised after the service's limit check no longer fits priceLBP's Decimal(12,2):
+      // the same 400 as that check, and the transaction rolls back the new rate.
+      if (isNumericOverflow(err)) {
+        throw new BadRequestException("invalid_exchange_rate", {
+          exchangeRate: ["Too high for the current menu prices"],
+        });
+      }
       throw new DBException("Error repricing menu items", err as Error);
     }
   }

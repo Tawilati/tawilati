@@ -1,6 +1,6 @@
 
-import { maptoTableResponse } from "../types/tableMapper";
-import type { TableResponse } from "@/types/Table";
+;
+import { TableResponse,maptoTableResponse } from "@/types/Table";
 import { randomBytes } from "node:crypto";
 import { tableRepo } from "@/repository/TableRepo";
 import { slugService } from "@/service/SlugService";
@@ -13,7 +13,7 @@ import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 export class TableService {
   private static instance: TableService;
-
+private constructor(){};
   static getInstance(): TableService {
     if (!TableService.instance) {
       TableService.instance = new TableService();
@@ -87,23 +87,20 @@ export class TableService {
   businessId: string,
   input: CreateTableInput,
 ): Promise<TableResponse> {
-  const label = input.label.trim();
-
-  if (!label) {
-    throw new Error("Table label cannot be empty");
-  }
+ 
+ 
 
   const existingTable = await tableRepo.findByLabelInBusiness(
-    label,
+    input.label,
     businessId,
   );
 
   if (existingTable) {
     // Replace with your project's existing conflict exception.
-    throw new ConflictException("table_label_exists");
+    throw new ConflictException("table_already_taken");
   }
 
-  const baseSlug = makeSlug(label, "table");
+  const baseSlug = makeSlug(input.label, "table");
 
   const slug = await slugService.uniqueTableSlug(
     businessId,
@@ -114,7 +111,7 @@ export class TableService {
 
   const table = await tableRepo.create({
     businessId,
-    label,
+    label:input.label,
     slug,
     qrToken,
   });

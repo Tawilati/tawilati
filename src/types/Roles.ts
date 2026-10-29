@@ -79,7 +79,7 @@ export const ROLE_PERMISSIONS: RolePermissions ={
     [ROLE.KITCHEN]: [
          // Read-only business info
     PERMISSION.BUSINESS_READ,
-
+      PERMISSION.TABLE_READ,
     // Read-only menu
     PERMISSION.CATEGORY_READ,
     PERMISSION.MENU_ITEM_READ,

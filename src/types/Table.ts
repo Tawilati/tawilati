@@ -14,4 +14,13 @@ export type TableRecord = {
   isDisabled: boolean;
   createdAt: Date;
   
-};
+}
+export function maptoTableResponse(table: TableRecord): TableResponse {
+  return {
+    id: table.id,
+    label: table.label,
+    slug: table.slug,
+    isDisabled: table.isDisabled,
+    createdAt: table.createdAt,
+  };
+}

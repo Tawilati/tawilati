@@ -1,0 +1,60 @@
+MENU ITEM ARCHIVE API - TEST GUIDE
+
+Route
+  POST /api/menu-items/:id/archive - take an item off the menu without deleting it.
+
+Authentication and permissions
+  Requires a valid staff session and MENU_ITEM_ARCHIVE (OWNER only).
+  The businessId is always taken from the authenticated identity header.
+  :id must be a UUID; anything else is 400 validation_error before any query.
+  No request body.
+
+What archiving does
+  Sets archivedAt to the current time. The row stays, so past orders that point
+  at it keep working. Archived items are hidden from the guest menu
+  (GET /api/menu) but still listed in GET /api/menu-items and still counted in
+  their category's itemCount.
+
+Success
+  Status: 200
+  { "success": true, "message": "menu item archived", "data": {
+      ...menu item, "archivedAt": "ISO date"
+  } }
+
+TEST CASES
+
+1. OWNER archives an active item
+  Expect 200 with archivedAt set.
+
+2. Guest menu hides it
+  Open GET /api/menu for a table of the same business.
+  Expect the item to be absent; if it was the only item in its category, the
+  category is absent too.
+
+3. Already archived
+  Archive the same item again.
+  Expect 409 menu_item_already_archived.
+
+4. Unknown id or another business's item
+  Expect 404 menu_item_not_found, and the other business's item is untouched.
+
+5. Malformed id
+  Use "abc" as the id.
+  Expect 400 validation_error with details.id.
+
+6. WAITER or KITCHEN tries to archive
+  Expect 403 forbidden.
+
+7. Unauthenticated request
+  Expect 401 unauthorized.
+
+8. Category delete after archiving
+  Archive every item in a category, then DELETE the category.
+  Expect 409 category_has_items (archived items still count).
+
+9. Database unavailable
+  Expect 500 database_error.
+
+10. Method not supported
+  Try GET /api/menu-items/:id/archive.
+  Expect Next.js 405 Method Not Allowed.

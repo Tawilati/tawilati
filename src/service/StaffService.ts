@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { staffRepo, type StaffRepo } from "@/repository/StaffRepo";
+import { staffRepo } from "@/repository/StaffRepo";
 import {  mapToStaffResponse, mapToStaffResponseList,  type StaffResponse } from "@/types/Staff";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
@@ -11,6 +11,8 @@ import { CreateStaffInput, UpdateStaffInput } from "@/validation/staff";
 export class StaffService {
   private static instance: StaffService;
 
+  //Prevents other files from creating instances with `new`.
+  private constructor() {}
 
   static getInstance(): StaffService {
     if (!StaffService.instance) {

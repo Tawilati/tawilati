@@ -1,9 +1,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
 
-import {
-  menuItemRepo,
-  type MenuItemRepository,
-} from "@/repository/MenuItemsRepo";
+import { menuItemRepo } from "@/repository/MenuItemsRepo";
+import type { UpdateMenuItemData } from "@/types/MenuItem";
 
 import type {
   CreateMenuItemInput,
@@ -22,14 +20,12 @@ export class MenuItemService {
   private static instance: MenuItemService;
 
   //Prevents external code from creating service instances.
-  //The repository is injected into the service.
-  private constructor(private readonly repo: MenuItemRepository) {}
+  private constructor() {}
 
   // Returns the existing instance or creates it once.
   static getInstance(): MenuItemService {
     if (!MenuItemService.instance) {
-      // CHANGED 2: Explicitly inject the shared repository singleton.
-      MenuItemService.instance = new MenuItemService(menuItemRepo);
+      MenuItemService.instance = new MenuItemService();
     }
 
     return MenuItemService.instance;
@@ -55,12 +51,12 @@ export class MenuItemService {
 
   // List menu items belonging to a business.
   async getAll(businessId: string) {
-    return this.repo.findManyByBusiness(businessId);
+    return menuItemRepo.findManyByBusiness(businessId);
   }
 
   // Get a menu item belonging to a business.
   async getById(businessId: string, itemId: string) {
-    const item = await this.repo.findById(itemId, businessId);
+    const item = await menuItemRepo.findById(itemId, businessId);
 
     if (!item) {
       throw new NotFoundException("menu_item_not_found");
@@ -71,7 +67,7 @@ export class MenuItemService {
 
   // Create a menu item for a business.
   async create(businessId: string, input: CreateMenuItemInput) {
-    const categoryExists = await this.repo.categoryBelongsToBusiness(
+    const categoryExists = await menuItemRepo.categoryBelongsToBusiness(
       input.categoryId,
       businessId,
     );
@@ -80,7 +76,7 @@ export class MenuItemService {
       throw new BadRequestException("category_not_in_business");
     }
 
-    const exchangeRate = await this.repo.findBusinessExchangeRate(businessId);
+    const exchangeRate = await menuItemRepo.findBusinessExchangeRate(businessId);
 
     if (!exchangeRate) {
       throw new NotFoundException("business_not_found");
@@ -93,7 +89,7 @@ export class MenuItemService {
 
     const priceLBP = this.calculatePriceLBP(priceUSD, exchangeRate);
 
-    return this.repo.create(businessId, {
+    return menuItemRepo.create(businessId, {
       name: input.name,
       categoryId: input.categoryId,
       priceUSD,
@@ -104,14 +100,14 @@ export class MenuItemService {
 
   // Update a menu item belonging to a business.
   async update(businessId: string, itemId: string, input: UpdateMenuItemInput) {
-    const existingItem = await this.repo.findById(itemId, businessId);
+    const existingItem = await menuItemRepo.findById(itemId, businessId);
 
     if (!existingItem) {
       throw new NotFoundException("menu_item_not_found");
     }
 
     if (input.categoryId !== undefined) {
-      const categoryExists = await this.repo.categoryBelongsToBusiness(
+      const categoryExists = await menuItemRepo.categoryBelongsToBusiness(
         input.categoryId,
         businessId,
       );
@@ -121,13 +117,7 @@ export class MenuItemService {
       }
     }
 
-    const data: {
-      name?: string;
-      categoryId?: string;
-      priceUSD?: Prisma.Decimal;
-      priceLBP?: Prisma.Decimal;
-      soldOut?: boolean;
-    } = {};
+    const data: UpdateMenuItemData = {};
 
     if (input.name !== undefined) {
       data.name = input.name;
@@ -142,7 +132,7 @@ export class MenuItemService {
     }
 
     if (input.priceUSD !== undefined) {
-      const exchangeRate = await this.repo.findBusinessExchangeRate(businessId);
+      const exchangeRate = await menuItemRepo.findBusinessExchangeRate(businessId);
 
       if (!exchangeRate) {
         throw new NotFoundException("business_not_found");
@@ -157,12 +147,12 @@ export class MenuItemService {
       data.priceLBP = this.calculatePriceLBP(priceUSD, exchangeRate);
     }
 
-    return this.repo.update(itemId, businessId, data);
+    return menuItemRepo.update(itemId, businessId, data);
   }
 
   // Archive a menu item without deleting its historical data.
   async archive(businessId: string, itemId: string) {
-    const item = await this.repo.findById(itemId, businessId);
+    const item = await menuItemRepo.findById(itemId, businessId);
 
     if (!item) {
       throw new NotFoundException("menu_item_not_found");
@@ -172,12 +162,12 @@ export class MenuItemService {
       throw new ConflictException("menu_item_already_archived");
     }
 
-    return this.repo.setArchived(itemId, businessId, new Date());
+    return menuItemRepo.setArchived(itemId, businessId, new Date());
   }
 
   // Restore an archived menu item.
   async unarchive(businessId: string, itemId: string) {
-    const item = await this.repo.findById(itemId, businessId);
+    const item = await menuItemRepo.findById(itemId, businessId);
 
     if (!item) {
       throw new NotFoundException("menu_item_not_found");
@@ -187,12 +177,12 @@ export class MenuItemService {
       throw new ConflictException("menu_item_not_archived");
     }
 
-    return this.repo.setArchived(itemId, businessId, null);
+    return menuItemRepo.setArchived(itemId, businessId, null);
   }
 
   // Delete a menu item that was never ordered. An ordered item can only be archived.
   async delete(businessId: string, itemId: string): Promise<void> {
-    const result = await this.repo.delete(itemId, businessId);
+    const result = await menuItemRepo.delete(itemId, businessId);
 
     if (result === "not_found") {
       throw new NotFoundException("menu_item_not_found");

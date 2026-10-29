@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TablesIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
-import type { PublicMenu } from "@/service/MenuService";
+import type { PublicMenu } from "@/types/Menu";
 import { newlySoldOut } from "@/utils/menuChanges";
 import { CategoryTabs } from "./CategoryTabs";
 import { MenuItemCard } from "./MenuItemCard";

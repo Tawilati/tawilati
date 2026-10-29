@@ -14,10 +14,14 @@ export interface StaffResponse {
   createdAt: Date;
 }
 
-
-
-
-
+// What staffRepo.create needs: the password is already hashed.
+export type CreateStaffData = {
+  businessId: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: StaffRole;
+};
 
 export function mapToStaffResponse(user: User): StaffResponse {
   return {

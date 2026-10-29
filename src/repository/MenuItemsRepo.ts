@@ -1,47 +1,13 @@
 
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
-
-export type MenuItemRecord = {
-  id: string;
-  businessId: string;
-  categoryId: string;
-  name: string;
-  priceUSD: Prisma.Decimal;
-  priceLBP: Prisma.Decimal;
-  soldOut: boolean;
-  archivedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type CreateMenuItemData = {
-  categoryId: string;
-  name: string;
-  priceUSD: Prisma.Decimal;
-  priceLBP: Prisma.Decimal;
-  soldOut?: boolean;
-};
-
-export type UpdateMenuItemData = {
-  categoryId?: string;
-  name?: string;
-  priceUSD?: Prisma.Decimal;
-  priceLBP?: Prisma.Decimal;
-  soldOut?: boolean;
-};
-
-export interface MenuItemRepository {
-  findManyByBusiness(businessId: string): Promise<MenuItemRecord[]>;
-  findById(itemId: string, businessId: string): Promise<MenuItemRecord | null>;
-  findBusinessExchangeRate(businessId: string): Promise<Prisma.Decimal | null>;
-  categoryBelongsToBusiness(categoryId: string, businessId: string): Promise<boolean>;
-  create(businessId: string, data: CreateMenuItemData): Promise<MenuItemRecord>;
-  update(itemId: string, businessId: string, data: UpdateMenuItemData): Promise<MenuItemRecord | null>;
-  setArchived(itemId: string, businessId: string, archivedAt: Date | null): Promise<MenuItemRecord | null>;
-  // "in_use": an order line points at the item, so only archiving is possible.
-  delete(itemId: string, businessId: string): Promise<"deleted" | "not_found" | "in_use">;
-}
+import { DBException } from "@/utils/exceptions/RepoException";
+import type {
+  CreateMenuItemData,
+  DeleteMenuItemResult,
+  MenuItemRecord,
+  UpdateMenuItemData,
+} from "@/types/MenuItem";
 
 const menuItemSelect = {
   id: true,
@@ -56,10 +22,11 @@ const menuItemSelect = {
   updatedAt: true,
 } as const;
 
-export class MenuItemRepo implements MenuItemRepository {
+export class MenuItemRepo {
   private static instance: MenuItemRepo;
-//Prevents creating repository instances with `new` outside this class.
-private constructor() {}
+  //Prevents creating repository instances with `new` outside this class.
+  private constructor() {}
+
   static getInstance(): MenuItemRepo {
     if (!MenuItemRepo.instance) {
       MenuItemRepo.instance = new MenuItemRepo();
@@ -68,61 +35,81 @@ private constructor() {}
   }
 
   async findManyByBusiness(businessId: string): Promise<MenuItemRecord[]> {
-    return prisma.menuItem.findMany({
-      where: { businessId },
-      orderBy: [{ createdAt: "asc" }, { name: "asc" }],
-      select: menuItemSelect,
-    });
+    try {
+      return await prisma.menuItem.findMany({
+        where: { businessId },
+        orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+        select: menuItemSelect,
+      });
+    } catch (err) {
+      throw new DBException("Error listing menu items", err as Error);
+    }
   }
 
   async findById(
     itemId: string,
     businessId: string,
   ): Promise<MenuItemRecord | null> {
-    return prisma.menuItem.findFirst({
-      where: { id: itemId, businessId },
-      select: menuItemSelect,
-    });
+    try {
+      return await prisma.menuItem.findFirst({
+        where: { id: itemId, businessId },
+        select: menuItemSelect,
+      });
+    } catch (err) {
+      throw new DBException("Error loading menu item", err as Error);
+    }
   }
 
   async findBusinessExchangeRate(
     businessId: string,
   ): Promise<Prisma.Decimal | null> {
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { exchangeRate: true },
-    });
+    try {
+      const business = await prisma.business.findUnique({
+        where: { id: businessId },
+        select: { exchangeRate: true },
+      });
 
-    return business?.exchangeRate ?? null;
+      return business?.exchangeRate ?? null;
+    } catch (err) {
+      throw new DBException("Error loading exchange rate", err as Error);
+    }
   }
 
   async categoryBelongsToBusiness(
     categoryId: string,
     businessId: string,
   ): Promise<boolean> {
-    const category = await prisma.menuCategory.findFirst({
-      where: { id: categoryId, businessId },
-      select: { id: true },
-    });
+    try {
+      const category = await prisma.menuCategory.findFirst({
+        where: { id: categoryId, businessId },
+        select: { id: true },
+      });
 
-    return category !== null;
+      return category !== null;
+    } catch (err) {
+      throw new DBException("Error checking menu item category", err as Error);
+    }
   }
 
   async create(
     businessId: string,
     data: CreateMenuItemData,
   ): Promise<MenuItemRecord> {
-    return prisma.menuItem.create({
-      data: {
-        businessId,
-        categoryId: data.categoryId,
-        name: data.name,
-        priceUSD: data.priceUSD,
-        priceLBP: data.priceLBP,
-        ...(data.soldOut === undefined ? {} : { soldOut: data.soldOut }),
-      },
-      select: menuItemSelect,
-    });
+    try {
+      return await prisma.menuItem.create({
+        data: {
+          businessId,
+          categoryId: data.categoryId,
+          name: data.name,
+          priceUSD: data.priceUSD,
+          priceLBP: data.priceLBP,
+          ...(data.soldOut === undefined ? {} : { soldOut: data.soldOut }),
+        },
+        select: menuItemSelect,
+      });
+    } catch (err) {
+      throw new DBException("Error creating menu item", err as Error);
+    }
   }
 
   async update(
@@ -130,13 +117,17 @@ private constructor() {}
     businessId: string,
     data: UpdateMenuItemData,
   ): Promise<MenuItemRecord | null> {
-    const updated = await prisma.menuItem.updateManyAndReturn({
-      where: { id: itemId, businessId },
-      data,
-      select: menuItemSelect,
-    });
+    try {
+      const updated = await prisma.menuItem.updateManyAndReturn({
+        where: { id: itemId, businessId },
+        data,
+        select: menuItemSelect,
+      });
 
-    return updated[0] ?? null;
+      return updated[0] ?? null;
+    } catch (err) {
+      throw new DBException("Error updating menu item", err as Error);
+    }
   }
 
   async setArchived(
@@ -144,30 +135,35 @@ private constructor() {}
     businessId: string,
     archivedAt: Date | null,
   ): Promise<MenuItemRecord | null> {
-    const updated = await prisma.menuItem.updateManyAndReturn({
-      where: { id: itemId, businessId },
-      data: { archivedAt },
-      select: menuItemSelect,
-    });
+    try {
+      const updated = await prisma.menuItem.updateManyAndReturn({
+        where: { id: itemId, businessId },
+        data: { archivedAt },
+        select: menuItemSelect,
+      });
 
-    return updated[0] ?? null;
+      return updated[0] ?? null;
+    } catch (err) {
+      throw new DBException("Error archiving menu item", err as Error);
+    }
   }
 
+  // "in_use": an order line points at the item, so only archiving is possible.
   async delete(
     itemId: string,
     businessId: string,
-  ): Promise<"deleted" | "not_found" | "in_use"> {
+  ): Promise<DeleteMenuItemResult> {
     try {
       const { count } = await prisma.menuItem.deleteMany({
         where: { id: itemId, businessId },
       });
       return count > 0 ? "deleted" : "not_found";
-    } catch (error) {
+    } catch (err) {
       // P2003: the foreign key from OrderLine (RESTRICT) refused the delete.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
         return "in_use";
       }
-      throw error;
+      throw new DBException("Error deleting menu item", err as Error);
     }
   }
 }

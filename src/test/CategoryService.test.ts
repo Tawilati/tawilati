@@ -1,6 +1,6 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CategoryRecord } from "@/repository/CategoryRepo";
+import type { CategoryRecord, CategoryResponse } from "@/types/Category";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
@@ -25,6 +25,14 @@ const category: CategoryRecord = {
   id: "category-1",
   name: "Drinks",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  _count: { items: 0 },
+};
+
+// The same category as the service returns it.
+const categoryResponse: CategoryResponse = {
+  id: "category-1",
+  name: "Drinks",
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
   itemCount: 0,
 };
 
@@ -39,7 +47,7 @@ describe("CategoryService", () => {
 
       await expect(
         categoryService.listCategories("business-1"),
-      ).resolves.toEqual([category]);
+      ).resolves.toEqual([categoryResponse]);
 
       expect(repo.findManyByBusiness).toHaveBeenCalledWith("business-1");
     });
@@ -51,7 +59,7 @@ describe("CategoryService", () => {
 
       await expect(
         categoryService.getCategory("category-1", "business-1"),
-      ).resolves.toEqual(category);
+      ).resolves.toEqual(categoryResponse);
 
       expect(repo.findById).toHaveBeenCalledWith(
         "category-1",
@@ -75,14 +83,14 @@ describe("CategoryService", () => {
 
       await expect(
         categoryService.createCategory("business-1", "Drinks"),
-      ).resolves.toEqual(category);
+      ).resolves.toEqual(categoryResponse);
 
       expect(repo.findByBusinessAndName).toHaveBeenCalledWith(
         "business-1",
         "Drinks",
       );
 
-      expect(repo.create).toHaveBeenCalledWith("business-1", "Drinks");
+      expect(repo.create).toHaveBeenCalledWith("business-1", { name: "Drinks" });
     });
 
     it("throws ConflictException when the category name already exists", async () => {
@@ -108,12 +116,12 @@ describe("CategoryService", () => {
           "business-1",
           "Desserts",
         ),
-      ).resolves.toEqual(updatedCategory);
+      ).resolves.toEqual({ ...categoryResponse, name: "Desserts" });
 
       expect(repo.update).toHaveBeenCalledWith(
         "category-1",
         "business-1",
-        "Desserts",
+        { name: "Desserts" },
       );
     });
 
@@ -146,7 +154,7 @@ describe("CategoryService", () => {
 
       await expect(
         categoryService.updateCategory("category-1", "business-1", "Drinks"),
-      ).resolves.toEqual(category);
+      ).resolves.toEqual(categoryResponse);
     });
   });
 
@@ -178,7 +186,7 @@ describe("CategoryService", () => {
     it("throws ConflictException when the category contains items", async () => {
       repo.findById.mockResolvedValue({
         ...category,
-        itemCount: 2,
+        _count: { items: 2 },
       });
 
       await expect(

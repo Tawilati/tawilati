@@ -1,27 +1,22 @@
 
+import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import type { CategoryRecord } from "@/types/Category";
+import { ConflictException } from "@/utils/exceptions/http/ConflictException";
+import { DBException } from "@/utils/exceptions/RepoException";
+import type { CreateCategoryInput, UpdateCategoryInput } from "@/validation/categorySchemas";
 
-export type CategoryRecord = {
-  id: string;
-  name: string;
-  createdAt: Date;
-  itemCount: number;
-};
+// The columns every category query returns, with the item count used by the delete rule and the UI.
+const categorySelect = {
+  id: true,
+  name: true,
+  createdAt: true,
+  _count: {
+    select: { items: true },
+  },
+} as const;
 
-export interface CategoryRepository {
-  findManyByBusiness(businessId: string): Promise<CategoryRecord[]>;
-  findById(categoryId: string, businessId: string): Promise<CategoryRecord | null>;
-   //Look for a category name within one business.
-  findByBusinessAndName(
-    businessId: string,
-    name: string,
-  ): Promise<{ id: string } | null>;
-  create(businessId: string, name: string): Promise<CategoryRecord>;
-  update(categoryId: string, businessId: string, name: string): Promise<CategoryRecord | null>;
-  delete(categoryId: string, businessId: string): Promise<boolean>;
-}
-
-export class CategoryRepo implements CategoryRepository {
+export class CategoryRepo {
   // Holds the single CategoryRepo instance for the application.
   private static instance: CategoryRepo;
 
@@ -38,157 +33,120 @@ export class CategoryRepo implements CategoryRepository {
   }
 
   async findManyByBusiness(businessId: string): Promise<CategoryRecord[]> {
-    const categories = await prisma.menuCategory.findMany({
-      where: { businessId },
-      orderBy: [{ createdAt: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        _count: {
-          select: { items: true },
-        },
-      },
-    });
-
-    return categories.map((category) => ({
-      id: category.id,
-      name: category.name,
-      createdAt: category.createdAt,
-      itemCount: category._count.items,
-    }));
+    try {
+      return await prisma.menuCategory.findMany({
+        where: { businessId },
+        orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+        select: categorySelect,
+      });
+    } catch (err) {
+      throw new DBException("Error listing categories", err as Error);
+    }
   }
-
 
   async findById(
     categoryId: string,
     businessId: string,
   ): Promise<CategoryRecord | null> {
-    const category = await prisma.menuCategory.findFirst({
-      where: {
-        id: categoryId,
-        businessId,
-      },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        _count: {
-          select: { items: true },
+    try {
+      return await prisma.menuCategory.findFirst({
+        where: {
+          id: categoryId,
+          businessId,
         },
-      },
-    });
-
-    if (!category) return null;
-
-    return {
-      id: category.id,
-      name: category.name,
-      createdAt: category.createdAt,
-      itemCount: category._count.items,
-    };
+        select: categorySelect,
+      });
+    } catch (err) {
+      throw new DBException("Error loading category", err as Error);
+    }
   }
+
   //Return the existing category ID, or null if no match exists.
   async findByBusinessAndName(
     businessId: string,
     name: string,
   ): Promise<{ id: string } | null> {
-    return prisma.menuCategory.findFirst({
-      where: {
-        businessId,
-        name,
-      },
-      select: {
-        id: true,
-      },
-    });
+    try {
+      return await prisma.menuCategory.findFirst({
+        where: {
+          businessId,
+          name,
+        },
+        select: {
+          id: true,
+        },
+      });
+    } catch (err) {
+      throw new DBException("Error checking category name", err as Error);
+    }
   }
-
 
   async create(
     businessId: string,
-    name: string,
+    input: CreateCategoryInput,
   ): Promise<CategoryRecord> {
-    const category = await prisma.menuCategory.create({
-      data: {
-        businessId,
-        name,
-      },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        _count: {
-          select: { items: true },
+    try {
+      return await prisma.menuCategory.create({
+        data: {
+          businessId,
+          name: input.name,
         },
-      },
-    });
-
-    return {
-      id: category.id,
-      name: category.name,
-      createdAt: category.createdAt,
-      itemCount: category._count.items,
-    };
+        select: categorySelect,
+      });
+    } catch (err) {
+      // Same name added by two requests at once: handleRouteError answers 409 category_already_exists.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw err;
+      throw new DBException("Error creating category", err as Error);
+    }
   }
 
   async update(
     categoryId: string,
     businessId: string,
-    name: string,
+    input: UpdateCategoryInput,
   ): Promise<CategoryRecord | null> {
-    const categories = await prisma.menuCategory.updateManyAndReturn({
-      where: {
-        id: categoryId,
-        businessId,
-      },
-      data: { name },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-      },
-    });
-
-    const category = categories[0];
-
-    if (!category) return null;
-
-    const updatedCategory = await prisma.menuCategory.findFirst({
-      where: {
-        id: categoryId,
-        businessId,
-      },
-      select: {
-        _count: {
-          select: { items: true },
+    let updated: { id: string }[];
+    try {
+      updated = await prisma.menuCategory.updateManyAndReturn({
+        where: {
+          id: categoryId,
+          businessId,
         },
-      },
-    });
+        data: { name: input.name },
+        select: { id: true },
+      });
+    } catch (err) {
+      // Renamed onto a name taken in a race: handleRouteError answers 409 category_already_exists.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") throw err;
+      throw new DBException("Error updating category", err as Error);
+    }
 
-    if (!updatedCategory) return null;
+    if (!updated[0]) return null;
 
-    return {
-      id: category.id,
-      name: category.name,
-      createdAt: category.createdAt,
-      itemCount: updatedCategory._count.items,
-    };
+    // updateManyAndReturn cannot select relation counts, so read the row back with its count.
+    return this.findById(categoryId, businessId);
   }
 
-  
   async delete(
     categoryId: string,
     businessId: string,
   ): Promise<boolean> {
-    const result = await prisma.menuCategory.deleteMany({
-      where: {
-        id: categoryId,
-        businessId,
-      },
-    });
+    try {
+      const result = await prisma.menuCategory.deleteMany({
+        where: {
+          id: categoryId,
+          businessId,
+        },
+      });
 
-    return result.count > 0;
+      return result.count > 0;
+    } catch (err) {
+      // P2003: an item was added after the service's empty-category check; the RESTRICT FK refused the delete.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+        throw new ConflictException("category_has_items");
+      }
+      throw new DBException("Error deleting category", err as Error);
+    }
   }
 }
 

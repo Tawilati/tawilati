@@ -1,0 +1,106 @@
+CATEGORIES COLLECTION API - TEST GUIDE
+
+Routes
+  GET  /api/categories - list every category in the current business.
+  POST /api/categories - add a category.
+
+Authentication and permissions
+  Both routes require a valid staff session.
+  GET needs CATEGORY_READ (OWNER, WAITER, KITCHEN).
+  POST needs CATEGORY_WRITE (OWNER only).
+  The businessId is always taken from the authenticated identity header, never
+  from the request body.
+
+GET /api/categories
+
+Success
+  Status: 200
+  { "success": true, "message": "categories list", "data": [
+      { "id": "...", "name": "Hot drinks", "createdAt": "ISO date", "itemCount": 3 }
+  ] }
+  itemCount counts every item in the category, archived ones included.
+  Empty result is a successful data: [] response.
+  Results are ordered by createdAt ascending, then name.
+
+GET TEST CASES
+
+1. OWNER, WAITER and KITCHEN list categories
+  Expect 200 with only the current business's categories.
+  Confirm categories from other businesses are absent.
+
+2. Business has no categories
+  Expect 200 with an empty array, not 404.
+
+3. itemCount
+  Add two items to a category and archive one.
+  Expect itemCount 2 (archived items still count).
+
+4. Unauthenticated request
+  Expect 401 unauthorized from the proxy.
+
+5. Forged business identity headers
+  Send client-supplied x-business-id for another tenant.
+  The proxy must discard client-provided identity headers; results remain scoped
+  to the verified session.
+
+6. Database unavailable
+  Expect 500 database_error without internal details.
+
+POST /api/categories
+
+Body
+  { "name": "Hot drinks" }
+  name is trimmed and must be 1 to 50 characters. No other field is accepted.
+
+Success
+  Status: 201
+  { "success": true, "message": "category created", "data": {
+      "id": "...", "name": "Hot drinks", "createdAt": "ISO date", "itemCount": 0
+  } }
+
+POST TEST CASES
+
+7. OWNER creates a category
+  Expect 201 with itemCount 0.
+
+8. WAITER or KITCHEN tries to create a category
+  Expect 403 forbidden.
+
+9. Unauthenticated request
+  Expect 401 unauthorized.
+
+10. Missing or invalid name
+  Try {}, "name": "", "name": "   ", a 51-character name and a non-string name.
+  Expect 400 validation_error with details.name.
+
+11. Unknown field
+  Submit { "name": "Desserts", "businessId": "<another business>" }.
+  The schema is strict: expect 400 validation_error. The businessId is never
+  taken from the body.
+
+12. Malformed JSON
+  Expect 400 { "success": false, "message": "invalid_json" }.
+
+13. Name normalisation
+  Submit "  Desserts  ".
+  Expect the returned name to be "Desserts".
+
+14. Duplicate name in the same business
+  Create "Desserts" twice.
+  Expect the second to return 409 category_already_exists.
+
+15. Same name in another business
+  Create "Desserts" in business A and in business B.
+  Expect 201 for both: names are unique per business only.
+
+16. Concurrent duplicate name
+  Send two create requests with the same name at once.
+  At most one should return 201; the database unique constraint makes the other
+  return 409 category_already_exists.
+
+17. Database unavailable
+  Expect 500 database_error.
+
+18. Method not supported
+  Try PATCH or DELETE /api/categories without an id.
+  Expect Next.js 405 Method Not Allowed.

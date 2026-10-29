@@ -5,6 +5,9 @@ import { slugRepo } from "@/repository/SlugRepo";
 export class SlugService {
   private static instance: SlugService;
 
+  //Prevents other files from creating instances with `new`.
+  private constructor() {}
+
   static getInstance(): SlugService {
     if (!SlugService.instance) {
       SlugService.instance = new SlugService();

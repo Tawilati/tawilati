@@ -120,7 +120,11 @@ export function TablesManager() {
         <div className="grid w-full grid-cols-2 gap-2.5 sm:flex sm:w-auto">
           {canPrint && (
             <Link href="/dashboard/tables/print" className={buttonClassName({ variant: "secondary" })}>
-              <PrinterIcon className="size-5" /> Print all<span className="hidden sm:inline">&nbsp;stickers</span>
+              <PrinterIcon className="size-5" />
+              {/* One text box, so the button's gap doesn't split "Print all" from "stickers". */}
+              <span>
+                Print all<span className="hidden sm:inline"> stickers</span>
+              </span>
             </Link>
           )}
           <Button
@@ -160,7 +164,9 @@ export function TablesManager() {
     );
   }
 
+  // "2 tables · 1 disabled": the tables taking orders, then the disabled ones.
   const disabledCount = tables.filter((table) => table.isDisabled).length;
+  const activeCount = tables.length - disabledCount;
 
   return (
     <div className="flex flex-col gap-6">
@@ -214,8 +220,13 @@ export function TablesManager() {
           </Card>
         ) : (
           <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-secondary-ink">
-            {tables.length} {tables.length === 1 ? "table" : "tables"}
-            {disabledCount > 0 && ` · ${disabledCount} disabled`}
+            {activeCount} {activeCount === 1 ? "table" : "tables"}
+            {disabledCount > 0 && (
+              <>
+                {" · "}
+                <span className="text-[var(--color-warning)]">{disabledCount} disabled</span>
+              </>
+            )}
           </p>
         )}
 
@@ -241,7 +252,7 @@ export function TablesManager() {
                     {table.label}
                   </p>
                   {table.isDisabled ? (
-                    <StatusBadge status="CLOSED">Disabled</StatusBadge>
+                    <StatusBadge status="DISABLED" />
                   ) : (
                     <p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-success)]">
                       <span aria-hidden="true" className="size-2 rounded-full bg-[var(--color-success)]" />

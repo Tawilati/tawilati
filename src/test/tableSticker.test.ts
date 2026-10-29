@@ -17,11 +17,19 @@ describe("table sticker", () => {
   }, 20_000);
 
   it.each([
+    // Short codes get "Table" in front.
     ["T1", "Table T1"],
     ["12", "Table 12"],
-    ["Terrace 2", "Table Terrace 2"],
+    ["A3", "Table A3"],
+    ["T-4", "Table T-4"],
+    // Names that are already words are shown as they are.
+    ["Terrace 2", "Terrace 2"],
+    ["Bar 2", "Bar 2"],
+    ["VIP", "VIP"],
+    ["Window seat", "Window seat"],
     ["Table 4", "Table 4"],
     ["table 4", "table 4"],
+    ["طاولة ٣", "طاولة ٣"],
   ])("shows %s as %s", (label, line) => {
     expect(tableLine(label)).toBe(line);
   });

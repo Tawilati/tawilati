@@ -47,9 +47,10 @@ function loadAssets(): Promise<Assets> {
   return assets;
 }
 
-// "T1" → "Table T1"; a label that already says it ("Table 4") is left as it is.
+// A short code ("T1", "12", "A3") reads better as "Table T1"; a name that is already words ("Terrace 2", "VIP",
+// "Table 4") is shown as it is, so the sticker never says "Table Terrace 2".
 export function tableLine(label: string): string {
-  return /^table\b/i.test(label) ? label : `Table ${label}`;
+  return /^[a-z]{0,2}-?\d+$/i.test(label) ? `Table ${label}` : label;
 }
 
 // `menuUrl` is the full address the code opens, e.g. https://…/menu/tawilati-demo-cafe/t1?t=1e64…

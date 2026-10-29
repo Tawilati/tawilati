@@ -1,0 +1,104 @@
+TABLES API - TEST GUIDE
+
+Routes
+  POST /api/tables              - add a table.
+  GET  /api/tables              - list the business's tables.
+  PATCH /api/tables/:id         - rename a table.
+  POST /api/tables/:id/disable  - stop the table taking orders.
+  POST /api/tables/:id/enable   - let it take orders again.
+  (The QR sticker, GET /api/tables/:id/qr, has its own guide in [id]/qr/guide.txt.)
+
+Authentication and permissions
+  GET: OWNER and WAITER (TABLE_READ). Everything else: OWNER only
+  (TABLE_WRITE for create, TABLE_UPDATE for rename, disable and enable).
+  KITCHEN gets 403 on every route. The business is always the one in the
+  authenticated identity header, never from the body.
+
+What a table looks like
+  { "id": "uuid", "label": "T1", "slug": "t1", "isDisabled": false, "createdAt": "ISO date" }
+  qrToken is never in any of these responses (waiters can read the list).
+  The slug is set once from the label and never changes, so printed QR codes
+  survive a rename. Two labels with the same slug get "bar", "bar-2", ...
+  A label with no Latin letters or digits (Arabic, emoji) gets "table-xxxxxx".
+
+POST /api/tables
+  Body: { "label": "T1" }   label: trimmed, 1 to 50 characters. No other field.
+  Success: 201 { "success": true, "message": "table created", "data": { ...table } }
+
+GET /api/tables
+  Success: 200 { "success": true, "message": "table list", "data": [ ...tables ] }
+  Oldest first.
+
+PATCH /api/tables/:id
+  Body: { "label": "Terrace 1" }   same rules as create. Only label can change.
+  Success: 200 { "success": true, "message": "table updated", "data": { ...table } }
+
+POST /api/tables/:id/disable and /enable
+  No body.
+  Success: 200 { "success": true, "message": "table disabled" | "table enabled", "data": { ...table } }
+  Doing it twice is harmless (200 both times).
+
+TEST CASES
+
+1. Add a table
+  As OWNER, POST { "label": "  T1  " }.
+  Expect 201, label "T1", slug "t1", isDisabled false, and no qrToken.
+
+2. Same label twice
+  POST { "label": "T1" } again.
+  Expect 409 { "success": false, "message": "table_label_exists" }.
+
+3. Bad labels
+  Try "   ", 51 characters, {} and { "label": "T1", "isDisabled": true }.
+  Expect 400 validation_error with details.
+
+4. Malformed JSON
+  Expect 400 { "success": false, "message": "invalid_json" }.
+
+5. Labels that share a slug
+  Add "Bar!", then "Bar?".
+  Expect slugs "bar" and "bar-2".
+
+6. Arabic label
+  Add "طاولة ٣".
+  Expect 201, the label stored as typed, slug "table-" + 6 hex characters.
+
+7. List
+  As OWNER and as WAITER: expect 200 with this business's tables only, and no
+  qrToken anywhere in the body. As KITCHEN: expect 403.
+
+8. Rename
+  PATCH "T1" to "Terrace 1".
+  Expect 200, the new label, and the SAME slug "t1". Download its sticker: the
+  QR code opens the same link as before.
+
+9. Rename onto a taken label
+  With tables "T1" and "T2", rename T2 to "T1".
+  Expect 409 { "success": false, "message": "label_already_taken" }; T2 keeps its name.
+
+10. Rename with other fields
+  PATCH {} or { "isDisabled": true } or { "slug": "x" }.
+  Expect 400 validation_error.
+
+11. Disable, then enable
+  Disable: expect 200, isDisabled true. Scanning its QR code shows the guest
+  "this table isn't taking orders" screen. Enable: expect 200, isDisabled
+  false, and the menu opens again.
+
+12. Id that is not a UUID / unknown id
+  Expect 400 validation_error / 404 { "success": false, "message": "not_found" }.
+
+13. Waiter or kitchen changes a table
+  POST, PATCH, disable, enable as WAITER or KITCHEN.
+  Expect 403 { "success": false, "message": "forbidden" } and nothing saved.
+
+14. Not signed in
+  Expect 401 { "success": false, "message": "unauthorized" } on every route.
+
+15. Another business's table (tenant isolation)
+  Sign in as the owner of business A, then PATCH, disable or enable a table id
+  of business B. Expect 404 not_found, and B's table unchanged. B's list never
+  shows A's tables.
+
+Automated: src/test/tablesRoutes.test.ts (routes, service mocked) and
+src/test/tables-routes.int.test.ts (real database, two businesses).

@@ -10,7 +10,9 @@ Authentication and permissions
 
 What the sticker shows
   The tawilati. logo, the QR code, "Scan to view the menu.", the business name,
-  then "Table <label>" (a label that already starts with "Table" is shown as is).
+  then the table: a short code gets "Table" in front ("T1" → "Table T1",
+  "12" → "Table 12"); a name that is already words is shown as is
+  ("Terrace 2", "VIP", "Table 4").
   The code opens <origin>/menu/<business slug>/<table slug>?t=<qrToken>.
   <origin> is NEXT_PUBLIC_APP_URL when set, else the address of the request.
   Set NEXT_PUBLIC_APP_URL to the public address before printing real stickers.

@@ -33,9 +33,9 @@ describe("staff navigation", () => {
 });
 
 describe("screens not built yet", () => {
-  it("lists the owner's Tables and Reports as coming soon", () => {
+  it("lists the owner's Reports as coming soon", () => {
     const soon = NAV_BY_ROLE[ROLE.OWNER].filter((i) => i.soon).map((i) => i.href);
-    expect(soon).toEqual(["/dashboard/tables", "/dashboard/reports"]);
+    expect(soon).toEqual(["/dashboard/reports"]);
   });
 
   it("never makes a role's landing screen a coming-soon one", () => {

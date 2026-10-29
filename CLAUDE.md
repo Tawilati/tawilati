@@ -79,7 +79,7 @@ The schema is the source of truth; this table summarises it. Ids are UUID string
 | OrderLine | id, orderId → DiningOrder, menuItemId, qty, priceUSD, priceLBP, rateSnapshot, createdAt | qty ≥ 1; FK to MenuItem is RESTRICT |
 | Payment | id, sessionId → TableSession, amountUSD, amountLBP, method (CASH/EXTERNAL_CARD), recordedById, createdAt | no idempotency key yet (the spec asks for unique (orderId, idempotencyKey)) |
 
-**Customer menu link (what the QR code encodes):** `/menu/{business.slug}/{table.slug}?t={qrToken}`, e.g. `/menu/tawilati-demo-cafe/t1?t=1e64…`. The names make the address bar readable; the token is what authorises the table (without it anyone could order to any table by typing a URL). Slugs never follow renames, so printed QR codes keep working. Sign-up must reject a taken name or slug with 409 `business_name_taken`. Slug helpers: `src/utils/slug.ts`.
+**Customer menu link (what the QR code encodes):** `/menu/{business.slug}/{table.slug}?t={qrToken}`, e.g. `/menu/tawilati-demo-cafe/t1?t=1e64…`. The names make the address bar readable; the token is what authorises the table (without it anyone could order to any table by typing a URL). The token never goes into `GET /api/tables` (waiters can read that list); the owner gets it only inside the sticker PNG from `GET /api/tables/:id/qr` (`src/lib/tableSticker.tsx`, drawn with `next/og` in Inter from `src/assets/fonts/`, 900 × 1200 px). The code's origin is `NEXT_PUBLIC_APP_URL` when set, else the request's address, so set it in production before printing. Slugs never follow renames, so printed QR codes keep working. Sign-up must reject a taken name or slug with 409 `business_name_taken`. Slug helpers: `src/utils/slug.ts`.
 
 Round status (`DiningOrder.status`): `NEW → PREPARING → READY → SERVED`, strictly in that order (plus `CANCELLED`); anything else is 400 `invalid_transition` with no write. Kitchen moves NEW→PREPARING→READY; waiter moves READY→SERVED. Because status is per round, a second round on a tab shows up in the kitchen as its own NEW ticket (settles open issue 2). Closing the tab sets `TableSession.status = CLOSED`, `closedAt`, clears `activeTableId` and revokes its guest sessions in one transaction. Closed tabs are immutable. UI label for NEW in the kitchen is "New".
 
@@ -89,7 +89,7 @@ Round status (`DiningOrder.status`): `NEW → PREPARING → READY → SERVED`, s
 
 ## API (36 endpoints; the spec says 37)
 
-Built on `main` (29 Oct 2026): all of Auth, Staff, Business settings (API only, no settings screen yet), Categories (plus `GET /api/categories/:id`), Menu items except sold-out, and `GET /api/menu`. Not built yet: sold-out, tables (in progress on branch `feat/tables-crud-qr`; `PERMISSION.TABLE_UPDATE` already exists for it), guest sessions, orders, kitchen, waiter, bill, reports. Manual test guides (`guide.txt`) exist for auth, staff, business, categories, menu items and the public menu.
+Built on `main` (29 Oct 2026): all of Auth, Staff, Business settings (API only, no settings screen yet), Categories (plus `GET /api/categories/:id`), Menu items except sold-out, Tables (CRUD, disable/enable; `PATCH /:id` uses `PERMISSION.TABLE_UPDATE`), and `GET /api/menu`. On `feature/ui-foundation`: `GET /api/tables/:id/qr` and the owner's Tables screen (`/dashboard/tables`, print sheet at `/dashboard/tables/print`). Not built yet: sold-out, guest sessions, orders, kitchen, waiter, bill, reports. Manual test guides (`guide.txt`) exist for auth, staff, business, categories, menu items and the public menu.
 
 | Area | Endpoints | Auth |
 |---|---|---|
@@ -115,6 +115,7 @@ Codes the built endpoints add (the UI maps each to a sentence):
 - Menu items: `category_not_in_business` 400, `menu_item_not_found` 404, `menu_item_already_archived` 409, `menu_item_not_archived` 409. (The spec's `item_not_found`, `item_archived` and `item_sold_out` belong to order submission.)
 - Auth: `account_deactivated` 403 (login with the right password on a turned-off account).
 - Staff: `email_already_in_use` 409, `not_found` 404.
+- Tables: `table_label_exists` 409 (create), `label_already_taken` 409 (rename onto a taken label, from the unique index), `not_found` 404.
 - Business settings: `invalid_exchange_rate` 400 (out of range, more than 4 decimals, or too high for the current menu prices), `invalid_timezone` 400, `validation_error` 400 (empty body or a field other than `exchangeRate` / `timezone`), `not_found` 404.
 
 ## Open issues in the spec (decide before coding)

@@ -1,0 +1,46 @@
+TABLE QR STICKER API - TEST GUIDE
+
+Route
+  GET /api/tables/:id/qr - the table's printable QR sticker as a PNG (900 x 1200).
+
+Authentication and permissions
+  OWNER only (TABLE_QR_READ). Waiters can list tables but never get a sticker,
+  so the QR token (which lets anyone order to the table) never reaches them.
+  The business is always the one in the authenticated identity header.
+
+What the sticker shows
+  The tawilati. logo, the QR code, "Scan to view the menu.", the business name,
+  then "Table <label>" (a label that already starts with "Table" is shown as is).
+  The code opens <origin>/menu/<business slug>/<table slug>?t=<qrToken>.
+  <origin> is NEXT_PUBLIC_APP_URL when set, else the address of the request.
+  Set NEXT_PUBLIC_APP_URL to the public address before printing real stickers.
+
+Success
+  Status: 200, Content-Type: image/png, Cache-Control: private, no-cache.
+
+TEST CASES
+
+1. Owner downloads a sticker
+  Expect 200 and a PNG showing the table's current label and the business name.
+  Scan it with a phone: the guest menu for that table opens.
+
+2. Rename, then download again
+  Expect the new label on the sticker and the SAME code (the link never changes,
+  so stickers already printed keep working).
+
+3. Disabled table
+  Expect 200: its sticker can still be printed. Scanning it shows the guest
+  "this table isn't taking orders" screen.
+
+4. Waiter or kitchen account
+  Expect 403 { "success": false, "message": "forbidden" }.
+
+5. Not signed in
+  Expect 401 { "success": false, "message": "unauthorized" }.
+
+6. Id that is not a UUID
+  Expect 400 { "success": false, "message": "validation_error" }.
+
+7. Another business's table (tenant isolation)
+  Sign in as the owner of business A, ask for a table id of business B.
+  Expect 404 { "success": false, "message": "not_found" }.

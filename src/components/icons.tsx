@@ -24,6 +24,16 @@ function Icon({ children, ...props }: IconProps) {
   );
 }
 
+// brand/icons/ui/arrow-left.svg
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m12 19-7-7 7-7" />
+      <path d="M19 12H5" />
+    </Icon>
+  );
+}
+
 // brand/icons/ui/arrow-right.svg
 export function ArrowRightIcon(props: IconProps) {
   return (
@@ -89,6 +99,17 @@ export function ClockIcon(props: IconProps) {
     <Icon {...props}>
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
+    </Icon>
+  );
+}
+
+// brand/icons/ui/download.svg
+export function DownloadIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 15V3" />
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m7 10 5 5 5-5" />
     </Icon>
   );
 }
@@ -239,6 +260,17 @@ export function PlusIcon(props: IconProps) {
     <Icon {...props}>
       <path d="M5 12h14" />
       <path d="M12 5v14" />
+    </Icon>
+  );
+}
+
+// brand/icons/ui/printer.svg
+export function PrinterIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
+      <rect x="6" y="14" width="12" height="8" rx="1" />
     </Icon>
   );
 }

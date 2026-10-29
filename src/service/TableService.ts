@@ -1,6 +1,6 @@
 
 import { maptoTableResponse } from "../types/tableMapper";
-import type { TableResponse } from "@/types/Table";
+import { mapToTableSticker, type TableResponse, type TableSticker } from "@/types/Table";
 import { randomBytes } from "node:crypto";
 import { tableRepo } from "@/repository/TableRepo";
 import { slugService } from "@/service/SlugService";
@@ -47,6 +47,17 @@ export class TableService {
     );
 
     return maptoTableResponse(updatedTable);
+  }
+
+  // For the QR sticker (owner only): the table's name, the business's name and the menu link the code opens.
+  async getSticker(businessId: string, id: string): Promise<TableSticker> {
+    const table = await tableRepo.findStickerInBusiness(id, businessId);
+
+    if (!table) {
+      throw new NotFoundException("not_found");
+    }
+
+    return mapToTableSticker(table);
   }
 
   async disableTable(

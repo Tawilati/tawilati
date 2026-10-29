@@ -2,7 +2,6 @@ import { menuRepo } from "@/repository/MenuRepo";
 import { mapToPublicMenu, type PublicMenu } from "@/types/Menu";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
-import logger from "@/utils/logger";
 import type { PublicMenuQuery } from "@/validation/menuSchemas";
 
 export class MenuService {

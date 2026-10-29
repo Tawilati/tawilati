@@ -2,7 +2,6 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { Prisma } from "@/app/generated/prisma/client";
 import type {
-  MenuCategoryRecord,
   PublicMenuItemRecord,
   TableWithBusiness,
 } from "@/types/Menu";

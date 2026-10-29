@@ -1,7 +1,7 @@
 import { StringValue } from "ms";
 import dotenv from "dotenv";
 dotenv.config();
-export default{
+const config = {
      NODE_ENV: process.env.NODE_ENV || "production",
   isProduction: process.env.NODE_ENV === "production",
     auth:{
@@ -13,3 +13,5 @@ export default{
 
     }
 }
+
+export default config;

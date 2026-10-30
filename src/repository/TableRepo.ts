@@ -3,6 +3,7 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { TableStickerRecord } from "@/types/Table";
 import { DBException } from "@/utils/exceptions/RepoException";
+import logger from "@/utils/logger";
 
 const tableSelect = {
   id: true,
@@ -12,6 +13,11 @@ const tableSelect = {
   createdAt: true,
   
 } as const;
+type TableWithSession = Prisma.DiningTableGetPayload<{
+  include: {
+    sessions: true;
+  };
+}>;
 
 export class TableRepo {
   private static instance: TableRepo;
@@ -123,6 +129,27 @@ export class TableRepo {
       }
 
       throw new DBException("Error creating table", err as Error);
+    }
+  }
+   async FindTabelByQr(qrToken:string):Promise<TableWithSession | null>{
+
+    try{
+        return await prisma.diningTable.findUnique({
+      where: { qrToken },
+      include: {
+        // Get the active session if it exists
+        sessions: {
+          where: { status: 'OPEN' },
+          take: 1,
+        },
+      },
+    });
+
+
+    }
+    catch(error){
+        logger.error('error in getting the Tabel');
+        throw new DBException('error in getting tabel',error as Error);
     }
   }
 }

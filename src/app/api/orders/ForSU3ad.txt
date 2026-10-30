@@ -1,0 +1,60 @@
+┌─────────────────────────────────────────────────────────────┐
+│ 1. USER SCANS QR                                            │
+│    URL: /menu?b=tawilati-demo-cafe&t=5ff8eaf7...            │
+│    (t = qrToken)                                            │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. FRONTEND: GET /api/menu?b=...&t=<qrToken>                │
+│    → Backend returns categories + items                     │
+│    → Frontend displays the menu                             │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. GUEST SELECTS ITEMS (Frontend only)                      │
+│    → Cart stored in React state                             │
+│    → Cart: [{ menuItemId, qty }, ...]                       │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. GUEST CLICKS "SUBMIT ORDER"                              │
+│    Frontend actions:                                        │
+│    a. Generate idempotencyKey = crypto.randomUUID()         │
+│    b. POST /api/guest-sessions { qrToken }                  │
+│    c. Save guestToken from response                         │
+│    d. POST /api/orders                                      │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 5. POST /api/orders                                         │
+│    Headers:                                                 │
+│      Authorization: Bearer <guestToken>                     │
+│      Idempotency-Key: <uuid>                                │
+│    Body:                                                    │
+│      { "items": [{ menuItemId, qty }, ...] }                │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 6. BACKEND: OrderService.createOrder()                      │
+│    (You already built this)                                 │
+│    → Validates guest token                                  │
+│    → Checks idempotency                                     │
+│    → Validates menu items                                   │
+│    → Creates Submission + Order + OrderLines (transaction)  │
+│    → Updates TableSession totals                            │
+│    → Extends GuestSession expiry                            │
+│    → Returns OrderResponse                                  │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 7. FRONTEND: Shows confirmation                             │
+│    → "Order placed for Table 5"                             │
+│    → "Total: $11.50"                                        │
+│    → "Status: NEW"                                          │
+└─────────────────────────────────────────────────────────────┘

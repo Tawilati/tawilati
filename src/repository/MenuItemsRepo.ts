@@ -69,6 +69,20 @@ export class MenuItemRepo {
     }
   }
 
+  async findManyByIds(
+    businessId: string,
+    itemIds: string[],
+  ): Promise<MenuItemRecord[]> {
+    try {
+      return await prisma.menuItem.findMany({
+        where: { businessId, id: { in: itemIds } },
+        select: menuItemSelect,
+      });
+    } catch (err) {
+      throw new DBException("Error loading menu items", err as Error);
+    }
+  }
+
   async findBusinessExchangeRate(
     businessId: string,
   ): Promise<Prisma.Decimal | null> {

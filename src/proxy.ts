@@ -31,6 +31,10 @@ const publicApiRoutes = [
   "/api/menu",            // GET /api/menu?b=&t= — QR resolve
   "/api/guest-sessions",  // POST — issue guest credential
 ];
+const guestApiRoutes = [
+  "/api/orders",       // POST — guest submits order
+  "/api/orders/me",    // GET — guest views their orders
+];
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -43,7 +47,10 @@ function isPathUnder(pathname: string, route: string) {
 function isPublicApi(pathname: string): boolean {
   return publicApiRoutes.some((route) => isPathUnder(pathname, route));
 }
-
+//to by pass the guest api
+function isGuestApi(pathname: string): boolean {
+  return guestApiRoutes.some((route) => isPathUnder(pathname, route));
+}
 // Set only by this proxy. Any copy sent by the browser is dropped first, so a route or
 // screen can trust them.
 const IDENTITY_HEADERS = ["x-user-id", "x-user-role", "x-business-id"];
@@ -56,6 +63,7 @@ function unauthenticated(req: NextRequest): NextResponse {
   authService.clearAuthCookies(response);
   return response;
 }
+
 
 // ─────────────────────────────────────────────
 // Middleware
@@ -71,6 +79,11 @@ export async function proxy(req: NextRequest) {
     if (isPublicApi(currentPath)) {
       return NextResponse.next({ request: { headers: requestHeaders } });
     }
+    // Guest routes: proxy steps aside. The route validates the Bearer token against the GuestSession DB table.
+    
+if (isGuestApi(currentPath)) {
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
 
     const authToken = req.cookies.get("auth_token")?.value;
     const refreshToken = req.cookies.get("refresh_token")?.value;

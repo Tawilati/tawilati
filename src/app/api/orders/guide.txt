@@ -1,0 +1,141 @@
+POST /api/orders - API TEST GUIDE
+
+Purpose
+  A guest submits one round (the cart) to their table's open tab. The kitchen
+  gets it as a NEW ticket. A double tap or a network retry never creates a
+  second ticket.
+
+Authentication
+  Guest route. No staff cookie; the proxy lets it through.
+  Header: Authorization: Bearer {guest token}
+  The token comes from POST /api/guest-sessions (64 lowercase hex characters).
+  It is valid while the guest session is not revoked, not expired, and its tab
+  is OPEN. The business, tab and table all come from the token, never from the
+  body.
+
+Headers (all required; copy the lines as they are, a leading space breaks the
+header name. Idempotency-Key: any string of 1-255 characters, a new one per cart)
+
+Authorization: Bearer 0000000000000000000000000000000000000000000000000000000000000000
+Idempotency-Key: 5f1c7a2e-1d3b-4c55-9a77-0d2b8e6f4a10
+Content-Type: application/json
+
+Body
+  {
+    "items": [
+      { "menuItemId": "uuid", "qty": 2 },
+      { "menuItemId": "uuid", "qty": 1 }
+    ]
+  }
+  items: 1 to 50 lines. menuItemId: UUID. qty: whole number 1 to 99.
+  No other field (prices, businessId, tableId are refused: validation_error).
+
+Success response
+  201 for a new round, 200 when the same key + same cart is sent again:
+  {
+    "success": true,
+    "message": "order submitted" | "order already submitted",
+    "data": {
+      "submissionId": "uuid",
+      "orderId": "uuid",
+      "sessionId": "uuid",
+      "tableLabel": "T1",
+      "status": "NEW",
+      "totalUSD": "8.50",
+      "totalLBP": "760750.00",
+      "lines": [
+        { "menuItemId": "uuid", "name": "Espresso", "qty": 2,
+          "priceUSD": "2.50", "priceLBP": "223750.00" }
+      ],
+      "createdAt": "ISO date"
+    }
+  }
+
+Setup
+  1. npm run db:seed, open a printed menu link, copy the t= qrToken.
+  2. POST /api/guest-sessions { "qrToken": "..." } -> copy data.token.
+  3. GET /api/menu?b=...&t=... -> copy a few menu item ids.
+
+TEST CASES
+
+1. Valid cart
+  Expect 201 "order submitted", status NEW, totals = sum(price x qty).
+  The tab's totalUSD / totalLBP grow by the same amounts.
+
+2. Double tap: same Idempotency-Key, same cart
+  Send case 1 again unchanged.
+  Expect 200 "order already submitted" with the same orderId and submissionId.
+  Check the database: still one DiningOrder, no new OrderLines, tab totals
+  unchanged.
+
+3. Same key, same items in another order
+  Reorder the items array. Expect 200 (the hash ignores line order).
+
+4. Same key, different cart
+  Change a qty. Expect 409 { "success": false, "message": "idempotency_key_mismatch" }.
+
+5. New key, same cart
+  Expect 201 with a new orderId: it is a second round on the same tab.
+
+6. Two phones on the same table
+  Two guest tokens for the same table, each with its own key.
+  Expect two orders on the same sessionId.
+
+7. Missing or malformed token
+  No Authorization header, "Bearer abc", or uppercase hex.
+  Expect 401 { "success": false, "message": "unauthorized" }.
+
+8. Unknown token (well-formed)
+  Expect 401 unauthorized.
+
+9. Expired guest session
+  Set GuestSession.expiresAt in the past. Expect 401.
+
+10. Revoked guest session
+  Set GuestSession.revokedAt. Expect 401 guest_session_revoked.
+
+11. Closed tab
+  Close the tab (TableSession.status = CLOSED).
+  Expect 409 table_session_closed.
+
+12. Missing, empty or too long Idempotency-Key (over 255 characters)
+  Expect 400 idempotency_key_required.
+
+13. Body validation
+  Missing items, items: [], qty 0, qty 1.5, qty 100, a non-UUID menuItemId,
+  or an extra field (priceUSD, businessId).
+  Expect 400 validation_error with details keyed by field.
+
+14. Malformed JSON
+  Expect 400 invalid_json.
+
+15. Item from another business
+  Use a menu item id from a second business.
+  Expect 400 menu_item_not_found; nothing is written.
+
+16. Archived item
+  Archive an item (POST /api/menu-items/:id/archive) and order it.
+  Expect 409 menu_item_archived; nothing is written.
+
+17. Sold-out item
+  Set soldOut: true on an item and order it.
+  Expect 409 menu_item_sold_out; nothing is written.
+
+18. Price snapshot
+  Submit an order, then change the item's price or the business exchange rate.
+  The existing OrderLine priceUSD, priceLBP and rateSnapshot do not change.
+
+19. Two simultaneous requests with the same key
+  Fire case 1 twice at once with a fresh key.
+  Expect one 201 and one 409 (idempotency_key_conflict); only one order exists.
+
+20. Database unavailable
+  Expect 500 database_error without internal details.
+
+21. Method not supported
+  Try GET /api/orders. Expect Next.js 405 Method Not Allowed.
+
+Security checks
+  - businessId, tableId and prices are never read from the body.
+  - A guest token only ever writes to its own tab.
+  - Nothing is written unless every line is valid (one transaction).

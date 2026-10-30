@@ -17,6 +17,14 @@ export function getUserRoleFromRequest(request: NextRequest): ROLE | null {
     return toRole(roleHeader);
 }
 
+// Guest routes: the token from `Authorization: Bearer <token>`, or null if absent.
+export function getGuestTokenFromRequest(request: NextRequest): string | null {
+    const header = request.headers.get('authorization');
+    if (!header?.startsWith('Bearer ')) return null;
+
+    return header.slice('Bearer '.length).trim() || null;
+}
+
 export function getUserFromRequest(request: NextRequest): {
     userId: string;
     role: ROLE;

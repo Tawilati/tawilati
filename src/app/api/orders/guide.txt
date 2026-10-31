@@ -89,7 +89,7 @@ TEST CASES
   Expect 401 unauthorized.
 
 9. Expired guest session
-  Set GuestSession.expiresAt in the past. Expect 401.
+  Set GuestSession.expiresAt in the past. Expect 401 token_expired.
 
 10. Revoked guest session
   Set GuestSession.revokedAt. Expect 401 guest_session_revoked.

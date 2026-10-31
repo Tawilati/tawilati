@@ -60,7 +60,7 @@ export class BusinessRepo {
         data: {
           name,
           slug,
-          exchangeRate: new Prisma.Decimal("89000"),
+          exchangeRate: new Prisma.Decimal("8900"),
           timezone: "Asia/Beirut",
         },
       });

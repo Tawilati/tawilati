@@ -198,7 +198,11 @@ export class OrderService {
         totalLBP,
         tx,
       );
-
+      await guestSessionRepo.extend(
+  guest.id,
+  new Date(Date.now() + 2 * 60 * 60 * 1000),
+  tx,
+);
       return { submission, order };
     });
 

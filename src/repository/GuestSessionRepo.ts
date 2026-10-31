@@ -71,6 +71,23 @@ export class GuestSessionRepo {
     }
 
   }
+   async extend(
+    guestSessionId: string,
+    newExpiresAt: Date,
+    tx: DbClient = prisma,
+  ): Promise<Prisma.GuestSessionGetPayload<{}>> {
+    try {
+      return await tx.guestSession.update({
+        where: { id: guestSessionId },
+        data: { expiresAt: newExpiresAt },
+      });
+    } catch (error) {
+      throw new DBException(
+        "Error extending guest session",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
 }
 
 export const guestSessionRepo = GuestSessionRepo.getInstance();

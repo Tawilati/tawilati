@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button, Modal, QuantityStepper, StatusBadge, Toast } from "@/components/ui";
 import { CircleCheckIcon } from "@/components/icons";
 import type { PublicMenuItem } from "@/types/Menu";
-import type { CartRow, CartSummary } from "@/utils/guestCart";
+import { MAX_CART_LINES, type CartRow, type CartSummary } from "@/utils/guestCart";
 import { formatLBP, formatUSD } from "@/utils/money";
 import type { PlacedOrder, SubmitOutcome } from "./guestOrderApi";
 
@@ -79,13 +79,13 @@ function Confirmation({
         </span>
         <p className="text-lg font-bold text-balance">Order placed for Table {order.tableLabel}</p>
         <p className="text-sm text-ink-muted">
-          {earlierAttempt ? "Your earlier order did reach the kitchen." : "The kitchen has it."}
+          {order.status === "CANCELLED" ? "This order was cancelled. Please ask a member of staff." : earlierAttempt ? "Your earlier order did reach the kitchen." : "The kitchen has it."}
         </p>
       </div>
       <div className="flex flex-col gap-2 rounded-2xl border border-border-subtle p-3.5">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[15px] font-semibold">Your order</span>
-          {order.status !== "CANCELLED" && <StatusBadge status={order.status} />}
+          {order.status === "CANCELLED" ? <StatusBadge status="CLOSED">Cancelled</StatusBadge> : <StatusBadge status={order.status} />}
         </div>
         <ul className="flex flex-col gap-0.5 text-sm">
           {order.lines.map((line) => (
@@ -108,6 +108,7 @@ export function CartSheet({
   tableLabel,
   summary,
   submitting,
+  closed,
   onChange,
   onSubmit,
   onClose,
@@ -115,6 +116,7 @@ export function CartSheet({
   tableLabel: string;
   summary: CartSummary;
   submitting: boolean;
+  closed: boolean;
   onChange: Change;
   onSubmit: () => Promise<SubmitOutcome | null>;
   onClose: () => void;
@@ -129,13 +131,16 @@ export function CartSheet({
   };
 
   async function submit() {
+    if (closed || submitting) return;
     setError(null);
     const outcome = await onSubmit();
     if (!outcome) return;
     if (outcome.kind === "sent") setPlaced({ order: outcome.order, earlierAttempt: outcome.earlierAttempt });
     else if (outcome.kind === "blocked") setError(BLOCKED);
     else if (outcome.kind === "tab_closed") setError(TAB_CLOSED);
-    else if (outcome.kind === "failed") setError(FAILED);
+    else if (outcome.kind === "failed") setError(outcome.reason === "storage_unavailable"
+      ? "Your browser couldn't save this order safely. Allow site storage, then try again. Nothing was sent."
+      : FAILED);
   }
 
   return (
@@ -151,19 +156,21 @@ export function CartSheet({
         <p className="py-4 text-center text-sm text-ink-muted">Your cart is empty. Add something from the menu.</p>
       ) : (
         <div className="flex flex-col gap-3">
+          <fieldset disabled={closed || submitting} className="contents">
           <ul className="-my-2.5 max-h-[45dvh] overflow-y-auto">
             {summary.rows.map((row) => (
               <CartRowView key={row.menuItemId} row={row} onChange={edit} />
             ))}
           </ul>
+          </fieldset>
           <div className="border-t border-border-subtle pt-3">
             <Total label="Total" usd={summary.totalUSD} lbp={summary.totalLBP} />
           </div>
-          {error && <Toast tone="error" title={error} />}
-          {summary.blocked && !error && (
-            <p className="text-sm font-medium text-ink-muted">Remove sold-out items to submit.</p>
+          {(closed || error) && <Toast tone="error" title={closed ? TAB_CLOSED : error!} />}
+          {summary.blocked && !error && !closed && (
+            <p className="text-sm font-medium text-ink-muted">{summary.rows.length > MAX_CART_LINES ? "Remove items to keep your order within 50 different items." : "Remove unavailable items to submit."}</p>
           )}
-          <Button block loading={submitting} disabled={summary.blocked} onClick={submit}>
+          <Button block loading={submitting} disabled={closed || summary.blocked} onClick={submit}>
             Submit your order
           </Button>
         </div>

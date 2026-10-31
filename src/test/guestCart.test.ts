@@ -13,6 +13,11 @@ const menu: PublicMenu = {
 };
 
 describe("addToCart", () => {
+  it("allows changing existing quantities at the 50-item limit but refuses a 51st item", () => {
+    const full = Array.from({ length: 50 }, (_, i) => ({ menuItemId: `item-${i}`, name: `Item ${i}`, qty: 1 }));
+    expect(addToCart(full, { id: "extra", name: "Extra" }, 1)).toEqual(full);
+    expect(cartQty(addToCart(full, { id: "item-0", name: "Item 0" }, 1), "item-0")).toBe(2);
+  });
   it("adds a new line, then counts up", () => {
     const once = addToCart([], espresso, 1);
     expect(once).toEqual([{ menuItemId: "esp", name: "Espresso", qty: 1 }]);

@@ -8,10 +8,12 @@ export function MenuItemCard({
   item,
   qty,
   onChange,
+  canAdd = true,
 }: {
   item: PublicMenuItem;
   qty: number;
   onChange: (item: PublicMenuItem, delta: number) => void;
+  canAdd?: boolean;
 }) {
   return (
     <li
@@ -38,7 +40,7 @@ export function MenuItemCard({
           onIncrease={() => onChange(item, 1)}
         />
       ) : (
-        <AddButton itemName={item.name} onClick={() => onChange(item, 1)} />
+        <AddButton itemName={item.name} onClick={() => onChange(item, 1)} disabled={!canAdd} />
       )}
     </li>
   );

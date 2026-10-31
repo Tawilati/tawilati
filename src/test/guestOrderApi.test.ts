@@ -4,14 +4,14 @@ import { submitCart, type TokenStore } from "@/components/menu/guestOrderApi";
 const QR = "a".repeat(64);
 const lines = [{ menuItemId: "esp", qty: 2 }];
 const attempt = { key: "key-1", lines };
-const order = { orderId: "o1", tableLabel: "T1", status: "NEW", totalUSD: "5.00", totalLBP: "447500.00", lines: [] };
+const order = { orderId: "o1", tableLabel: "T1", status: "NEW", totalUSD: "5.00", totalLBP: "447500.00", lines: [{ menuItemId: "esp", name: "Espresso", qty: 2, priceUSD: "2.50", priceLBP: "223750.00" }] };
 
 function reply(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status });
 }
 const failure = (status: number, message: string) => reply(status, { success: false, message });
 const orderOk = (status = 201) => reply(status, { success: true, data: order });
-const sessionOk = (token = "guest-new") => reply(201, { success: true, data: { token } });
+const sessionOk = (token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") => reply(201, { success: true, data: { token } });
 
 function tokenStore(initial: string | null = null): TokenStore & { value: string | null } {
   return {
@@ -50,10 +50,10 @@ describe("submitCart", () => {
     expect(call(0).url).toBe("/api/guest-sessions");
     expect(call(0).body).toEqual({ qrToken: QR });
     expect(call(1).url).toBe("/api/orders");
-    expect(call(1).headers.Authorization).toBe("Bearer guest-new");
+    expect(call(1).headers.Authorization).toBe("Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     expect(call(1).headers["Idempotency-Key"]).toBe("key-1");
     expect(call(1).body).toEqual({ items: lines });
-    expect(tokens.value).toBe("guest-new");
+    expect(tokens.value).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     expect(outcome).toMatchObject({ kind: "sent", sentLines: lines, earlierAttempt: false, order: { orderId: "o1" } });
   });
 
@@ -74,16 +74,16 @@ describe("submitCart", () => {
   it("renews an expired token once and retries with the same key", async () => {
     fetchMock
       .mockResolvedValueOnce(failure(401, "token_expired"))
-      .mockResolvedValueOnce(sessionOk("guest-2"))
+      .mockResolvedValueOnce(sessionOk("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
       .mockResolvedValueOnce(orderOk());
     const tokens = tokenStore("guest-1");
 
     const outcome = await submitCart({ qrToken: QR, lines, attempt, tokens });
 
     expect(outcome.kind).toBe("sent");
-    expect(call(2).headers.Authorization).toBe("Bearer guest-2");
+    expect(call(2).headers.Authorization).toBe("Bearer bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     expect(call(2).headers["Idempotency-Key"]).toBe("key-1");
-    expect(tokens.value).toBe("guest-2");
+    expect(tokens.value).toBe("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
   });
 
   it("gives up after a second 401 instead of looping", async () => {
@@ -136,13 +136,13 @@ describe("submitCart", () => {
   describe("the guest changed the cart after a submit whose answer was lost", () => {
     const edited = [{ menuItemId: "esp", qty: 3 }];
 
-    it("sends the new cart under the same key: if the first never arrived, it goes through", async () => {
+    it("retries the frozen cart, leaving later additions for another round", async () => {
       fetchMock.mockResolvedValueOnce(orderOk());
       const outcome = await submitCart({ qrToken: QR, lines: edited, attempt, tokens: tokenStore("guest") });
 
       expect(call(0).headers["Idempotency-Key"]).toBe("key-1");
-      expect(call(0).body).toEqual({ items: edited });
-      expect(outcome).toMatchObject({ kind: "sent", sentLines: edited, earlierAttempt: false });
+      expect(call(0).body).toEqual({ items: lines });
+      expect(outcome).toMatchObject({ kind: "sent", sentLines: lines, earlierAttempt: true });
     });
 
     it("on a mismatch the first did arrive: fetches it with the original lines, sends nothing new", async () => {
@@ -155,14 +155,40 @@ describe("submitCart", () => {
       expect(outcome).toMatchObject({ kind: "sent", sentLines: lines, earlierAttempt: true });
     });
 
-    it("drops the attempt if the key still mismatches, so the guest isn't stuck", async () => {
+    it("keeps an unresolved key rather than risking a duplicate order", async () => {
       fetchMock
         .mockResolvedValueOnce(failure(409, "idempotency_key_mismatch"))
         .mockResolvedValueOnce(failure(409, "idempotency_key_mismatch"));
 
       const outcome = await submitCart({ qrToken: QR, lines: edited, attempt, tokens: tokenStore("guest") });
 
-      expect(outcome).toEqual({ kind: "failed", keepAttempt: false });
+      expect(outcome).toEqual({ kind: "failed", keepAttempt: true });
     });
+  });
+
+  it.each([null, {}, { ...order, status: "UNKNOWN" }, { ...order, totalUSD: "NaN" }, { ...order, lines: [] }])("keeps the attempt on a malformed successful order (%j)", async (data) => {
+    fetchMock.mockResolvedValueOnce(reply(201, { success: true, data }));
+    expect(await submitCart({ qrToken: QR, lines, attempt, tokens: tokenStore("guest") })).toEqual({ kind: "failed", keepAttempt: true });
+  });
+
+  it("keeps the key when recovery returns a server error", async () => {
+    fetchMock.mockResolvedValueOnce(failure(409, "idempotency_key_mismatch")).mockResolvedValueOnce(failure(500, "database_error"));
+    expect(await submitCart({ qrToken: QR, lines, attempt, tokens: tokenStore("guest") })).toEqual({ kind: "failed", keepAttempt: true });
+  });
+
+  it("times out a stalled response and preserves the key", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener("abort", () => reject(new Error("aborted")));
+      }));
+      const pending = submitCart({ qrToken: QR, lines, attempt, tokens: tokenStore("guest") });
+      expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(14999);
+      expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
+      expect(await pending).toEqual({ kind: "failed", keepAttempt: true });
+    } finally { vi.useRealTimers(); }
   });
 });

@@ -2,6 +2,7 @@
 // then POST /api/orders. Error codes stop here; the screen only sees what happened.
 import type { OrderResponse } from "@/types/Order";
 import type { OrderLine } from "@/utils/guestCart";
+import { z } from "zod";
 
 export type TokenStore = {
   get: () => string | null;
@@ -19,25 +20,41 @@ export type SubmitOutcome =
   | { kind: "blocked" }
   | { kind: "tab_closed" }
   | { kind: "table_problem"; problem: "invalid_qr" | "table_disabled" }
-  | { kind: "failed"; keepAttempt: boolean };
+  | { kind: "failed"; keepAttempt: boolean; reason?: "storage_unavailable" };
 
 type Reply = { status: number; code: string; data: unknown };
 
 const BLOCKING_CODES = ["menu_item_sold_out", "menu_item_archived", "menu_item_not_found"];
 const TAB_CLOSED_CODES = ["guest_session_revoked", "table_session_closed"];
+const amount = z.string().regex(/^\d+(\.\d{1,2})?$/);
+const orderSchema = z.object({
+  orderId: z.string().min(1), tableLabel: z.string().min(1),
+  status: z.enum(["NEW", "PREPARING", "READY", "SERVED", "CANCELLED"]),
+  totalUSD: amount, totalLBP: amount,
+  lines: z.array(z.object({
+    menuItemId: z.string().min(1), name: z.string(), qty: z.number().int().min(1).max(99),
+    priceUSD: amount, priceLBP: amount,
+  })).min(1).max(50),
+});
 
 // null when the server couldn't be reached.
 async function post(url: string, headers: Record<string, string>, body: unknown): Promise<Reply | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
     const json = await res.json().catch(() => null);
+    if (res.ok && json?.success !== true) return null;
     return { status: res.status, code: json?.message ?? "", data: json?.data };
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -59,8 +76,9 @@ async function sendOrder(
       if (session.code === "invalid_qr" || session.code === "table_disabled") {
         return { kind: "table_problem", problem: session.code };
       }
-      token = (session.data as { token?: string } | undefined)?.token ?? null;
-      if (!token) return { kind: "failed", keepAttempt: true };
+      const parsed = z.object({ token: z.string().regex(/^[0-9a-f]{64}$/) }).safeParse(session.data);
+      if (session.status !== 201 || !parsed.success) return { kind: "failed", keepAttempt: true };
+      token = parsed.data.token;
       tokens.set(token);
     }
 
@@ -87,12 +105,17 @@ export async function submitCart({
   attempt: SubmitAttempt;
   tokens: TokenStore;
 }): Promise<SubmitOutcome> {
-  const result = await sendOrder(qrToken, lines, attempt.key, tokens);
+  // Freeze both payload and key until the outcome is known, even if the cart was edited.
+  const result = await sendOrder(qrToken, attempt.lines, attempt.key, tokens);
   if (!result) return { kind: "failed", keepAttempt: true };
   if (!isReply(result)) return result;
 
   if (result.status === 200 || result.status === 201) {
-    return { kind: "sent", order: result.data as PlacedOrder, sentLines: lines, earlierAttempt: false };
+    const order = orderSchema.safeParse(result.data);
+    if (!order.success) return { kind: "failed", keepAttempt: true };
+    const earlierAttempt = lines.length !== attempt.lines.length || lines.some((line) =>
+      !attempt.lines.some((sent) => sent.menuItemId === line.menuItemId && sent.qty === line.qty));
+    return { kind: "sent", order: order.data, sentLines: attempt.lines, earlierAttempt };
   }
   if (BLOCKING_CODES.includes(result.code)) return { kind: "blocked" };
   if (TAB_CLOSED_CODES.includes(result.code)) {
@@ -100,16 +123,22 @@ export async function submitCart({
     return { kind: "tab_closed" };
   }
 
-  // The guest edited the cart after a submit whose answer got lost, and the key says that submit did
-  // arrive. Asking again with its own lines returns the original order and creates nothing.
+  // Older saved attempts may have sent edited lines under this key. Try their
+  // frozen payload once, but never discard the key on an inconclusive answer.
   if (result.code === "idempotency_key_mismatch") {
     const original = await sendOrder(qrToken, attempt.lines, attempt.key, tokens);
     if (!original) return { kind: "failed", keepAttempt: true };
     if (!isReply(original)) return original;
     if (original.status === 200 || original.status === 201) {
-      return { kind: "sent", order: original.data as PlacedOrder, sentLines: attempt.lines, earlierAttempt: true };
+      const order = orderSchema.safeParse(original.data);
+      if (!order.success) return { kind: "failed", keepAttempt: true };
+      return { kind: "sent", order: order.data, sentLines: attempt.lines, earlierAttempt: true };
     }
-    return { kind: "failed", keepAttempt: false };
+    if (TAB_CLOSED_CODES.includes(original.code)) {
+      tokens.clear();
+      return { kind: "tab_closed" };
+    }
+    return { kind: "failed", keepAttempt: true };
   }
 
   return { kind: "failed", keepAttempt: true };

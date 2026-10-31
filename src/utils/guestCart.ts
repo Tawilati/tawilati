@@ -3,6 +3,7 @@
 import type { PublicMenu, PublicMenuItem } from "@/types/Menu";
 
 export const MAX_QTY = 99;
+export const MAX_CART_LINES = 50;
 
 export type CartLine = { menuItemId: string; name: string; qty: number };
 export type OrderLine = { menuItemId: string; qty: number };
@@ -33,7 +34,7 @@ export function addToCart(cart: CartLine[], item: Pick<PublicMenuItem, "id" | "n
   const current = cartQty(cart, item.id);
   const qty = Math.min(MAX_QTY, current + delta);
   if (qty <= 0) return cart.filter((line) => line.menuItemId !== item.id);
-  if (current === 0) return [...cart, { menuItemId: item.id, name: item.name, qty }];
+  if (current === 0) return cart.length >= MAX_CART_LINES ? cart : [...cart, { menuItemId: item.id, name: item.name, qty }];
   return cart.map((line) => (line.menuItemId === item.id ? { ...line, qty } : line));
 }
 
@@ -79,7 +80,7 @@ export function cartSummary(cart: CartLine[], menu: PublicMenu): CartSummary {
     count: cart.reduce((sum, line) => sum + line.qty, 0),
     totalUSD: minorToAmount(usd),
     totalLBP: minorToAmount(lbp),
-    blocked: rows.some((row) => row.state !== "available"),
+    blocked: rows.length > MAX_CART_LINES || rows.some((row) => row.state !== "available"),
   };
 }
 

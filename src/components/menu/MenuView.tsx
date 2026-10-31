@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { TablesIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
 import type { PublicMenu } from "@/types/Menu";
-import { cartQty } from "@/utils/guestCart";
+import { cartQty, MAX_CART_LINES } from "@/utils/guestCart";
 import { newlySoldOut } from "@/utils/menuChanges";
 import { formatUSD } from "@/utils/money";
 import { CartSheet } from "./CartSheet";
@@ -34,7 +34,7 @@ export function MenuView({
   const [notice, setNotice] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const menuRef = useRef(initialMenu);
-  const { lines, summary, submitting, change, submit } = useGuestCart(menu, qrToken);
+  const { lines, summary, submitting, closed, change, submit } = useGuestCart(menu, qrToken);
 
   const refresh = useCallback(async () => {
     // A hidden tab or a locked phone doesn't need fresh data; we catch up when it's visible again.
@@ -101,8 +101,13 @@ export function MenuView({
       </header>
 
       <CategoryTabs categories={menu.categories} activeId={active.id} onSelect={setActiveId} />
+      {lines.length >= MAX_CART_LINES && (
+        <p role="status" className="px-4 pt-3 text-sm text-ink-muted">Up to 50 different items per order. Remove an item to add another.</p>
+      )}
+      {closed && <p role="status" className="px-4 pt-3 text-sm text-ink-muted">This table&apos;s bill has been closed. Please ask a member of staff.</p>}
 
       <main className="flex-1">
+        <fieldset disabled={closed || submitting} className="contents">
         <ul
           role="tabpanel"
           id={`panel-${active.id}`}
@@ -110,9 +115,10 @@ export function MenuView({
           className="flex flex-col gap-2.5 px-[max(18px,env(safe-area-inset-left,0px))] pt-4"
         >
           {active.items.map((item) => (
-            <MenuItemCard key={item.id} item={item} qty={cartQty(lines, item.id)} onChange={change} />
+            <MenuItemCard key={item.id} item={item} qty={cartQty(lines, item.id)} onChange={change} canAdd={lines.length < MAX_CART_LINES} />
           ))}
         </ul>
+        </fieldset>
       </main>
 
       <footer
@@ -150,6 +156,7 @@ export function MenuView({
           tableLabel={menu.table.label}
           summary={summary}
           submitting={submitting}
+          closed={closed}
           onChange={change}
           onSubmit={submitOrder}
           onClose={() => setCartOpen(false)}

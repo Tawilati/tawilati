@@ -6,7 +6,7 @@ import { hashOrderLines } from "@/utils/OrderHash";
 
 // ── Mock the repo modules and the transaction ─────────────────
 const repos = vi.hoisted(() => ({
-  guestSessionRepo: { FindByToken: vi.fn() },
+  guestSessionRepo: { FindByToken: vi.fn(), extend: vi.fn() },
   submissionRepo: { FindByKey: vi.fn(), create: vi.fn(), linkToOrder: vi.fn() },
   orderRepo: { findByIdWithRelations: vi.fn(), create: vi.fn() },
   menuItemRepo: { findManyByIds: vi.fn(), findBusinessExchangeRate: vi.fn() },
@@ -185,8 +185,7 @@ describe("OrderService.createOrder", () => {
     it("rejects an expired session with 401", async () => {
       guestSessionRepo.FindByToken.mockResolvedValue(guest({ expiresAt: new Date(Date.now() - 1000) }));
 
-      const error = await orderService.createOrder(input).catch((e: unknown) => e);
-      expect(error).toMatchObject({ status: 401 });
+      await expectHttpError(orderService.createOrder(input), 401, "token_expired");
       expectNothingWritten();
     });
 

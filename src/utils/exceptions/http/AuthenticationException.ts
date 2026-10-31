@@ -23,7 +23,7 @@ export class TokenNotFoundException extends AuthenticationException{
 
 export class ExpiredTokenException extends AuthenticationException {
     constructor() {
-        super("Token has expired");
+        super("token_expired");
         this.name = "ExpiredTokenException";
     }
 }

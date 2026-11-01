@@ -1,0 +1,17 @@
+Guest clicks "Submit Order"
+        ↓
+POST /api/orders  → 201 Created
+        ↓
+Frontend: "Order sent!"
+        ↓
+GET /api/orders/me  → Shows running bill (burger + coffee)
+        ↓
+[10 seconds later] Kitchen marks order PREPARING
+        ↓
+GET /api/orders/me (polling)  → Status updates to PREPARING
+        ↓
+[10 seconds later] Kitchen marks order READY
+        ↓
+GET /api/orders/me (polling)  → Status updates to READY
+        ↓
+Guest sees: "Your order is ready!"

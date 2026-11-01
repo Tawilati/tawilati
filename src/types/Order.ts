@@ -1,6 +1,6 @@
 // src/types/Order.ts
 
-import type { OrderStatus, Prisma } from "@/app/generated/prisma/client";
+import type { OrderStatus, Prisma, TableSessionStatus } from "@/app/generated/prisma/client";
 
 // What the frontend sends for each item
 export interface OrderLineInput {
@@ -81,5 +81,91 @@ export function mapToOrderResponse(record: OrderResponseRecord): OrderResponse {
       priceLBP: line.priceLBP.toFixed(2),
     })),
     createdAt: record.order.createdAt,
+  };
+}
+
+// ─────────────────────────────────────────────────────────
+// Response (clean, for the frontend)
+// ─────────────────────────────────────────────────────────
+
+export interface GuestOrderLineResponse {
+  menuItemId: string;
+  name: string;
+  qty: number;
+  priceUSD: string;
+  priceLBP: string;
+}
+
+export interface GuestOrderResponse {
+  orderId: string;
+  status: OrderStatus;
+  totalUSD: string;
+  totalLBP: string;
+  createdAt: Date;
+  lines: GuestOrderLineResponse[];
+}
+
+export interface GuestBillResponse {
+  sessionId: string;
+  tableLabel: string;
+  status: TableSessionStatus;
+  totalUSD: string;
+  totalLBP: string;
+  amountPaidUSD: string;
+  amountPaidLBP: string;
+  orders: GuestOrderResponse[];
+}
+
+// ─────────────────────────────────────────────────────────
+// Raw record (what Prisma returns)
+// ─────────────────────────────────────────────────────────
+
+export type GuestBillRecord = Prisma.GuestSessionGetPayload<{
+  include: {
+    session: {
+      include: {
+        table: { select: { label: true } };
+      };
+    };
+    orders: {
+      include: {
+        orderLines: {
+          include: {
+            menuItem: { select: { name: true } };
+          };
+        };
+      };
+      orderBy: { createdAt: "desc" };
+    };
+  };
+}>;
+
+// ─────────────────────────────────────────────────────────
+// Mapper
+// ─────────────────────────────────────────────────────────
+
+export function mapToGuestBillResponse(record: GuestBillRecord): GuestBillResponse {
+  return {
+    sessionId: record.sessionId,
+    tableLabel: record.session.table.label,
+    status: record.session.status,
+    totalUSD: record.session.totalUSD.toFixed(2),
+    totalLBP: record.session.totalLBP.toFixed(2),
+    amountPaidUSD: record.session.amountPaidUSD.toFixed(2),
+    amountPaidLBP: record.session.amountPaidLBP.toFixed(2),
+    orders: record.orders.map((order) => ({
+      orderId: order.id,
+      status: order.status,
+      totalUSD: order.totalUSD.toFixed(2),
+      totalLBP: order.totalLBP.toFixed(2),
+      createdAt: order.createdAt,
+      lines: order.orderLines.map((line) => ({
+        menuItemId: line.menuItemId,
+        name: line.menuItem.name,
+        qty: line.qty,
+        priceUSD: line.priceUSD.toFixed(2),
+        priceLBP: line.priceLBP.toFixed(2),
+      })),
+    })),
   };
 }

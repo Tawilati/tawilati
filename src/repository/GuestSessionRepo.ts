@@ -1,6 +1,7 @@
 import { GuestSession, Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { DbClient } from "@/types/Db";
+import { GuestBillRecord } from "@/types/Order";
 import { DBException } from "@/utils/exceptions/RepoException";
 import logger from "@/utils/logger";
 export type GuestSessionWithTable = Prisma.GuestSessionGetPayload<{
@@ -88,6 +89,26 @@ export class GuestSessionRepo {
       );
     }
   }
+  async getGuestBill(guestSessionId: string): Promise<GuestBillRecord | null> {
+  return await prisma.guestSession.findUnique({
+    where: { id: guestSessionId },
+    include: {
+      session: {
+        include: {
+          table: { select: { label: true } },
+        },
+      },
+      orders: {
+        include: {
+          orderLines: {
+            include: { menuItem: { select: { name: true } } },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+}
 }
 
 export const guestSessionRepo = GuestSessionRepo.getInstance();

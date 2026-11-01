@@ -4,7 +4,7 @@ import { submissionRepo } from "@/repository/SubmissionRepo";
 import { menuItemRepo } from "@/repository/MenuItemsRepo";
 import { tableSessionRepo } from "@/repository/TabelSession";
 import { Prisma } from "@/app/generated/prisma/client";
-import { mapToOrderResponse, SubmitOrderInput, SubmitOrderResult } from "@/types/Order";
+import { GuestBillResponse, mapToGuestBillResponse, mapToOrderResponse, SubmitOrderInput, SubmitOrderResult } from "@/types/Order";
 import {
   AuthenticationException,
   ExpiredTokenException,
@@ -213,6 +213,42 @@ export class OrderService {
         order: result.order,
       }),
     };
+  }
+   async getGuestOrders(guestToken: string): Promise<GuestBillResponse> {
+    // ─────────────────────────────────────────────────────────
+    // STEP 1: Find the guest session (same as createOrder)
+    // ─────────────────────────────────────────────────────────
+    const guest = await guestSessionRepo.FindByToken(guestToken);
+
+    if (!guest) {
+      logger.error("unauthorized");
+      throw new AuthenticationException("unauthorized");
+    }
+
+    if (guest.expiresAt < new Date()) {
+      logger.error("session expired");
+      throw new ExpiredTokenException();
+    }
+
+    if (guest.revokedAt) {
+      logger.error("guest session revoked");
+      throw new HttpException(401, "guest_session_revoked");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // STEP 2: Fetch the full bill (orders + table totals)
+    // ─────────────────────────────────────────────────────────
+    // The repository query should include session, table, orders, orderLines, menuItem
+    const bill = await guestSessionRepo.getGuestBill(guest.id);
+
+    if (!bill) {
+      throw new HttpException(500, "guest_bill_not_found");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // STEP 3: Map to the clean response
+    // ─────────────────────────────────────────────────────────
+    return mapToGuestBillResponse(bill);
   }
 }
 

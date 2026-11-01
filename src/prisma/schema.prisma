@@ -18,33 +18,53 @@ model Business {
   tables         DiningTable[]
   menuCategories MenuCategory[]
   menuItems      MenuItem[]
+  mcpTokens      McpToken[]
   submissions    Submission[]
   tableSessions  TableSession[]
   users          User[]
 }
 
 model User {
-  id                     String    @id @default(uuid())
+  id                     String     @id @default(uuid())
   businessId             String
   name                   String
-  email                  String    @unique @db.VarChar(254)
+  email                  String     @unique @db.VarChar(254)
   passwordHash           String
   role                   UserRole
-  isActive               Boolean   @default(true)
-  isVerified             Boolean   @default(false)
-  createdAt              DateTime  @default(now())
+  isActive               Boolean    @default(true)
+  isVerified             Boolean    @default(false)
+  createdAt              DateTime   @default(now())
   lastLogin              DateTime?
   refreshToken           String?
   refreshTokenExpiresAt  DateTime?
   resetPasswordExpiresAt DateTime?
   resetPasswordToken     String?
   payments               Payment[]
-  business               Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  mcpTokens              McpToken[]
+  business               Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
   @@index([email])
   @@index([refreshTokenExpiresAt])
   @@index([resetPasswordExpiresAt])
+}
+
+model McpToken {
+  id         String    @id @default(uuid())
+  businessId String
+  userId     String
+  name       String    @db.VarChar(100)
+  tokenHash  String    @unique @db.Char(64)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model MenuCategory {

@@ -1,0 +1,11 @@
+The Kitchen makes the food.
+
+The Kitchen puts the food on the counter and marks the order as READY.
+
+The Waiter goes to the table list monitor. They see: "Table T1 — 1 READY order" (the readyCount I added).
+
+The Waiter taps on Table T1 to open the detail view.
+
+The detail view shows the items that are READY. (e.g., "2x Halloumi sandwich"). The waiter picks up the food and delivers it.
+
+The Waiter taps "Mark Served" on that order.

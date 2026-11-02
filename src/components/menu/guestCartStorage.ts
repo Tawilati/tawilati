@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { SubmitAttempt } from "./guestOrderApi";
+import type { SubmitAttempt, TokenStore } from "./guestOrderApi";
 import type { CartLine } from "@/utils/guestCart";
 
 export type SavedCart = { lines: CartLine[]; attempt: SubmitAttempt | null; closed: boolean };
@@ -30,4 +30,13 @@ export function readStored(key: string): string | null {
 export function writeStored(key: string, value: string): boolean {
   try { sessionStorage.setItem(key, value); memory.delete(key); return true; }
   catch { memory.set(key, value); return false; }
+}
+
+export function tokenStore(qrToken: string): TokenStore {
+  const key = `tawilati:guest:${qrToken}`;
+  return {
+    get: () => readStored(key) || null,
+    set: (token) => { if (!writeStored(key, token)) throw new Error("storage_unavailable"); },
+    clear: () => { writeStored(key, ""); },
+  };
 }

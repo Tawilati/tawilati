@@ -37,6 +37,67 @@ const orderSchema = z.object({
   })).min(1).max(50),
 });
 
+const billSchema = z.object({
+  sessionId: z.string().min(1), tableLabel: z.string().min(1),
+  status: z.enum(["OPEN", "CLOSED"]),
+  totalUSD: amount, totalLBP: amount,
+  guestTotalUSD: amount, guestTotalLBP: amount,
+  amountPaidUSD: amount, amountPaidLBP: amount,
+  orders: z.array(z.object({
+    orderId: z.string().min(1),
+    status: orderSchema.shape.status,
+    totalUSD: amount, totalLBP: amount,
+    createdAt: z.string().min(1),
+    lines: orderSchema.shape.lines,
+  })),
+});
+
+export type GuestBill = z.infer<typeof billSchema>;
+
+export type BillResult =
+  | { kind: "bill"; bill: GuestBill }
+  | { kind: "expired" }
+  | { kind: "closed" }
+  | { kind: "unavailable" };
+
+async function readBill(token: string): Promise<BillResult | { kind: "token_expired" }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch("/api/orders/me", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const json = await res.json().catch(() => null);
+    if (res.status === 401) {
+      if (json?.message === "token_expired") return { kind: "token_expired" };
+      return { kind: json?.message === "guest_session_revoked" ? "closed" : "expired" };
+    }
+    const bill = billSchema.safeParse(json?.data);
+    return res.ok && bill.success ? { kind: "bill", bill: bill.data } : { kind: "unavailable" };
+  } catch {
+    return { kind: "unavailable" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// An expired token is renewed, never replaced: a new guest session would lose this phone's
+// rounds, and on a table whose bill was closed it would start a new, empty tab.
+export async function fetchGuestBill(token: string): Promise<BillResult> {
+  const first = await readBill(token);
+  if (first.kind !== "token_expired") return first;
+
+  const renewal = await renewToken(token);
+  if (renewal === "closed") return { kind: "closed" };
+  if (renewal === "unknown") return { kind: "expired" };
+  if (renewal === "unavailable") return { kind: "unavailable" };
+
+  const second = await readBill(token);
+  return second.kind === "token_expired" ? { kind: "expired" } : second;
+}
+
 // null when the server couldn't be reached.
 async function post(url: string, headers: Record<string, string>, body: unknown): Promise<Reply | null> {
   const controller = new AbortController();
@@ -58,8 +119,17 @@ async function post(url: string, headers: Record<string, string>, body: unknown)
   }
 }
 
-// Sends the order with this phone's token. A token the server no longer accepts (expired) is
-// renewed once; the idempotency key stays the same, so it still can't make a second ticket.
+async function renewToken(token: string): Promise<"renewed" | "closed" | "unknown" | "unavailable"> {
+  const reply = await post("/api/guest-sessions/renew", { Authorization: `Bearer ${token}` }, undefined);
+  if (!reply) return "unavailable";
+  if (reply.status === 200) return "renewed";
+  if (TAB_CLOSED_CODES.includes(reply.code)) return "closed";
+  return reply.status === 401 ? "unknown" : "unavailable";
+}
+
+// Sends the order with this phone's token. An expired token is renewed, keeping this phone's rounds;
+// one the server doesn't know is replaced. The idempotency key stays the same, so it still can't
+// make a second ticket.
 async function sendOrder(
   qrToken: string,
   lines: OrderLine[],
@@ -85,6 +155,15 @@ async function sendOrder(
     reply = await post("/api/orders", { Authorization: `Bearer ${token}`, "Idempotency-Key": key }, { items: lines });
     if (!reply) return null;
     if (reply.status !== 401 || reply.code === "guest_session_revoked") return reply;
+    if (reply.code === "token_expired") {
+      const renewal = await renewToken(token);
+      if (renewal === "unavailable") return null;
+      if (renewal === "renewed") continue;
+      if (renewal === "closed") {
+        tokens.clear();
+        return { kind: "tab_closed" };
+      }
+    }
     tokens.clear();
   }
   return reply;

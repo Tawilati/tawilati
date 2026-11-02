@@ -1,6 +1,6 @@
 // src/types/Order.ts
 
-import type { OrderStatus, Prisma, TableSessionStatus } from "@/app/generated/prisma/client";
+import { OrderStatus, Prisma, TableSessionStatus } from "@/app/generated/prisma/client";
 
 // What the frontend sends for each item
 export interface OrderLineInput {
@@ -109,8 +109,10 @@ export interface GuestBillResponse {
   sessionId: string;
   tableLabel: string;
   status: TableSessionStatus;
-  totalUSD: string;
+  totalUSD: string;         // Table total (all guests)
   totalLBP: string;
+  guestTotalUSD: string;    // ← NEW: Guest's personal total
+  guestTotalLBP: string;    // ← NEW
   amountPaidUSD: string;
   amountPaidLBP: string;
   orders: GuestOrderResponse[];
@@ -145,12 +147,23 @@ export type GuestBillRecord = Prisma.GuestSessionGetPayload<{
 // ─────────────────────────────────────────────────────────
 
 export function mapToGuestBillResponse(record: GuestBillRecord): GuestBillResponse {
+  const guestTotalUSD = record.orders.reduce(
+    (sum, order) => sum.plus(order.totalUSD),
+    new Prisma.Decimal(0),
+  );
+  const guestTotalLBP = record.orders.reduce(
+    (sum, order) => sum.plus(order.totalLBP),
+    new Prisma.Decimal(0),
+  );
+
   return {
     sessionId: record.sessionId,
     tableLabel: record.session.table.label,
     status: record.session.status,
     totalUSD: record.session.totalUSD.toFixed(2),
     totalLBP: record.session.totalLBP.toFixed(2),
+    guestTotalUSD: guestTotalUSD.toFixed(2),
+    guestTotalLBP: guestTotalLBP.toFixed(2),
     amountPaidUSD: record.session.amountPaidUSD.toFixed(2),
     amountPaidLBP: record.session.amountPaidLBP.toFixed(2),
     orders: record.orders.map((order) => ({

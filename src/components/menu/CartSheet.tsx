@@ -5,8 +5,9 @@ import { Button, Modal, QuantityStepper, StatusBadge, Toast } from "@/components
 import { CircleCheckIcon } from "@/components/icons";
 import type { PublicMenuItem } from "@/types/Menu";
 import { MAX_CART_LINES, type CartRow, type CartSummary } from "@/utils/guestCart";
-import { formatLBP, formatUSD } from "@/utils/money";
+import { formatUSD } from "@/utils/money";
 import type { PlacedOrder, SubmitOutcome } from "./guestOrderApi";
+import { RoundBadge, Total } from "./OrderParts";
 
 // Plain sentences for the guest; error codes are never shown.
 const FAILED = "We couldn't submit your order. Please try again.";
@@ -48,28 +49,18 @@ function CartRowView({ row, onChange }: { row: CartRow; onChange: Change }) {
   );
 }
 
-function Total({ label, usd, lbp }: { label: string; usd: string; lbp: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 font-bold tabular-nums">
-      <span>{label}</span>
-      <span className="flex flex-col items-end">
-        <span className="text-[17px]">{formatUSD(usd)}</span>
-        <span className="text-[13px] font-normal text-ink-muted">{formatLBP(lbp)}</span>
-      </span>
-    </div>
-  );
-}
-
 function Confirmation({
   order,
   earlierAttempt,
   cartLeft,
   onDone,
+  onTrack,
 }: {
   order: PlacedOrder;
   earlierAttempt: boolean;
   cartLeft: boolean;
   onDone: () => void;
+  onTrack: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -85,7 +76,7 @@ function Confirmation({
       <div className="flex flex-col gap-2 rounded-2xl border border-border-subtle p-3.5">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[15px] font-semibold">Your order</span>
-          {order.status === "CANCELLED" ? <StatusBadge status="CLOSED">Cancelled</StatusBadge> : <StatusBadge status={order.status} />}
+          <RoundBadge status={order.status} />
         </div>
         <ul className="flex flex-col gap-0.5 text-sm">
           {order.lines.map((line) => (
@@ -100,6 +91,9 @@ function Confirmation({
       <Button block onClick={onDone}>
         {cartLeft ? "Back to my cart" : "Order something else"}
       </Button>
+      <Button block variant="secondary" onClick={onTrack}>
+        Follow your order
+      </Button>
     </div>
   );
 }
@@ -112,6 +106,7 @@ export function CartSheet({
   onChange,
   onSubmit,
   onClose,
+  onTrack,
 }: {
   tableLabel: string;
   summary: CartSummary;
@@ -120,6 +115,7 @@ export function CartSheet({
   onChange: Change;
   onSubmit: () => Promise<SubmitOutcome | null>;
   onClose: () => void;
+  onTrack: () => void;
 }) {
   const [placed, setPlaced] = useState<{ order: PlacedOrder; earlierAttempt: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -151,6 +147,7 @@ export function CartSheet({
           earlierAttempt={placed.earlierAttempt}
           cartLeft={summary.rows.length > 0}
           onDone={() => (summary.rows.length > 0 ? setPlaced(null) : onClose())}
+          onTrack={onTrack}
         />
       ) : summary.rows.length === 0 ? (
         <p className="py-4 text-center text-sm text-ink-muted">Your cart is empty. Add something from the menu.</p>

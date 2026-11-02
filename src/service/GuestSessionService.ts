@@ -3,11 +3,14 @@ import { tableRepo } from "@/repository/TableRepo";
 import { tableSessionRepo } from "@/repository/TabelSession";
 import { guestSessionRepo } from "@/repository/GuestSessionRepo";
 import type { CreateGuestResponse } from "@/types/GuesSession";
+import { AuthenticationException } from "@/utils/exceptions/http/AuthenticationException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 import { HttpException } from "@/utils/exceptions/http/HttpException";
 import logger from "@/utils/logger";
 import crypto from "crypto";
+
+const GUEST_SESSION_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 export class GuestSessionService {
   private static instance: GuestSessionService;
@@ -67,7 +70,7 @@ export class GuestSessionService {
     // Step 3: Generate Guest Token (E-TAB3)
     // ─────────────────────────────────────────────────────────
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
+    const expiresAt = new Date(Date.now() + GUEST_SESSION_MS);
 
     // ─────────────────────────────────────────────────────────
     // Step 4: Create the GuestSession
@@ -86,6 +89,36 @@ export class GuestSessionService {
       expiresAt: guestSession.expiresAt,
       tableLabel: table.label, // Already in memory from Step 1
       sessionId: activeSession.id,
+    };
+  }
+
+  // Keeps the same row, so the phone keeps its rounds. Never creates a session or a tab:
+  // only the waiter closing the tab ends a guest's access.
+  async RenewGuestSession(token: string): Promise<CreateGuestResponse> {
+    const guest = await guestSessionRepo.FindByToken(token);
+
+    if (!guest) {
+      logger.error("unauthorized");
+      throw new AuthenticationException("unauthorized");
+    }
+
+    if (guest.revokedAt) {
+      logger.error("guest session revoked");
+      throw new HttpException(401, "guest_session_revoked");
+    }
+
+    if (guest.session.status !== "OPEN") {
+      logger.error("table session is closed");
+      throw new ConflictException("table_session_closed");
+    }
+
+    const renewed = await guestSessionRepo.extend(guest.id, new Date(Date.now() + GUEST_SESSION_MS));
+
+    return {
+      token: guest.token,
+      expiresAt: renewed.expiresAt,
+      tableLabel: guest.session.table.label,
+      sessionId: guest.sessionId,
     };
   }
 }

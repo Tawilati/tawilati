@@ -71,9 +71,52 @@ describe("submitCart", () => {
     expect(outcome.kind).toBe("sent");
   });
 
-  it("renews an expired token once and retries with the same key", async () => {
+  it("renews an expired token and retries with the same token and key", async () => {
     fetchMock
       .mockResolvedValueOnce(failure(401, "token_expired"))
+      .mockResolvedValueOnce(reply(200, { success: true, data: { token: "guest-1" } }))
+      .mockResolvedValueOnce(orderOk());
+    const tokens = tokenStore("guest-1");
+
+    const outcome = await submitCart({ qrToken: QR, lines, attempt, tokens });
+
+    expect(outcome.kind).toBe("sent");
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/guest-sessions/renew");
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe("Bearer guest-1");
+    expect(call(2).headers.Authorization).toBe("Bearer guest-1");
+    expect(call(2).headers["Idempotency-Key"]).toBe("key-1");
+    expect(tokens.value).toBe("guest-1");
+  });
+
+  it("doesn't open a new tab when the expired token's tab has closed", async () => {
+    fetchMock
+      .mockResolvedValueOnce(failure(401, "token_expired"))
+      .mockResolvedValueOnce(failure(409, "table_session_closed"));
+    const tokens = tokenStore("guest-1");
+
+    const outcome = await submitCart({ qrToken: QR, lines, attempt, tokens });
+
+    expect(outcome.kind).toBe("tab_closed");
+    expect(tokens.value).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the attempt when the renewal can't reach the server", async () => {
+    fetchMock
+      .mockResolvedValueOnce(failure(401, "token_expired"))
+      .mockRejectedValueOnce(new TypeError("offline"));
+    const tokens = tokenStore("guest-1");
+
+    const outcome = await submitCart({ qrToken: QR, lines, attempt, tokens });
+
+    expect(outcome).toEqual({ kind: "failed", keepAttempt: true });
+    expect(tokens.value).toBe("guest-1");
+  });
+
+  it("opens a new session when the server no longer knows the expired token", async () => {
+    fetchMock
+      .mockResolvedValueOnce(failure(401, "token_expired"))
+      .mockResolvedValueOnce(failure(401, "unauthorized"))
       .mockResolvedValueOnce(sessionOk("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
       .mockResolvedValueOnce(orderOk());
     const tokens = tokenStore("guest-1");
@@ -81,9 +124,21 @@ describe("submitCart", () => {
     const outcome = await submitCart({ qrToken: QR, lines, attempt, tokens });
 
     expect(outcome.kind).toBe("sent");
-    expect(call(2).headers.Authorization).toBe("Bearer bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-    expect(call(2).headers["Idempotency-Key"]).toBe("key-1");
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/guest-sessions");
     expect(tokens.value).toBe("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+  });
+
+  it("gives up if the token still counts as expired after renewing", async () => {
+    fetchMock
+      .mockResolvedValueOnce(failure(401, "token_expired"))
+      .mockResolvedValueOnce(reply(200, { success: true, data: {} }))
+      .mockResolvedValueOnce(failure(401, "token_expired"))
+      .mockResolvedValueOnce(reply(200, { success: true, data: {} }));
+
+    const outcome = await submitCart({ qrToken: QR, lines, attempt, tokens: tokenStore("guest-1") });
+
+    expect(outcome).toEqual({ kind: "failed", keepAttempt: true });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("gives up after a second 401 instead of looping", async () => {

@@ -128,6 +128,8 @@ model TableSession {
   totalLBP      Decimal            @default(0) @db.Decimal(14, 2)
   amountPaidUSD Decimal            @default(0) @db.Decimal(12, 2)
   amountPaidLBP Decimal            @default(0) @db.Decimal(14, 2)
+  // When a guest pressed "Ask for the bill"; cleared by the next round. Drives the waiter's yellow/orange tile.
+  billRequestedAt DateTime?
   orders        DiningOrder[]
   guestSessions GuestSession[]
   payments      Payment[]

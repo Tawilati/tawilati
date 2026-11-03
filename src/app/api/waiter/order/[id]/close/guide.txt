@@ -1,0 +1,69 @@
+WAITER: CLOSE A TAB - TEST GUIDE
+
+Route
+  POST /api/waiter/order/:id/close
+  :id is a TAB (TableSession) id, the sessionId from GET /api/waiter/tabels,
+  not a round id (the folder name says "order").
+
+Authentication and permissions
+  Staff session with TAB_CLOSE: WAITER or OWNER. KITCHEN gets 403.
+  The payment is recorded under the signed-in user (x-user-id), never one from the body.
+
+Body
+  { "amountReceivedUSD": 20, "amountReceivedLBP": 0, "method": "CASH" }
+  Amounts are JSON numbers >= 0; method is CASH or EXTERNAL_CARD.
+  USD and LBP received are added up at the business's exchange rate (LBP / rate) and
+  must cover the USD total (1 cent tolerance). Change is the overpayment, shown in USD
+  and in LBP. The Payment records the bill split by currency: all USD when the USD
+  received covers it, otherwise the USD received plus the rest in LBP.
+
+What happens, in one transaction
+  The tab is closed only if it is still OPEN (status CLOSED, closedAt, activeTableId
+  cleared, amountPaid = what the Payment records), a Payment is recorded (none when
+  the tab is empty), and every guest session of the tab is revoked: the phones'
+  "Your orders" stop polling and a new scan opens a new tab.
+
+Success
+  Status: 200
+  { "success": true, "message": "tab closed", "data": {
+      "sessionId": "...", "status": "CLOSED", "totalUSD": "12.10", "totalLBP": "1082950.00",
+      "amountPaidUSD": "12.10", "amountPaidLBP": "0.00",
+      "amountReceivedUSD": "20.00", "amountReceivedLBP": "0.00",
+      "changeUSD": "7.90", "changeLBP": "707050.00", "paymentId": "..." } }
+  paymentId is null when the tab had nothing on it.
+
+TEST CASES
+
+1. Close a served tab with cash
+  Every round SERVED. Expect 200, change = received - total, one Payment row,
+  table free (a new scan opens a new tab), guest phones get guest_session_revoked.
+
+2. A round not served yet
+  One round NEW, PREPARING or READY. Expect 409 tab_not_settleable; tab stays
+  OPEN, no Payment, guest sessions untouched.
+
+3. Close twice (double tap, or two waiters at once)
+  Expect one 200 and one 409 table_session_closed, and exactly one Payment.
+
+4. Empty tab (guest scanned but never ordered)
+  Body with 0 and 0. Expect 200 with paymentId null and no Payment row.
+
+5. Split payment
+  Bill 12.10 USD at 89,000: send 10 USD + 186900 LBP. Expect 200, change 0, a Payment
+  of 10.00 USD + 186900.00 LBP.
+
+5b. Not enough
+  10 USD + 100000 LBP on that bill. Expect 400 insufficient_payment, nothing written.
+
+6. Bad body
+  {}, a string amount, a negative amount, or method "BITCOIN".
+  Expect 400 validation_error. Malformed JSON: 400 invalid_json.
+
+7. Id that isn't a UUID
+  Expect 400 validation_error with details.id.
+
+8. Tab of another business, or an unknown UUID
+  Expect 404 not_found; the tab stays open.
+
+9. No session / KITCHEN session
+  Expect 401 unauthorized / 403 forbidden.

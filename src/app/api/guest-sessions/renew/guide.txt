@@ -1,0 +1,11 @@
+POST /api/guest-sessions/renew
+Header: Authorization: Bearer <guest token>. No body.
+Keeps the same guest session (same id, same token), so the phone keeps its rounds.
+It never creates a guest session or a tab.
+
+1. Token expired, tab open        -> 200, same token, expiresAt = now + 2 hours
+2. Token still valid, tab open    -> 200, same token, expiresAt = now + 2 hours
+3. No header or malformed token   -> 401 unauthorized
+4. Unknown token                  -> 401 unauthorized
+5. Session revoked                -> 401 guest_session_revoked
+6. Tab closed                     -> 409 table_session_closed

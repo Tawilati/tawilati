@@ -59,6 +59,12 @@
   --status-closed-bg: transparent; --status-closed-fg: #5B6660;
   --status-soldout-bg: #F6DCD8;   --status-soldout-fg: #8E2F25;
 
+  /* Waiter floor: solid table tiles (always paired with a text label). Contrast of fg on bg in brackets. */
+  --table-ordered-bg: #C2453B;    --table-ordered-fg: #FFFFFF;   /* just ordered (4.99:1) */
+  --table-bill-bg: #F2D04B;       --table-bill-fg: #202B26;      /* wants to pay (9.69:1) */
+  --table-slowpay-bg: #B85A1A;    --table-slowpay-fg: #FFFFFF;   /* paying is slow (4.65:1) */
+  --table-quiet-bg: #3F7A55;      --table-quiet-fg: #FFFFFF;     /* quiet a while (5.09:1) */
+
   /* Type */
   --font-brand: "Playfair Display", Georgia, serif;
   --font-ui: "Inter", Arial, sans-serif;

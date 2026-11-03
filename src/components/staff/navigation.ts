@@ -2,7 +2,6 @@ import type { ComponentType, SVGProps } from "react";
 import {
   KitchenIcon,
   MenuIcon,
-  PaymentIcon,
   ReportsIcon,
   SettingsIcon,
   StaffIcon,
@@ -35,11 +34,10 @@ export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
   ],
   [ROLE.KITCHEN]: [
     { href: "/kitchen", label: "Kitchen", icon: KitchenIcon, exact: true },
-    { href: "/kitchen/sold-out", label: "Sold out", icon: MenuIcon },
+    { href: "/kitchen/sold-out", label: "Sold out", icon: MenuIcon, soon: true },
   ],
   [ROLE.WAITER]: [
     { href: "/waiter", label: "Tables", icon: TablesIcon, exact: true },
-    { href: "/waiter/bills", label: "Bills", icon: PaymentIcon },
   ],
 };
 

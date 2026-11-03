@@ -1,6 +1,6 @@
 // src/types/Order.ts
 
-import type { OrderStatus, Prisma } from "@/app/generated/prisma/client";
+import { OrderStatus, Prisma, TableSessionStatus } from "@/app/generated/prisma/client";
 
 // What the frontend sends for each item
 export interface OrderLineInput {
@@ -81,5 +81,103 @@ export function mapToOrderResponse(record: OrderResponseRecord): OrderResponse {
       priceLBP: line.priceLBP.toFixed(2),
     })),
     createdAt: record.order.createdAt,
+  };
+}
+
+// ─────────────────────────────────────────────────────────
+// Response (clean, for the frontend)
+// ─────────────────────────────────────────────────────────
+
+export interface GuestOrderLineResponse {
+  menuItemId: string;
+  name: string;
+  qty: number;
+  priceUSD: string;
+  priceLBP: string;
+}
+
+export interface GuestOrderResponse {
+  orderId: string;
+  status: OrderStatus;
+  totalUSD: string;
+  totalLBP: string;
+  createdAt: Date;
+  lines: GuestOrderLineResponse[];
+}
+
+export interface GuestBillResponse {
+  sessionId: string;
+  tableLabel: string;
+  status: TableSessionStatus;
+  totalUSD: string;         // Table total (all guests)
+  totalLBP: string;
+  guestTotalUSD: string;    // ← NEW: Guest's personal total
+  guestTotalLBP: string;    // ← NEW
+  billRequestedAt: string | null; // someone at the table pressed "Ask for the bill" (ISO), cleared by the next round
+  orders: GuestOrderResponse[];
+}
+
+// ─────────────────────────────────────────────────────────
+// Raw record (what Prisma returns)
+// ─────────────────────────────────────────────────────────
+
+export type GuestBillRecord = Prisma.GuestSessionGetPayload<{
+  include: {
+    session: {
+      include: {
+        table: { select: { label: true } };
+      };
+    };
+    orders: {
+      include: {
+        orderLines: {
+          include: {
+            menuItem: { select: { name: true } };
+          };
+        };
+      };
+      orderBy: { createdAt: "desc" };
+    };
+  };
+}>;
+
+// ─────────────────────────────────────────────────────────
+// Mapper
+// ─────────────────────────────────────────────────────────
+
+export function mapToGuestBillResponse(record: GuestBillRecord): GuestBillResponse {
+  const guestTotalUSD = record.orders.reduce(
+    (sum, order) => sum.plus(order.totalUSD),
+    new Prisma.Decimal(0),
+  );
+  const guestTotalLBP = record.orders.reduce(
+    (sum, order) => sum.plus(order.totalLBP),
+    new Prisma.Decimal(0),
+  );
+
+  return {
+    sessionId: record.sessionId,
+    tableLabel: record.session.table.label,
+    status: record.session.status,
+    totalUSD: record.session.totalUSD.toFixed(2),
+    totalLBP: record.session.totalLBP.toFixed(2),
+    guestTotalUSD: guestTotalUSD.toFixed(2),
+    guestTotalLBP: guestTotalLBP.toFixed(2),
+    billRequestedAt: record.session.billRequestedAt?.toISOString() ?? null,
+
+    orders: record.orders.map((order) => ({
+      orderId: order.id,
+      status: order.status,
+      totalUSD: order.totalUSD.toFixed(2),
+      totalLBP: order.totalLBP.toFixed(2),
+      createdAt: order.createdAt,
+      lines: order.orderLines.map((line) => ({
+        menuItemId: line.menuItemId,
+        name: line.menuItem.name,
+        qty: line.qty,
+        priceUSD: line.priceUSD.toFixed(2),
+        priceLBP: line.priceLBP.toFixed(2),
+      })),
+    })),
   };
 }

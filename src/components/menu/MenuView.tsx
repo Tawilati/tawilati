@@ -4,18 +4,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { TablesIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
 import type { PublicMenu } from "@/types/Menu";
+import { StatusBadge } from "@/components/ui";
 import { cartQty, MAX_CART_LINES } from "@/utils/guestCart";
+import { headlineStatus } from "@/utils/guestBill";
 import { newlySoldOut } from "@/utils/menuChanges";
 import { formatUSD } from "@/utils/money";
 import { CartSheet } from "./CartSheet";
 import { CategoryTabs } from "./CategoryTabs";
 import { MenuItemCard } from "./MenuItemCard";
 import { MenuStateScreen, type MenuProblem } from "./MenuStateScreen";
+import { RoundBadge } from "./OrderParts";
+import { OrdersSheet } from "./OrdersSheet";
 import { useGuestCart } from "./useGuestCart";
+import { useGuestOrders } from "./useGuestOrders";
 
 // How often the open menu re-checks the server, so a sold-out switch reaches every open phone.
 const REFRESH_MS = 10_000;
 const NOTICE_MS = 6_000;
+// Heights of the bars fixed to the bottom of the screen, gap included.
+const CART_BAR_PX = 60;
+const ORDERS_BAR_PX = 56;
 
 const listFormat = new Intl.ListFormat("en", { type: "conjunction" });
 
@@ -33,8 +41,11 @@ export function MenuView({
   const [activeId, setActiveId] = useState(initialMenu.categories[0]?.id ?? "");
   const [notice, setNotice] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [ordersOpen, setOrdersOpen] = useState(false);
   const menuRef = useRef(initialMenu);
-  const { lines, summary, submitting, closed, change, submit } = useGuestCart(menu, qrToken);
+  const { lines, summary, submitting, closed: cartClosed, change, submit } = useGuestCart(menu, qrToken);
+  const { bill, closed: billClosed, restart, askBill } = useGuestOrders(qrToken);
+  const closed = cartClosed || billClosed;
 
   const refresh = useCallback(async () => {
     // A hidden tab or a locked phone doesn't need fresh data; we catch up when it's visible again.
@@ -74,8 +85,9 @@ export function MenuView({
     // The server refused an item the menu here still shows: fetch it so the cart rows get flagged.
     if (outcome?.kind === "blocked") await refresh();
     if (outcome?.kind === "table_problem") setProblem(outcome.problem);
+    if (outcome?.kind === "sent") restart();
     return outcome;
-  }, [submit, refresh]);
+  }, [submit, refresh, restart]);
 
   useEffect(() => {
     if (!notice) return;
@@ -89,6 +101,8 @@ export function MenuView({
   // If the selected category disappears after a refresh, fall back to the first one.
   const active = menu.categories.find((c) => c.id === activeId) ?? menu.categories[0];
   const hasCart = lines.length > 0;
+  const headline = bill ? headlineStatus(bill.orders) : null;
+  const barsPx = (hasCart ? CART_BAR_PX : 0) + (headline ? ORDERS_BAR_PX : 0);
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
@@ -122,32 +136,49 @@ export function MenuView({
       </main>
 
       <footer
-        className={`flex flex-col items-center gap-1.5 px-4 pt-7 text-xs text-ink-muted ${
-          hasCart ? "pb-[calc(88px+env(safe-area-inset-bottom,0px))]" : "pb-[max(32px,env(safe-area-inset-bottom,0px))]"
-        }`}
+        className="flex flex-col items-center gap-1.5 px-4 pt-7 text-xs text-ink-muted"
+        style={{
+          paddingBottom: barsPx
+            ? `calc(${barsPx + 28}px + env(safe-area-inset-bottom, 0px))`
+            : "max(32px, env(safe-area-inset-bottom, 0px))",
+        }}
       >
         Ordering by
         <Logo className="h-auto w-[104px]" />
       </footer>
 
-      {hasCart && (
+      {barsPx > 0 && (
         <div
-          className="fixed inset-x-0 z-30 flex justify-center px-3"
+          className="pointer-events-none fixed inset-x-0 z-30 flex flex-col items-center gap-2 px-3"
           style={{ bottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
         >
-          <button
-            type="button"
-            onClick={() => setCartOpen(true)}
-            className="flex min-h-[52px] w-full max-w-[552px] cursor-pointer items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-3 font-semibold text-on-primary shadow-[var(--shadow-raised)] hover:bg-primary-hover"
-          >
-            <span className="flex items-center gap-2.5">
-              <span className="min-w-6 rounded-full bg-accent px-2 py-0.5 text-center text-[13px] font-bold text-ink tabular-nums">
-                {summary.count}
+          {headline && (
+            <div aria-live="polite" className="contents">
+              <button
+                type="button"
+                onClick={() => setOrdersOpen(true)}
+                className="pointer-events-auto flex min-h-12 w-full max-w-[552px] cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border-strong bg-surface px-4 py-2 text-left text-sm font-semibold text-ink shadow-[var(--shadow-raised)] hover:bg-surface-muted"
+              >
+                <span>{closed ? "Your orders" : headline === "READY" ? "Your order is ready!" : "Your order"}</span>
+                {closed ? <StatusBadge status="CLOSED" /> : <RoundBadge status={headline} />}
+              </button>
+            </div>
+          )}
+          {hasCart && (
+            <button
+              type="button"
+              onClick={() => setCartOpen(true)}
+              className="pointer-events-auto flex min-h-[52px] w-full max-w-[552px] cursor-pointer items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-3 font-semibold text-on-primary shadow-[var(--shadow-raised)] hover:bg-primary-hover"
+            >
+              <span className="flex items-center gap-2.5">
+                <span className="min-w-6 rounded-full bg-accent px-2 py-0.5 text-center text-[13px] font-bold text-ink tabular-nums">
+                  {summary.count}
+                </span>
+                View cart
               </span>
-              View cart
-            </span>
-            <span className="tabular-nums">{formatUSD(summary.totalUSD)}</span>
-          </button>
+              <span className="tabular-nums">{formatUSD(summary.totalUSD)}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -160,16 +191,22 @@ export function MenuView({
           onChange={change}
           onSubmit={submitOrder}
           onClose={() => setCartOpen(false)}
+          onTrack={() => {
+            setCartOpen(false);
+            setOrdersOpen(true);
+          }}
         />
       )}
+
+      {ordersOpen && bill && <OrdersSheet bill={bill} closed={closed} onAskBill={askBill} onClose={() => setOrdersOpen(false)} />}
 
       <div
         role="status"
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 z-30 flex justify-center px-3"
         style={{
-          bottom: hasCart
-            ? "calc(76px + env(safe-area-inset-bottom, 0px))"
+          bottom: barsPx
+            ? `calc(${barsPx + 16}px + env(safe-area-inset-bottom, 0px))`
             : "max(16px, env(safe-area-inset-bottom, 0px))",
         }}
       >

@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { PublicMenu, PublicMenuItem } from "@/types/Menu";
 import { addToCart, cartSummary, cartToOrderLines, subtractLines } from "@/utils/guestCart";
-import { submitCart, type SubmitOutcome, type TokenStore } from "./guestOrderApi";
-import { parseSaved, readStored, writeStored, type SavedCart } from "./guestCartStorage";
+import { submitCart, type SubmitOutcome } from "./guestOrderApi";
+import { parseSaved, readStored, tokenStore, writeStored, type SavedCart } from "./guestCartStorage";
 
 // sessionStorage, per table: the cart survives a reload or a locked phone. The unanswered attempt
 // is saved too, so even a reload can't turn a lost answer into a second kitchen ticket.
@@ -15,15 +15,6 @@ function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
-  };
-}
-
-function tokenStore(qrToken: string): TokenStore {
-  const key = `tawilati:guest:${qrToken}`;
-  return {
-    get: () => readStored(key) || null,
-    set: (token) => { if (!writeStored(key, token)) throw new Error("storage_unavailable"); },
-    clear: () => { writeStored(key, ""); },
   };
 }
 

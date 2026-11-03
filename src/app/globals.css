@@ -32,6 +32,14 @@
   --color-danger-tint: var(--color-error-tint);
   --color-soldout: var(--status-soldout-fg);
   --color-soldout-tint: var(--status-soldout-bg);
+  --color-table-ordered: var(--table-ordered-bg);
+  --color-on-table-ordered: var(--table-ordered-fg);
+  --color-table-bill: var(--table-bill-bg);
+  --color-on-table-bill: var(--table-bill-fg);
+  --color-table-slowpay: var(--table-slowpay-bg);
+  --color-on-table-slowpay: var(--table-slowpay-fg);
+  --color-table-quiet: var(--table-quiet-bg);
+  --color-on-table-quiet: var(--table-quiet-fg);
   --font-sans: var(--font-ui);
   --font-display: var(--font-brand);
 }

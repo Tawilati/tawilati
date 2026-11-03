@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchGuestBill, type GuestBill } from "./guestOrderApi";
+import { askForBill, fetchGuestBill, type GuestBill } from "./guestOrderApi";
 import { tokenStore } from "./guestCartStorage";
 
 // How often the phone re-checks its orders, so a status change in the kitchen reaches the table.
 const REFRESH_MS = 10_000;
+const ASK_FAILED = "We couldn't reach the waiter's screen. Please try again, or wave to a member of staff.";
 
 // This phone's orders and the table's bill. An expired token is renewed while the tab is open. Once the
 // bill has closed or the server no longer knows the token, polling stops and keeps the last answer.
@@ -63,5 +64,23 @@ export function useGuestOrders(qrToken: string) {
     };
   }, [refresh]);
 
-  return { bill, closed: revoked || bill?.status === "CLOSED", restart };
+  // "Ask for the bill". Returns a sentence when it didn't go through, null when it did.
+  const askBill = useCallback(async (): Promise<string | null> => {
+    const token = tokenStore(qrToken).get();
+    if (!token) return ASK_FAILED;
+    const result = await askForBill(token);
+    if (result.kind === "asked") {
+      await load();
+      return null;
+    }
+    if (result.kind === "closed") {
+      setRevoked(true);
+      stopped.current = true;
+      tokenStore(qrToken).clear();
+      return null;
+    }
+    return ASK_FAILED;
+  }, [qrToken, load]);
+
+  return { bill, closed: revoked || bill?.status === "CLOSED", restart, askBill };
 }

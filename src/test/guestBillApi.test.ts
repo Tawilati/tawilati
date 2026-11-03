@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchGuestBill } from "@/components/menu/guestOrderApi";
+import { askForBill, fetchGuestBill } from "@/components/menu/guestOrderApi";
 
 const bill = {
   sessionId: "s1",
@@ -9,6 +9,7 @@ const bill = {
   totalLBP: "3515500.00",
   guestTotalUSD: "24.50",
   guestTotalLBP: "2180500.00",
+  billRequestedAt: null,
   orders: [{
     orderId: "o1",
     status: "PREPARING",
@@ -127,5 +128,49 @@ describe("fetchGuestBill", () => {
     fetchMock.mockResolvedValueOnce(reply(200, { success: true, data: { ...bill, totalUSD: 39.5 } }));
 
     expect(await fetchGuestBill("guest-1")).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("askForBill", () => {
+  const asked = () => reply(200, { success: true, data: { billRequestedAt: "2026-11-03T12:00:00.000Z" } });
+
+  it("posts to the bill request with this phone's token", async () => {
+    fetchMock.mockResolvedValueOnce(asked());
+
+    expect(await askForBill("guest-1")).toEqual({ kind: "asked" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/orders/me/bill-request");
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer guest-1");
+  });
+
+  it("renews an expired token and asks once more", async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(401, { success: false, message: "token_expired" }))
+      .mockResolvedValueOnce(reply(200, { success: true, data: { token: "guest-1" } }))
+      .mockResolvedValueOnce(asked());
+
+    expect(await askForBill("guest-1")).toEqual({ kind: "asked" });
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/guest-sessions/renew");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(["table_session_closed", "guest_session_revoked"])("reports a closed bill on %s", async (code) => {
+    fetchMock.mockResolvedValueOnce(reply(code === "table_session_closed" ? 409 : 401, { success: false, message: code }));
+
+    expect(await askForBill("guest-1")).toEqual({ kind: "closed" });
+  });
+
+  it("stops when the server doesn't know the token", async () => {
+    fetchMock.mockResolvedValueOnce(reply(401, { success: false, message: "unauthorized" }));
+
+    expect(await askForBill("guest-1")).toEqual({ kind: "expired" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports unavailable when the server can't be reached", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("offline"));
+
+    expect(await askForBill("guest-1")).toEqual({ kind: "unavailable" });
   });
 });

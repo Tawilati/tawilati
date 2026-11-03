@@ -42,6 +42,7 @@ const billSchema = z.object({
   status: z.enum(["OPEN", "CLOSED"]),
   totalUSD: amount, totalLBP: amount,
   guestTotalUSD: amount, guestTotalLBP: amount,
+  billRequestedAt: z.string().nullable(),
   orders: z.array(z.object({
     orderId: z.string().min(1),
     status: orderSchema.shape.status,
@@ -95,6 +96,26 @@ export async function fetchGuestBill(token: string): Promise<BillResult> {
 
   const second = await readBill(token);
   return second.kind === "token_expired" ? { kind: "expired" } : second;
+}
+
+export type AskBillResult = { kind: "asked" } | { kind: "closed" } | { kind: "expired" } | { kind: "unavailable" };
+
+// "Ask for the bill": the waiter's tile for this table turns yellow. Asking again is harmless (the server keeps
+// the first time). An expired token is renewed and the request sent once more, as for the bill.
+export async function askForBill(token: string): Promise<AskBillResult> {
+  for (let tries = 0; tries < 2; tries++) {
+    const reply = await post("/api/orders/me/bill-request", { Authorization: `Bearer ${token}` }, undefined);
+    if (!reply) return { kind: "unavailable" };
+    if (reply.status === 200) return { kind: "asked" };
+    if (TAB_CLOSED_CODES.includes(reply.code)) return { kind: "closed" };
+    if (reply.code !== "token_expired" || tries > 0) return reply.status === 401 ? { kind: "expired" } : { kind: "unavailable" };
+
+    const renewal = await renewToken(token);
+    if (renewal === "closed") return { kind: "closed" };
+    if (renewal === "unknown") return { kind: "expired" };
+    if (renewal === "unavailable") return { kind: "unavailable" };
+  }
+  return { kind: "unavailable" };
 }
 
 // null when the server couldn't be reached.

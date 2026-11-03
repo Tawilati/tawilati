@@ -119,12 +119,16 @@ describe("POST /api/mcp-tokens/:id/revoke", () => {
     request(`/api/mcp-tokens/${tokenId}/revoke`, role, { method: "POST" });
 
   it("revokes the token within the owner's business", async () => {
-    mocks.revoke.mockResolvedValue(undefined);
+    mocks.revoke.mockResolvedValue({ id: tokenId, name: "Claude Code" });
 
     const response = await revokePOST(revokeRequest(), params());
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ success: true, message: "mcp token revoked" });
+    expect(await response.json()).toEqual({
+      success: true,
+      message: "mcp token revoked",
+      data: { id: tokenId, name: "Claude Code" },
+    });
     expect(mocks.revoke).toHaveBeenCalledWith(tokenId, businessId);
   });
 

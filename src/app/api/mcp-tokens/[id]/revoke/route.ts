@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (denied) return denied;
 
     const { id } = await parseParams(params, mcpTokenIdSchema);
-    await mcpTokenService.revoke(id, getBusinessIdFromRequest(request)!);
-    return NextResponse.json({ success: true, message: "mcp token revoked" });
+    const token = await mcpTokenService.revoke(id, getBusinessIdFromRequest(request)!);
+    return NextResponse.json({ success: true, message: "mcp token revoked", data: token });
   });
 }

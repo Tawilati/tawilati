@@ -6,6 +6,7 @@ const { mcpToken } = vi.hoisted(() => ({
     findFirst: vi.fn(),
     findMany: vi.fn(),
     updateMany: vi.fn(),
+    updateManyAndReturn: vi.fn(),
   },
 }));
 vi.mock("@/lib/db", () => ({ prisma: { mcpToken } }));
@@ -62,19 +63,20 @@ describe("listing and creating tokens", () => {
 });
 
 describe("revoking a token", () => {
-  it("only revokes an active token of the same business", async () => {
-    mcpToken.updateMany.mockResolvedValue({ count: 1 });
+  it("only revokes an active token of the same business, and returns it without tokenHash", async () => {
+    const revoked = { id: "token-1", revokedAt: new Date() };
+    mcpToken.updateManyAndReturn.mockResolvedValue([revoked]);
 
-    await expect(mcpTokenRepo.revoke("token-1", "business-1")).resolves.toBe(true);
+    await expect(mcpTokenRepo.revoke("token-1", "business-1")).resolves.toBe(revoked);
 
-    expect(mcpToken.updateMany.mock.calls[0][0].where).toEqual({
-      id: "token-1", businessId: "business-1", revokedAt: null,
-    });
+    const query = mcpToken.updateManyAndReturn.mock.calls[0][0];
+    expect(query.where).toEqual({ id: "token-1", businessId: "business-1", revokedAt: null });
+    expect(query.select.tokenHash).toBeUndefined();
   });
 
-  it("reports false when nothing matched", async () => {
-    mcpToken.updateMany.mockResolvedValue({ count: 0 });
+  it("reports null when nothing matched", async () => {
+    mcpToken.updateManyAndReturn.mockResolvedValue([]);
 
-    await expect(mcpTokenRepo.revoke("token-1", "business-2")).resolves.toBe(false);
+    await expect(mcpTokenRepo.revoke("token-1", "business-2")).resolves.toBeNull();
   });
 });

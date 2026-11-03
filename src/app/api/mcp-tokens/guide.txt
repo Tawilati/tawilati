@@ -75,7 +75,10 @@ POST /api/mcp-tokens/:id/revoke
 
 Success
   Status: 200
-  { "success": true, "message": "mcp token revoked" }
+  { "success": true, "message": "mcp token revoked", "data": {
+      "id": "...", "name": "Claude Code", "expiresAt": "ISO date",
+      "revokedAt": "ISO date", "lastUsedAt": "ISO date or null", "createdAt": "ISO date"
+  } }
 
 REVOKE TEST CASES
 

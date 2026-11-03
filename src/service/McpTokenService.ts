@@ -71,12 +71,14 @@ export class McpTokenService {
     return mapToMcpTokenResponseList(records);
   }
 
-  async revoke(tokenId: string, businessId: string): Promise<void> {
+  async revoke(tokenId: string, businessId: string): Promise<McpTokenResponse> {
     const revoked = await mcpTokenRepo.revoke(tokenId, businessId);
 
     if (!revoked) {
       throw new NotFoundException("mcp_token_not_found");
     }
+
+    return mapToMcpTokenResponse(revoked);
   }
 }
 

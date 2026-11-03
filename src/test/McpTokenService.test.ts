@@ -125,15 +125,16 @@ describe("listing and revoking tokens", () => {
     expect(repo.findManyByBusiness).toHaveBeenCalledWith("business-1");
   });
 
-  it("revokes within the business", async () => {
-    repo.revoke.mockResolvedValue(true);
+  it("revokes within the business and returns the revoked token", async () => {
+    const revoked = { ...record, revokedAt: new Date("2026-11-03T00:00:00.000Z") };
+    repo.revoke.mockResolvedValue(revoked);
 
-    await expect(mcpTokenService.revoke("token-1", "business-1")).resolves.toBeUndefined();
+    await expect(mcpTokenService.revoke("token-1", "business-1")).resolves.toEqual(revoked);
     expect(repo.revoke).toHaveBeenCalledWith("token-1", "business-1");
   });
 
   it("answers 404 for a token that isn't in the business", async () => {
-    repo.revoke.mockResolvedValue(false);
+    repo.revoke.mockResolvedValue(null);
 
     await expect(mcpTokenService.revoke("token-1", "business-2")).rejects.toMatchObject({
       status: 404, message: "mcp_token_not_found",

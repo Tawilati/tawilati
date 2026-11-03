@@ -4,6 +4,7 @@ import {
   MenuIcon,
   ReportsIcon,
   SettingsIcon,
+  SparklesIcon,
   StaffIcon,
   TablesIcon,
 } from "@/components/icons";
@@ -30,6 +31,7 @@ export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
     { href: "/dashboard/tables", label: "Tables", icon: TablesIcon },
     { href: "/dashboard/staff", label: "Staff", icon: StaffIcon },
     { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon, soon: true },
+    { href: "/dashboard/integrations", label: "AI integrations", icon: SparklesIcon, phoneMore: true },
     { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, phoneMore: true, accountMenu: true },
   ],
   [ROLE.KITCHEN]: [

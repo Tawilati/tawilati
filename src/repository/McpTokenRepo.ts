@@ -84,15 +84,16 @@ export class McpTokenRepo {
     }
   }
 
-  // False when no active token has this id in this business.
-  async revoke(tokenId: string, businessId: string): Promise<boolean> {
+  // The revoked token, or null when no active token has this id in this business.
+  async revoke(tokenId: string, businessId: string): Promise<McpTokenRecord | null> {
     try {
-      const result = await prisma.mcpToken.updateMany({
+      const [revoked] = await prisma.mcpToken.updateManyAndReturn({
         where: { id: tokenId, businessId, revokedAt: null },
         data: { revokedAt: new Date() },
+        select: mcpTokenSelect,
       });
 
-      return result.count > 0;
+      return revoked ?? null;
     } catch (err) {
       throw new DBException("Error revoking MCP token", err as Error);
     }

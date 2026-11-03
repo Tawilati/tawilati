@@ -52,7 +52,8 @@ export const waiterApi = {
 const SENTENCES: Record<string, string> = {
   offline: "We couldn't reach Tawilati. Check your connection and try again.",
   unauthorized: "Your session ended. Sign in again.",
-  forbidden: "Your account can't do this. Ask the owner.",
+  // Another tab signed this browser in with another role.
+  forbidden: "This browser is signed in with another account. Sign in again as the waiter.",
   not_found: "This table's bill is no longer there. The list will refresh.",
   invalid_transition: "This round has already been served or isn't ready yet.",
   table_session_closed: "This table was already closed and paid.",

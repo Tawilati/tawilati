@@ -5,6 +5,7 @@ import { Button, Card, Toast } from "@/components/ui";
 import { FloatingToast } from "@/components/ui/FloatingToast";
 import { kitchenSummary, type KitchenTicket } from "@/utils/kitchenQueue";
 import { updatedAgoLabel } from "@/utils/waiterFloor";
+import { SignedInElsewhere } from "@/components/staff/SignedInElsewhere";
 import { kitchenApi, kitchenSentenceFor } from "./kitchenApi";
 import { TicketCard } from "./TicketCard";
 import { useKitchenQueue } from "./useKitchenQueue";
@@ -12,7 +13,7 @@ import { useKitchenQueue } from "./useKitchenQueue";
 // The kitchen screen: every round still to cook, oldest first, left to right then top to bottom. Start keeps a
 // ticket in its place; Ready takes it off (the waiter's screen shows "1 ready").
 export function KitchenQueue() {
-  const { tickets, now, updatedAt, stale, refresh, apply } = useKitchenQueue();
+  const { tickets, now, updatedAt, stale, otherAccount, refresh, apply } = useKitchenQueue();
   const [busy, setBusy] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState<{ id: number; title: string } | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
@@ -49,6 +50,8 @@ export function KitchenQueue() {
         )}
       </div>
 
+      {otherAccount && <SignedInElsewhere role="kitchen" />}
+
       {notice && (
         <FloatingToast key={notice.id} tone="error" title={notice.title} duration={6000} onDismiss={dismissNotice} />
       )}
@@ -76,7 +79,7 @@ export function KitchenQueue() {
           <Button onClick={() => void refresh()}>Try again</Button>
         </Card>
       )}
-      {!tickets && !stale && <p className="text-sm text-ink-muted">Loading orders…</p>}
+      {!tickets && !stale && !otherAccount && <p className="text-sm text-ink-muted">Loading orders…</p>}
 
       {tickets && tickets.length === 0 && (
         <Card>

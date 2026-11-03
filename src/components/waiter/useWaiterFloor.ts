@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError } from "@/components/dashboard/api";
 import type { FloorTable, OpenTab } from "@/utils/waiterFloor";
 import { waiterApi } from "./waiterApi";
 
@@ -16,6 +17,8 @@ export function useWaiterFloor() {
   const [tabs, setTabs] = useState<OpenTab[] | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [stale, setStale] = useState(false);
+  // The server says this account may not read it (403): another tab signed in with another role.
+  const [otherAccount, setOtherAccount] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const round = useRef(0);
   // Only the newest request may answer, so a slow old one can't put an older state back on screen.
@@ -34,11 +37,14 @@ export function useWaiterFloor() {
       if (nextTables) setTables(nextTables);
       setUpdatedAt(Date.now());
       setStale(false);
-    } catch {
+      setOtherAccount(false);
+    } catch (error) {
       if (request !== latest.current) return;
       // Read the table list again next time, in case that was the part that failed.
       round.current = 0;
-      setStale(true);
+      // Keep checking: once this browser is signed in with the right role again, the screen comes back.
+      if (error instanceof ApiError && error.status === 403) setOtherAccount(true);
+      else setStale(true);
     }
   }, []);
 
@@ -68,5 +74,5 @@ export function useWaiterFloor() {
     };
   }, [refresh]);
 
-  return { tables, tabs, now, updatedAt, stale, refresh: load };
+  return { tables, tabs, now, updatedAt, stale, otherAccount, refresh: load };
 }

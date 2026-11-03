@@ -12,7 +12,8 @@ export const kitchenApi = {
 const SENTENCES: Record<string, string> = {
   offline: "We couldn't reach Tawilati. Check the connection and tap again.",
   unauthorized: "Your session ended. Sign in again.",
-  forbidden: "This account can't update tickets. Ask the owner.",
+  // Another tab signed this browser in with another role.
+  forbidden: "This browser is signed in with another account. Sign in again as the kitchen.",
   // Someone else (another kitchen screen) moved the ticket first: the queue refreshes.
   invalid_transition: "This ticket was already updated on another screen.",
   not_found: "This ticket is no longer there.",

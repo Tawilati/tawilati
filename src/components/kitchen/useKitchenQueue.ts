@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError } from "@/components/dashboard/api";
 import { applyStatus, type KitchenStatus, type KitchenTicket } from "@/utils/kitchenQueue";
 import { kitchenApi } from "./kitchenApi";
 
@@ -13,6 +14,8 @@ export function useKitchenQueue() {
   const [tickets, setTickets] = useState<KitchenTicket[] | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [stale, setStale] = useState(false);
+  // The server says this account may not read it (403): another tab signed in with another role.
+  const [otherAccount, setOtherAccount] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   // Only the newest request may answer, so a slow old one can't put a ticket back after a tap.
   const latest = useRef(0);
@@ -25,9 +28,12 @@ export function useKitchenQueue() {
       setTickets(next);
       setUpdatedAt(Date.now());
       setStale(false);
-    } catch {
+      setOtherAccount(false);
+    } catch (error) {
       if (request !== latest.current) return;
-      setStale(true);
+      // Keep checking: once this browser is signed in with the right role again, the screen comes back.
+      if (error instanceof ApiError && error.status === 403) setOtherAccount(true);
+      else setStale(true);
     }
   }, []);
 
@@ -63,5 +69,5 @@ export function useKitchenQueue() {
     };
   }, [refresh]);
 
-  return { tickets, now, updatedAt, stale, refresh: load, apply };
+  return { tickets, now, updatedAt, stale, otherAccount, refresh: load, apply };
 }

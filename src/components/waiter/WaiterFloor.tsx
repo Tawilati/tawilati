@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Button, Card, Toast } from "@/components/ui";
 import { FloatingToast } from "@/components/ui/FloatingToast";
 import { buildFloor, STATE_LABEL, updatedAgoLabel, type FloorTile, type TableState } from "@/utils/waiterFloor";
+import { SignedInElsewhere } from "@/components/staff/SignedInElsewhere";
 import { TableSheet } from "./TableSheet";
 import { TableTile, TILE_LOOK } from "./TableTile";
 import { useWaiterFloor } from "./useWaiterFloor";
@@ -13,7 +14,7 @@ const LEGEND: TableState[] = ["ordered", "bill", "slowPay", "quiet", "free"];
 // The waiter's Tables screen: every table, coloured by what it needs, refreshed every few seconds.
 // Tapping a table with guests opens its bill.
 export function WaiterFloor() {
-  const { tables, tabs, now, updatedAt, stale, refresh } = useWaiterFloor();
+  const { tables, tabs, now, updatedAt, stale, otherAccount, refresh } = useWaiterFloor();
   const [openSessionId, setOpenSessionId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ id: number; title: string } | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
@@ -47,6 +48,8 @@ export function WaiterFloor() {
         )}
       </div>
 
+      {otherAccount && <SignedInElsewhere role="waiter" />}
+
       {notice && <FloatingToast key={notice.id} title={notice.title} onDismiss={dismissNotice} />}
 
       <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs" aria-label="Colour key">
@@ -64,7 +67,7 @@ export function WaiterFloor() {
           <Button onClick={() => void refresh()}>Try again</Button>
         </Card>
       )}
-      {!floor && !stale && <p className="text-sm text-ink-muted">Loading tables…</p>}
+      {!floor && !stale && !otherAccount && <p className="text-sm text-ink-muted">Loading tables…</p>}
 
       {floor && floor.length === 0 && (
         <Card>

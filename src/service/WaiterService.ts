@@ -1,3 +1,5 @@
+
+
 import prisma from "@/lib/db";
 import { waiterRepo } from "@/repository/WaiterRepo";
 import {
@@ -11,6 +13,8 @@ import {
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
+import { Decimal } from "@prisma/client/runtime/client";
+
 
 export class WaiterService {
   private static instance: WaiterService;
@@ -73,41 +77,54 @@ async closeTab(
 ): Promise<CloseTabResponse> {
   // 1. Fetch the session
   const session = await waiterRepo.findSessionForClose(sessionId, businessId);
-  if (!session) {
-    throw new NotFoundException("session_not_found");
-  }
-
+  if (!session) throw new NotFoundException("session_not_found");
   if (session.status === "CLOSED") {
     throw new ConflictException("session_already_closed");
   }
 
-  // 2. Validate payment amount
-  const billUSD = Number(session.totalUSD);
-  const billLBP = Number(session.totalLBP);
-  const receivedUSD = input.amountReceivedUSD;
-  const receivedLBP = input.amountReceivedLBP;
+  // 2. Fetch the business exchange rate
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { exchangeRate: true },
+  });
+  if (!business) throw new NotFoundException("business_not_found");
+  const rate = Number(business.exchangeRate);
 
-  if (receivedUSD < billUSD && receivedLBP < billLBP) {
+  // 3. Validate payment (convert everything to USD)
+  const billUSD = Number(session.totalUSD);
+  const receivedUSD = input.amountReceivedUSD;
+  const receivedLBPAsUSD = input.amountReceivedLBP / rate;
+  const totalReceivedUSD = receivedUSD + receivedLBPAsUSD;
+
+  if (totalReceivedUSD < billUSD - 0.01) {
     throw new BadRequestException("insufficient_payment");
   }
 
-  // 3. Compute change
-  let changeUSD = 0;
-  let changeLBP = 0;
+  // 4. Compute change (only if overpaid)
+  const changeUSD = Math.max(0, totalReceivedUSD - billUSD);
+  const changeLBP = changeUSD * rate;
 
-  if (input.method === "CASH") {
-    changeUSD = Math.max(0, receivedUSD - billUSD);
-    changeLBP = Math.max(0, receivedLBP - billLBP);
-  }
-  // Card: change = 0, exact bill amount is charged
+  // 5. Determine how much to record in the Payment table
+  // If the guest paid more than the bill, we only record the bill amount
+  // (the change is not revenue).
+let paymentUSD: Decimal;
+let paymentLBP: Decimal;
 
-  // 4. Transaction
+if (receivedUSD >= billUSD) {
+  paymentUSD = new Decimal(billUSD);
+  paymentLBP = new Decimal(0);
+} else {
+  paymentUSD = new Decimal(receivedUSD);
+  paymentLBP = new Decimal((billUSD - receivedUSD) * rate);
+}
+
+  // 6. Transaction
   const result = await prisma.$transaction(async (tx) => {
     return await waiterRepo.recordPaymentAndClose(
       {
         sessionId,
-        totalUSD: session.totalUSD,
-        totalLBP: session.totalLBP,
+        paymentUSD,
+        paymentLBP,
         method: input.method,
         recordedById: waiterId,
       },
@@ -115,7 +132,7 @@ async closeTab(
     );
   });
 
-  // 5. Return the receipt
+  // 7. Return the receipt
   return {
     sessionId: result.session.id,
     status: result.session.status,
@@ -124,7 +141,7 @@ async closeTab(
     amountPaidUSD: result.session.amountPaidUSD.toFixed(2),
     amountPaidLBP: result.session.amountPaidLBP.toFixed(2),
     amountReceivedUSD: receivedUSD.toFixed(2),
-    amountReceivedLBP: receivedLBP.toFixed(2),
+    amountReceivedLBP: input.amountReceivedLBP.toFixed(2),
     changeUSD: changeUSD.toFixed(2),
     changeLBP: changeLBP.toFixed(2),
     paymentId: result.payment.id,

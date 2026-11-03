@@ -123,8 +123,8 @@ async findSessionForClose(sessionId: string, businessId: string) {
 async recordPaymentAndClose(
   data: {
     sessionId: string;
-    totalUSD: Prisma.Decimal;
-    totalLBP: Prisma.Decimal;
+        paymentUSD: Prisma.Decimal;
+    paymentLBP: Prisma.Decimal;
     method: "CASH" | "EXTERNAL_CARD";
     recordedById: string;
   },
@@ -135,8 +135,8 @@ async recordPaymentAndClose(
     const payment = await tx.payment.create({
       data: {
         sessionId: data.sessionId,
-        amountUSD: data.totalUSD,
-        amountLBP: data.totalLBP,
+        amountUSD: data.paymentUSD,
+        amountLBP: data.paymentLBP,
         method: data.method,
         recordedById: data.recordedById,
       },
@@ -146,8 +146,8 @@ async recordPaymentAndClose(
     const session = await tx.tableSession.update({
       where: { id: data.sessionId },
       data: {
-        amountPaidUSD: data.totalUSD,
-        amountPaidLBP: data.totalLBP,
+        amountPaidUSD: data.paymentUSD,
+        amountPaidLBP: data.paymentLBP,
         status: "CLOSED",
         closedAt: new Date(),
         activeTableId: null,

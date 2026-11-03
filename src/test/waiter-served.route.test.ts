@@ -63,7 +63,7 @@ describe("PATCH /api/waiter/order/:id/served", () => {
       data: { orderId: ORDER_ID, status: "SERVED" },
     });
     expect(mocks.authGuard).toHaveBeenCalledWith(expect.anything(), {
-      requirePermission: PERMISSION.ORDER_STATUS_READY,
+      requirePermission: PERMISSION.ORDER_STATUS_SERVED,
     });
     expect(mocks.markOrderServed).toHaveBeenCalledWith(ORDER_ID, BUSINESS_ID);
   });
@@ -103,7 +103,7 @@ describe("PATCH /api/waiter/order/:id/served", () => {
   });
 
   it("returns a not-found error when the order belongs to another business", async () => {
-    mocks.markOrderServed.mockRejectedValue(new NotFoundException("order_not_found"));
+    mocks.markOrderServed.mockRejectedValue(new NotFoundException("not_found"));
 
     const response = await PATCH(makeRequest("OWNER"), {
       params: Promise.resolve({ id: ORDER_ID }),
@@ -112,7 +112,17 @@ describe("PATCH /api/waiter/order/:id/served", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({
       success: false,
-      message: "order_not_found",
+      message: "not_found",
     });
+  });
+
+  it("answers 400 validation_error for an id that isn't a UUID, before the service", async () => {
+    const response = await PATCH(makeRequest("WAITER"), {
+      params: Promise.resolve({ id: "not-a-uuid" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toBe("validation_error");
+    expect(mocks.markOrderServed).not.toHaveBeenCalled();
   });
 });

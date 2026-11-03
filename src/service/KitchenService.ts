@@ -3,7 +3,7 @@ import {
   mapToKitchenOrdersResponse,
   type KitchenOrdersResponse,
 } from "@/types/Kitchen";
-import { ConflictException } from "@/utils/exceptions/http/ConflictException";
+import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
 export class KitchenService {
@@ -34,7 +34,7 @@ async updateKitchenOrderStatus(
   const order = await kitchenRepo.findOrderForKitchen(orderId, businessId);
 
   if (!order) {
-    throw new NotFoundException("order_not_found");
+    throw new NotFoundException("not_found");
   }
 
   // 2. Validate the transition (F-04: reject invalid transitions)
@@ -43,9 +43,7 @@ async updateKitchenOrderStatus(
     (order.status === "PREPARING" && newStatus === "READY");
 
   if (!validTransition) {
-    throw new ConflictException(
-      `invalid_transition_from_${order.status.toLowerCase()}_to_${newStatus.toLowerCase()}`,
-    );
+    throw new BadRequestException("invalid_transition");
   }
 
   // 3. Update the status

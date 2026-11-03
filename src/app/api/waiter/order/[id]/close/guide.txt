@@ -1,0 +1,62 @@
+WAITER: CLOSE A TAB - TEST GUIDE
+
+Route
+  POST /api/waiter/order/:id/close
+  :id is a TAB (TableSession) id, the sessionId from GET /api/waiter/tabels,
+  not a round id (the folder name says "order").
+
+Authentication and permissions
+  Staff session with TAB_CLOSE: WAITER or OWNER. KITCHEN gets 403.
+  The payment is recorded under the signed-in user (x-user-id), never one from the body.
+
+Body
+  { "amountReceivedUSD": 20, "amountReceivedLBP": 0, "method": "CASH" }
+  Amounts are JSON numbers >= 0; method is CASH or EXTERNAL_CARD.
+  (The payment rule is being reworked to accept USD and LBP together.)
+
+What happens, in one transaction
+  The tab is closed only if it is still OPEN (status CLOSED, closedAt, activeTableId
+  cleared, amountPaid = totals), a Payment of the full totals is recorded (none when
+  the tab is empty), and every guest session of the tab is revoked: the phones'
+  "Your orders" stop polling and a new scan opens a new tab.
+
+Success
+  Status: 200
+  { "success": true, "message": "tab closed", "data": {
+      "sessionId": "...", "status": "CLOSED", "totalUSD": "12.10", "totalLBP": "1082950.00",
+      "amountPaidUSD": "12.10", "amountPaidLBP": "1082950.00",
+      "amountReceivedUSD": "20.00", "amountReceivedLBP": "0.00",
+      "changeUSD": "7.90", "changeLBP": "0.00", "paymentId": "..." } }
+  paymentId is null when the tab had nothing on it.
+
+TEST CASES
+
+1. Close a served tab with cash
+  Every round SERVED. Expect 200, change = received - total, one Payment row,
+  table free (a new scan opens a new tab), guest phones get guest_session_revoked.
+
+2. A round not served yet
+  One round NEW, PREPARING or READY. Expect 409 tab_not_settleable; tab stays
+  OPEN, no Payment, guest sessions untouched.
+
+3. Close twice (double tap, or two waiters at once)
+  Expect one 200 and one 409 table_session_closed, and exactly one Payment.
+
+4. Empty tab (guest scanned but never ordered)
+  Body with 0 and 0. Expect 200 with paymentId null and no Payment row.
+
+5. Short in both currencies
+  Expect 400 insufficient_payment, nothing written.
+
+6. Bad body
+  {}, a string amount, a negative amount, or method "BITCOIN".
+  Expect 400 validation_error. Malformed JSON: 400 invalid_json.
+
+7. Id that isn't a UUID
+  Expect 400 validation_error with details.id.
+
+8. Tab of another business, or an unknown UUID
+  Expect 404 not_found; the tab stays open.
+
+9. No session / KITCHEN session
+  Expect 401 unauthorized / 403 forbidden.

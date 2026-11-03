@@ -1,0 +1,35 @@
+WAITER: MARK A ROUND SERVED - TEST GUIDE
+
+Route
+  PATCH /api/waiter/order/:id/served
+  :id is a round (DiningOrder) id, as listed in readyOrders by GET /api/waiter/tabels.
+
+Authentication and permissions
+  Staff session with ORDER_STATUS_SERVED: WAITER or OWNER. KITCHEN gets 403.
+  The round must belong to the signed-in business.
+
+Success
+  Status: 200
+  { "success": true, "message": "order marked as served",
+    "data": { "orderId": "...", "status": "SERVED" } }
+
+TEST CASES
+
+1. Serve a READY round
+  Kitchen moves a round NEW -> PREPARING -> READY (PATCH /api/kitchen/:id), then
+  call this route as WAITER. Expect 200 and status SERVED.
+
+2. Tap twice
+  Call it again on the same round. Expect 400 invalid_transition, no write.
+
+3. Round not ready yet
+  Call it on a NEW or PREPARING round. Expect 400 invalid_transition, status unchanged.
+
+4. Id that isn't a UUID (e.g. /api/waiter/order/abc/served)
+  Expect 400 validation_error with details.id.
+
+5. Round of another business, or an unknown UUID
+  Expect 404 not_found, status unchanged.
+
+6. No session / KITCHEN session
+  Expect 401 unauthorized / 403 forbidden.

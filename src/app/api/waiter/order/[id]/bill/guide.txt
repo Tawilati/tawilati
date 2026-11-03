@@ -1,0 +1,42 @@
+WAITER: TAB BILL - TEST GUIDE
+
+Route
+  GET /api/waiter/order/:id/bill
+  :id is a TAB (TableSession) id, the sessionId from GET /api/waiter/tabels,
+  not a round id (the folder name says "order").
+
+Authentication and permissions
+  Staff session with BILL_READ: WAITER or OWNER. KITCHEN gets 403.
+  The tab must belong to the signed-in business.
+
+Success
+  Status: 200
+  { "success": true, "message": "table bill", "data": {
+      "sessionId": "...", "tableLabel": "T1", "status": "OPEN", "openedAt": "ISO date",
+      "orderCount": 2, "totalUSD": "10.00", "totalLBP": "895000.00",
+      "amountPaidUSD": "0.00", "amountPaidLBP": "0.00",
+      "orders": [ { "orderId": "...", "status": "SERVED", "totalUSD": "5.00", "totalLBP": "447500.00",
+                    "createdAt": "ISO date",
+                    "lines": [ { "menuItemId": "...", "name": "Espresso", "qty": 2,
+                                 "priceUSD": "2.50", "priceLBP": "223750.00", "rateSnapshot": "89500.00" } ] } ]
+  } }
+
+TEST CASES
+
+1. Bill with rounds in several statuses
+  Order two rounds from the guest menu, move one to SERVED.
+  Expect both rounds listed oldest first, each with its status; every round except
+  CANCELLED is listed, so qty x price over all lines adds up to totalUSD / totalLBP.
+
+2. Bill of a closed tab
+  Close the tab (POST /api/waiter/order/:id/close), then read it.
+  Expect 200, status CLOSED, amountPaid equal to the totals.
+
+3. Id that isn't a UUID
+  Expect 400 validation_error with details.id.
+
+4. Tab of another business, or an unknown UUID
+  Expect 404 not_found.
+
+5. No session / KITCHEN session
+  Expect 401 unauthorized / 403 forbidden.

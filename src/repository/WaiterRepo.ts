@@ -69,6 +69,7 @@ async markOrderAsServed(orderId: string, tx: DbClient = prisma) {
     );
   }
 }
+// Every round on the tab except cancelled ones, so the lines add up to the tab's totals.
 async findBillBySessionId(
   sessionId: string,
   businessId: string,
@@ -79,7 +80,7 @@ async findBillBySessionId(
       include: {
         table: { select: { label: true } },
         orders: {
-             where: { status: { in: ["READY", "SERVED"] } },
+          where: { status: { not: "CANCELLED" } },
           include: {
             orderLines: {
               include: { menuItem: { select: { name: true } } },
@@ -96,8 +97,6 @@ async findBillBySessionId(
     );
   }
 }
-
-// Add to WaiterRepo
 
 async findSessionForClose(sessionId: string, businessId: string) {
   try {
@@ -120,57 +119,85 @@ async findSessionForClose(sessionId: string, businessId: string) {
   }
 }
 
-async recordPaymentAndClose(
+// Closes the tab only while it is still OPEN; false when it was already closed (or isn't this business's).
+// The update locks the row, so of two closes racing on one tab only the first gets true.
+async closeIfOpen(
   data: {
     sessionId: string;
-    totalUSD: Prisma.Decimal;
-    totalLBP: Prisma.Decimal;
+    businessId: string;
+    amountPaidUSD: Prisma.Decimal;
+    amountPaidLBP: Prisma.Decimal;
+  },
+  tx: DbClient = prisma,
+): Promise<boolean> {
+  try {
+    const { count } = await tx.tableSession.updateMany({
+      where: { id: data.sessionId, businessId: data.businessId, status: "OPEN" },
+      data: {
+        amountPaidUSD: data.amountPaidUSD,
+        amountPaidLBP: data.amountPaidLBP,
+        status: "CLOSED",
+        closedAt: new Date(),
+        activeTableId: null,
+      },
+    });
+    return count === 1;
+  } catch (error) {
+    throw new DBException(
+      "Error closing tab",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
+
+// Rounds the kitchen or the waiter still has to finish (NEW, PREPARING, READY).
+async countUnservedOrders(sessionId: string, tx: DbClient = prisma): Promise<number> {
+  try {
+    return await tx.diningOrder.count({
+      where: { sessionId, status: { in: ["NEW", "PREPARING", "READY"] } },
+    });
+  } catch (error) {
+    throw new DBException(
+      "Error counting unserved orders",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
+
+async createPayment(
+  data: {
+    sessionId: string;
+    amountUSD: Prisma.Decimal;
+    amountLBP: Prisma.Decimal;
     method: "CASH" | "EXTERNAL_CARD";
     recordedById: string;
   },
   tx: DbClient = prisma,
 ) {
   try {
-    // 1. Insert Payment
-    const payment = await tx.payment.create({
-      data: {
-        sessionId: data.sessionId,
-        amountUSD: data.totalUSD,
-        amountLBP: data.totalLBP,
-        method: data.method,
-        recordedById: data.recordedById,
-      },
-    });
-
-    // 2. Update TableSession (paid = bill total, status = CLOSED)
-    const session = await tx.tableSession.update({
-      where: { id: data.sessionId },
-      data: {
-        amountPaidUSD: data.totalUSD,
-        amountPaidLBP: data.totalLBP,
-        status: "CLOSED",
-        closedAt: new Date(),
-        activeTableId: null,
-      },
-    });
-
-    // 3. Revoke all GuestSessions
-    await tx.guestSession.updateMany({
-      where: { sessionId: data.sessionId },
-      data: { revokedAt: new Date() },
-    });
-
-    return { payment, session };
+    return await tx.payment.create({ data });
   } catch (error) {
     throw new DBException(
-      "Error recording payment and closing tab",
+      "Error recording payment",
       error instanceof Error ? error : new Error(String(error)),
     );
   }
 }
 
-
-
+// Ends every phone's access to the tab.
+async revokeGuestSessions(sessionId: string, tx: DbClient = prisma): Promise<void> {
+  try {
+    await tx.guestSession.updateMany({
+      where: { sessionId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  } catch (error) {
+    throw new DBException(
+      "Error revoking guest sessions",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
 }
 
 export const waiterRepo = WaiterRepo.getInstance();

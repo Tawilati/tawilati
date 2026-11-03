@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { authGuard } from "@/lib/auth/gaurd";
 import { getBusinessIdFromRequest, getUserIdFromRequest } from "@/lib/auth/requestHelper";
-import { handle, parseBody } from "@/lib/http";
+import { handle, parseBody, parseParams } from "@/lib/http";
 import { waiterService } from "@/service/WaiterService";
 import { PERMISSION } from "@/types/Roles";
+import { tabIdSchema } from "@/validation/orderSchemas";
 
 const schema = z.object({
   amountReceivedUSD: z.number().min(0),
@@ -12,7 +13,7 @@ const schema = z.object({
   method: z.enum(["CASH", "EXTERNAL_CARD"]),
 });
 
-// POST /api/waiter/tables/:id/close
+// POST /api/waiter/order/:id/close (:id is a tab, TableSession, not a round)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -23,7 +24,7 @@ export async function POST(
     });
     if (denied) return denied;
 
-    const { id } = await params;
+    const { id } = await parseParams(params, tabIdSchema);
     const businessId = getBusinessIdFromRequest(request)!;
     const waiterId = getUserIdFromRequest(request)!;
     const body = await parseBody(request, schema);

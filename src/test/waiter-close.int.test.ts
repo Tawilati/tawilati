@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db";
 import { GET as billRoute } from "@/app/api/waiter/order/[id]/bill/route";
 import { POST as closeRoute } from "@/app/api/waiter/order/[id]/close/route";
 import { PATCH as servedRoute } from "@/app/api/waiter/order/[id]/served/route";
+import { GET as tablesRoute } from "@/app/api/waiter/tabels/route";
+import { POST as billRequestRoute } from "@/app/api/orders/me/bill-request/route";
+import { POST as submitOrderRoute } from "@/app/api/orders/route";
 import type { OrderStatus } from "@/app/generated/prisma/client";
 
 // The waiter's end of the flow on a real database: serve a round, read the bill, close the tab.
@@ -239,5 +242,59 @@ describe("POST /api/waiter/order/:id/close", () => {
     expect(response.status).toBe(404);
     expect((await response.json()).message).toBe("not_found");
     expect((await prisma.tableSession.findUniqueOrThrow({ where: { id: tab.id } })).status).toBe("OPEN");
+  });
+});
+
+describe("Ask for the bill (guest) and the waiter's tables list", () => {
+  const guestRequest = (token: string, path: string, body?: unknown, key?: string) =>
+    new NextRequest(`http://localhost${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(key ? { "Idempotency-Key": key } : {}),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+  const tabs = async (who: Who) => {
+    const response = await tablesRoute(request(who, "GET"));
+    expect(response.status).toBe(200);
+    return (await response.json()).data as {
+      sessionId: string; tableId: string; lastOrderAt: string | null; billRequestedAt: string | null;
+    }[];
+  };
+
+  it("shows the request on the waiter's list, keeps the first time on a second tap, and a new round clears it", async () => {
+    const { tab, guest, orders } = await openTab(["SERVED"]);
+    const before = (await tabs(asA)).find((t) => t.sessionId === tab.id)!;
+    expect(before).toMatchObject({ tableId: tableA.id, billRequestedAt: null, lastOrderAt: orders[0].createdAt.toISOString() });
+
+    const first = await billRequestRoute(guestRequest(guest.token, "/api/orders/me/bill-request"));
+    expect(first.status).toBe(200);
+    const askedAt = (await first.json()).data.billRequestedAt;
+    const second = await billRequestRoute(guestRequest(guest.token, "/api/orders/me/bill-request"));
+    expect((await second.json()).data.billRequestedAt).toBe(askedAt);
+    expect((await tabs(asA)).find((t) => t.sessionId === tab.id)!.billRequestedAt).toBe(askedAt);
+
+    // Another business never sees this tab.
+    expect((await tabs(asB)).some((t) => t.sessionId === tab.id)).toBe(false);
+
+    const order = await submitOrderRoute(
+      guestRequest(guest.token, "/api/orders", { items: [{ menuItemId: espresso.id, qty: 1 }] }, `key-${run}`),
+    );
+    expect(order.status).toBe(201);
+    const after = (await tabs(asA)).find((t) => t.sessionId === tab.id)!;
+    expect(after.billRequestedAt).toBeNull();
+    expect(new Date(after.lastOrderAt!).getTime()).toBeGreaterThan(orders[0].createdAt.getTime());
+  });
+
+  it("refuses a request once the waiter closed the tab (the phone's session is revoked)", async () => {
+    const { tab, guest } = await openTab(["SERVED"]);
+    expect((await close(asA, tab.id)).status).toBe(200);
+
+    const response = await billRequestRoute(guestRequest(guest.token, "/api/orders/me/bill-request"));
+
+    expect(response.status).toBe(401);
+    expect((await response.json()).message).toBe("guest_session_revoked");
   });
 });

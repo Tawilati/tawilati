@@ -12,11 +12,14 @@ Authentication and permissions
 Body
   { "amountReceivedUSD": 20, "amountReceivedLBP": 0, "method": "CASH" }
   Amounts are JSON numbers >= 0; method is CASH or EXTERNAL_CARD.
-  (The payment rule is being reworked to accept USD and LBP together.)
+  USD and LBP received are added up at the business's exchange rate (LBP / rate) and
+  must cover the USD total (1 cent tolerance). Change is the overpayment, shown in USD
+  and in LBP. The Payment records the bill split by currency: all USD when the USD
+  received covers it, otherwise the USD received plus the rest in LBP.
 
 What happens, in one transaction
   The tab is closed only if it is still OPEN (status CLOSED, closedAt, activeTableId
-  cleared, amountPaid = totals), a Payment of the full totals is recorded (none when
+  cleared, amountPaid = what the Payment records), a Payment is recorded (none when
   the tab is empty), and every guest session of the tab is revoked: the phones'
   "Your orders" stop polling and a new scan opens a new tab.
 
@@ -24,9 +27,9 @@ Success
   Status: 200
   { "success": true, "message": "tab closed", "data": {
       "sessionId": "...", "status": "CLOSED", "totalUSD": "12.10", "totalLBP": "1082950.00",
-      "amountPaidUSD": "12.10", "amountPaidLBP": "1082950.00",
+      "amountPaidUSD": "12.10", "amountPaidLBP": "0.00",
       "amountReceivedUSD": "20.00", "amountReceivedLBP": "0.00",
-      "changeUSD": "7.90", "changeLBP": "0.00", "paymentId": "..." } }
+      "changeUSD": "7.90", "changeLBP": "707050.00", "paymentId": "..." } }
   paymentId is null when the tab had nothing on it.
 
 TEST CASES
@@ -45,8 +48,12 @@ TEST CASES
 4. Empty tab (guest scanned but never ordered)
   Body with 0 and 0. Expect 200 with paymentId null and no Payment row.
 
-5. Short in both currencies
-  Expect 400 insufficient_payment, nothing written.
+5. Split payment
+  Bill 12.10 USD at 89,000: send 10 USD + 186900 LBP. Expect 200, change 0, a Payment
+  of 10.00 USD + 186900.00 LBP.
+
+5b. Not enough
+  10 USD + 100000 LBP on that bill. Expect 400 insufficient_payment, nothing written.
 
 6. Bad body
   {}, a string amount, a negative amount, or method "BITCOIN".

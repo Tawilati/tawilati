@@ -1,0 +1,39 @@
+GUEST: ASK FOR THE BILL - TEST GUIDE
+
+Route
+  POST /api/orders/me/bill-request
+  No body. The tab comes from the guest token (Authorization: Bearer <token>, from
+  POST /api/guest-sessions). The proxy treats it as a guest route (under /api/orders/me).
+
+What it does
+  Stamps TableSession.billRequestedAt on the guest's open tab. The waiter's Tables
+  screen shows the table yellow ("Wants to pay"), and orange ("Paying is slow") once
+  the request is 5 minutes old. The next round the table orders clears it.
+
+Success
+  Status: 200
+  { "success": true, "message": "bill requested",
+    "data": { "billRequestedAt": "2026-11-03T12:04:52.000Z" } }
+  GET /api/orders/me then returns the same billRequestedAt, and
+  GET /api/waiter/tabels returns it on the tab.
+
+TEST CASES
+
+1. Ask once
+  Expect 200 with billRequestedAt; the waiter's tile turns yellow within 5 s.
+
+2. Ask twice (or from two phones at the same table)
+  Expect 200 both times with the SAME billRequestedAt (the first time is kept).
+
+3. Order again after asking
+  POST /api/orders. Expect billRequestedAt back to null on /api/orders/me and the
+  waiter's list; the tile goes back to "Just ordered".
+
+4. No token, or a token that isn't 64 hex characters
+  Expect 401 unauthorized.
+
+5. Expired token
+  Expect 401 token_expired; the phone renews (POST /api/guest-sessions/renew) and asks again.
+
+6. Tab closed by the waiter
+  Expect 401 guest_session_revoked (closing revokes the phones' sessions).

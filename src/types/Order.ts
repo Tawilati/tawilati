@@ -113,7 +113,7 @@ export interface GuestBillResponse {
   totalLBP: string;
   guestTotalUSD: string;    // ← NEW: Guest's personal total
   guestTotalLBP: string;    // ← NEW
- 
+  billRequestedAt: string | null; // someone at the table pressed "Ask for the bill" (ISO), cleared by the next round
   orders: GuestOrderResponse[];
 }
 
@@ -163,7 +163,8 @@ export function mapToGuestBillResponse(record: GuestBillRecord): GuestBillRespon
     totalLBP: record.session.totalLBP.toFixed(2),
     guestTotalUSD: guestTotalUSD.toFixed(2),
     guestTotalLBP: guestTotalLBP.toFixed(2),
-  
+    billRequestedAt: record.session.billRequestedAt?.toISOString() ?? null,
+
     orders: record.orders.map((order) => ({
       orderId: order.id,
       status: order.status,

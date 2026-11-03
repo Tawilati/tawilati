@@ -18,27 +18,42 @@ export class WaiterRepo {
     return WaiterRepo.instance;
   }
 
+ // Open tabs with their READY rounds, and when each tab's latest round (cancelled ones aside) came in.
  async findActiveTables(businessId: string): Promise<WaiterTableRecord[]> {
-  return await prisma.tableSession.findMany({
-    where: { businessId, status: "OPEN" },
-    include: {
-      table: { select: { label: true } },
-      _count: { select: { orders: true } },
-      orders: {
-        where: { status: "READY" },
-        include: {                      
-          orderLines: {
-            include: {                   
-              menuItem: { select: { name: true } },
+  try {
+    const tabs = await prisma.tableSession.findMany({
+      where: { businessId, status: "OPEN" },
+      include: {
+        table: { select: { label: true } },
+        _count: { select: { orders: true } },
+        orders: {
+          where: { status: "READY" },
+          include: {
+            orderLines: {
+              include: {
+                menuItem: { select: { name: true } },
+              },
             },
           },
         },
       },
-    },
-    orderBy: { openedAt: "asc" },
-  });
+      orderBy: { openedAt: "asc" },
+    });
+    const latest = await prisma.diningOrder.groupBy({
+      by: ["sessionId"],
+      where: { businessId, sessionId: { in: tabs.map((tab) => tab.id) }, status: { not: "CANCELLED" } },
+      _max: { createdAt: true },
+    });
+    const lastOrderAt = new Map(latest.map((row) => [row.sessionId, row._max.createdAt]));
+    return tabs.map((tab) => ({ ...tab, lastOrderAt: lastOrderAt.get(tab.id) ?? null }));
+  } catch (error) {
+    throw new DBException(
+      "Error finding active tables",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
 }
-;
+
 
 // Add to WaiterRepo
 

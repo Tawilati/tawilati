@@ -10,7 +10,7 @@ const repos = vi.hoisted(() => ({
   submissionRepo: { FindByKey: vi.fn(), create: vi.fn(), linkToOrder: vi.fn() },
   orderRepo: { findByIdWithRelations: vi.fn(), create: vi.fn() },
   menuItemRepo: { findManyByIds: vi.fn(), findBusinessExchangeRate: vi.fn() },
-  tableSessionRepo: { updateTotals: vi.fn() },
+  tableSessionRepo: { updateTotals: vi.fn(), requestBill: vi.fn() },
   tx: { fake: "transaction" },
 }));
 
@@ -300,5 +300,52 @@ describe("OrderService.createOrder", () => {
       );
       expectNothingWritten();
     });
+  });
+});
+
+describe("OrderService.requestBill", () => {
+  it("stamps the guest's tab and returns the time", async () => {
+    const at = new Date("2026-11-03T12:00:00.000Z");
+    guestSessionRepo.FindByToken.mockResolvedValue(guest());
+    tableSessionRepo.requestBill.mockResolvedValue(at);
+
+    await expect(orderService.requestBill(TOKEN)).resolves.toEqual({ billRequestedAt: at.toISOString() });
+    expect(guestSessionRepo.FindByToken).toHaveBeenCalledWith(TOKEN);
+    expect(tableSessionRepo.requestBill).toHaveBeenCalledWith("session-1");
+  });
+
+  it("answers 401 unauthorized for an unknown token", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(null);
+
+    await expectHttpError(orderService.requestBill(TOKEN), 401, "unauthorized");
+    expect(tableSessionRepo.requestBill).not.toHaveBeenCalled();
+  });
+
+  it("answers 401 token_expired so the phone renews and asks again", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({ expiresAt: new Date(Date.now() - 1000) }));
+
+    await expectHttpError(orderService.requestBill(TOKEN), 401, "token_expired");
+    expect(tableSessionRepo.requestBill).not.toHaveBeenCalled();
+  });
+
+  it("answers 401 guest_session_revoked once the waiter closed the tab", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({ revokedAt: new Date() }));
+
+    await expectHttpError(orderService.requestBill(TOKEN), 401, "guest_session_revoked");
+    expect(tableSessionRepo.requestBill).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 table_session_closed for a closed tab", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({}, { status: "CLOSED" }));
+
+    await expectHttpError(orderService.requestBill(TOKEN), 409, "table_session_closed");
+    expect(tableSessionRepo.requestBill).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 table_session_closed when the tab closed just before the update", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest());
+    tableSessionRepo.requestBill.mockResolvedValue(null);
+
+    await expectHttpError(orderService.requestBill(TOKEN), 409, "table_session_closed");
   });
 });

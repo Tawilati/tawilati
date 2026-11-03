@@ -1,0 +1,64 @@
+MCP API - TEST GUIDE
+
+Route
+  POST /api/mcp - the Model Context Protocol endpoint AI assistants connect to (Streamable HTTP).
+
+Authentication and permissions
+  Authorization: Bearer <MCP token>. Get a token from POST /api/mcp-tokens (owner, signed in).
+  The staff cookie is not used here; the proxy lets /api/mcp through and the route checks the token.
+  A missing, unknown, revoked or expired token, or a deactivated user, is 401 with a
+  WWW-Authenticate: Bearer error="invalid_token" header.
+  Every tool runs in the token's business. No tool takes a businessId.
+  Each tool needs the same permission as the matching HTTP route (see src/lib/mcp/tools.ts).
+
+Tools
+  Read:  get_business, list_categories, list_menu_items, list_tables,
+         get_kitchen_orders, list_active_tables
+  Write: create_category, create_menu_item, update_menu_item, set_menu_item_sold_out,
+         archive_menu_item, unarchive_menu_item, create_table, set_table_disabled,
+         update_business_settings
+  Not exposed: staff accounts, payments and closing tabs, order status changes, QR stickers.
+
+Errors from a tool
+  A tool that fails answers isError: true with the same body as the HTTP route,
+  e.g. { "success": false, "message": "menu_item_not_found" }.
+  Arguments that don't match the tool's schema answer isError: true with the SDK's
+  "Input validation error: ..." text.
+
+TRY IT WITH THE MCP INSPECTOR
+
+1. Run the app: npm run dev
+2. Sign in as an owner and create a token:
+   POST /api/mcp-tokens  { "name": "Inspector" }  -> copy data.token
+3. Run: npx @modelcontextprotocol/inspector
+4. Transport: Streamable HTTP. URL: http://localhost:3000/api/mcp
+   Header: Authorization = Bearer <token>
+5. Connect, then List Tools. Expect the 15 tools above.
+
+TEST CASES
+
+1. No Authorization header
+  Expect 401 invalid_token.
+
+2. Made-up token
+  Expect 401 invalid_token.
+
+3. Revoked token
+  Revoke it with POST /api/mcp-tokens/:id/revoke, then call any tool.
+  Expect 401 invalid_token.
+
+4. Deactivated owner
+  Deactivate the user, then call any tool.
+  Expect 401 invalid_token.
+
+5. list_categories
+  Expect only the categories of the token's business.
+
+6. create_menu_item with another business's categoryId
+  Expect isError with "category_not_in_business"; nothing is created.
+
+7. archive_menu_item with another business's item id
+  Expect isError with "menu_item_not_found"; the item is unchanged.
+
+8. create_category with a "businessId" argument
+  Expect isError "Input validation error"; nothing is created.

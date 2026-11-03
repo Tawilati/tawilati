@@ -30,6 +30,10 @@ const publicApiRoutes = [
   // Customer-facing (anonymous)
   "/api/menu",            // GET /api/menu?b=&t= — QR resolve
   "/api/guest-sessions",  // POST — issue guest credential
+
+  // AI assistants: the route checks its own Bearer token (McpToken), not the staff cookie.
+  // Exact path only: /api/mcp-tokens still needs the cookie.
+  "/api/mcp",
 ];
 const guestApiRoutes = [
   "/api/orders",       // POST — guest submits order

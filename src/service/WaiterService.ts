@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/app/generated/prisma/client";
+import { menuItemRepo } from "@/repository/MenuItemsRepo";
 import { waiterRepo } from "@/repository/WaiterRepo";
 import {
   CloseTabInput,
@@ -79,35 +81,51 @@ async closeTab(
     throw new ConflictException("table_session_closed");
   }
 
-  // 2. Validate payment amount
-  const billUSD = Number(session.totalUSD);
-  const billLBP = Number(session.totalLBP);
-  const receivedUSD = input.amountReceivedUSD;
-  const receivedLBP = input.amountReceivedLBP;
+  // 2. The business's exchange rate, to count LBP received towards the bill
+  const exchangeRate = await menuItemRepo.findBusinessExchangeRate(businessId);
+  if (!exchangeRate) throw new NotFoundException("not_found");
+  const rate = Number(exchangeRate);
 
-  if (receivedUSD < billUSD && receivedLBP < billLBP) {
+  // 3. Validate payment (convert everything to USD): USD and LBP together must cover the bill
+  const billUSD = Number(session.totalUSD);
+  const receivedUSD = input.amountReceivedUSD;
+  const receivedLBPAsUSD = input.amountReceivedLBP / rate;
+  const totalReceivedUSD = receivedUSD + receivedLBPAsUSD;
+
+  if (totalReceivedUSD < billUSD - 0.01) {
     throw new BadRequestException("insufficient_payment");
   }
 
-  // 3. Compute change
-  let changeUSD = 0;
-  let changeLBP = 0;
+  // 4. Compute change (only if overpaid)
+  const changeUSD = Math.max(0, totalReceivedUSD - billUSD);
+  const changeLBP = changeUSD * rate;
 
-  if (input.method === "CASH") {
-    changeUSD = Math.max(0, receivedUSD - billUSD);
-    changeLBP = Math.max(0, receivedLBP - billLBP);
+  // 5. Determine how much to record in the Payment table
+  // If the guest paid more than the bill, we only record the bill amount
+  // (the change is not revenue).
+  let paymentUSD: Prisma.Decimal;
+  let paymentLBP: Prisma.Decimal;
+
+  if (receivedUSD >= billUSD) {
+    paymentUSD = new Prisma.Decimal(billUSD);
+    paymentLBP = new Prisma.Decimal(0);
+  } else {
+    paymentUSD = new Prisma.Decimal(receivedUSD);
+    paymentLBP = new Prisma.Decimal((billUSD - receivedUSD) * rate);
   }
-  // Card: change = 0, exact bill amount is charged
+  // The maths above is in floats ((12.10 - 10) × 89000 = 186899.99999999997): record whole cents, half up.
+  paymentUSD = paymentUSD.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  paymentLBP = paymentLBP.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 
-  // 4. Transaction. The tab is closed first, and only while it is still OPEN, so of two closes racing on
+  // 6. Transaction. The tab is closed first, and only while it is still OPEN, so of two closes racing on
   // one tab the second gets 409 and records nothing. Any throw below rolls the close back.
   const paymentId = await prisma.$transaction(async (tx) => {
     const closed = await waiterRepo.closeIfOpen(
       {
         sessionId,
         businessId,
-        amountPaidUSD: session.totalUSD,
-        amountPaidLBP: session.totalLBP,
+        amountPaidUSD: paymentUSD,
+        amountPaidLBP: paymentLBP,
       },
       tx,
     );
@@ -126,8 +144,8 @@ async closeTab(
       payment = await waiterRepo.createPayment(
         {
           sessionId,
-          amountUSD: session.totalUSD,
-          amountLBP: session.totalLBP,
+          amountUSD: paymentUSD,
+          amountLBP: paymentLBP,
           method: input.method,
           recordedById: waiterId,
         },
@@ -139,16 +157,16 @@ async closeTab(
     return payment?.id ?? null;
   });
 
-  // 5. Return the receipt
+  // 7. Return the receipt
   return {
     sessionId: session.id,
     status: "CLOSED",
     totalUSD: session.totalUSD.toFixed(2),
     totalLBP: session.totalLBP.toFixed(2),
-    amountPaidUSD: session.totalUSD.toFixed(2),
-    amountPaidLBP: session.totalLBP.toFixed(2),
+    amountPaidUSD: paymentUSD.toFixed(2),
+    amountPaidLBP: paymentLBP.toFixed(2),
     amountReceivedUSD: receivedUSD.toFixed(2),
-    amountReceivedLBP: receivedLBP.toFixed(2),
+    amountReceivedLBP: input.amountReceivedLBP.toFixed(2),
     changeUSD: changeUSD.toFixed(2),
     changeLBP: changeLBP.toFixed(2),
     paymentId,

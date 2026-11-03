@@ -15,17 +15,19 @@ const repo = vi.hoisted(() => ({
     createPayment: vi.fn(),
     revokeGuestSessions: vi.fn(),
   },
+  menuItemRepo: { findBusinessExchangeRate: vi.fn() },
   tx: { fake: "transaction" },
 }));
 
 vi.mock("@/repository/WaiterRepo", () => ({ waiterRepo: repo.waiterRepo }));
+vi.mock("@/repository/MenuItemsRepo", () => ({ menuItemRepo: repo.menuItemRepo }));
 vi.mock("@/lib/db", () => ({
   prisma: { $transaction: vi.fn((run: (tx: unknown) => unknown) => run(repo.tx)) },
 }));
 
 import { WaiterService, waiterService } from "@/service/WaiterService";
 
-const { waiterRepo, tx } = repo;
+const { waiterRepo, menuItemRepo, tx } = repo;
 const BUSINESS = "business-1";
 const SESSION = "session-1";
 const WAITER = "waiter-1";
@@ -59,6 +61,8 @@ beforeEach(() => {
   waiterRepo.countUnservedOrders.mockResolvedValue(0);
   waiterRepo.createPayment.mockResolvedValue({ id: "payment-1" });
   waiterRepo.revokeGuestSessions.mockResolvedValue(undefined);
+  // 12.10 USD × 89,000 = 1,076,900 LBP, the tab's totals below.
+  menuItemRepo.findBusinessExchangeRate.mockResolvedValue(new Prisma.Decimal("89000"));
 });
 
 it("returns the same singleton instance", () => {
@@ -175,7 +179,7 @@ describe("closeTab", () => {
         sessionId: SESSION,
         businessId: BUSINESS,
         amountPaidUSD: new Prisma.Decimal("12.10"),
-        amountPaidLBP: new Prisma.Decimal("1076900.00"),
+        amountPaidLBP: new Prisma.Decimal("0"),
       },
       tx,
     );
@@ -184,7 +188,7 @@ describe("closeTab", () => {
       {
         sessionId: SESSION,
         amountUSD: new Prisma.Decimal("12.10"),
-        amountLBP: new Prisma.Decimal("1076900.00"),
+        amountLBP: new Prisma.Decimal("0"),
         method: "CASH",
         recordedById: WAITER,
       },
@@ -197,11 +201,11 @@ describe("closeTab", () => {
       totalUSD: "12.10",
       totalLBP: "1076900.00",
       amountPaidUSD: "12.10",
-      amountPaidLBP: "1076900.00",
+      amountPaidLBP: "0.00",
       amountReceivedUSD: "20.00",
       amountReceivedLBP: "0.00",
       changeUSD: "7.90",
-      changeLBP: "0.00",
+      changeLBP: "703100.00",
       paymentId: "payment-1",
     });
   });
@@ -257,6 +261,32 @@ describe("closeTab", () => {
     expect(waiterRepo.createPayment).not.toHaveBeenCalled();
     expect(waiterRepo.revokeGuestSessions).toHaveBeenCalledWith(SESSION, tx);
     expect(receipt).toMatchObject({ status: "CLOSED", totalUSD: "0.00", paymentId: null });
+  });
+
+  it("accepts USD and LBP together: 10 USD + 186,900 LBP settles a 12.10 USD bill", async () => {
+    waiterRepo.findSessionForClose.mockResolvedValue(openTab());
+
+    const receipt = await waiterService.closeTab(SESSION, BUSINESS, WAITER, {
+      amountReceivedUSD: 10,
+      amountReceivedLBP: 186900,
+      method: "CASH",
+    });
+
+    expect(waiterRepo.createPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ amountUSD: new Prisma.Decimal("10"), amountLBP: new Prisma.Decimal("186900") }),
+      tx,
+    );
+    expect(receipt).toMatchObject({ amountPaidUSD: "10.00", amountPaidLBP: "186900.00", changeUSD: "0.00" });
+  });
+
+  it("answers 400 insufficient_payment when USD and LBP together don't cover the bill", async () => {
+    waiterRepo.findSessionForClose.mockResolvedValue(openTab());
+
+    const error = await rejection(
+      waiterService.closeTab(SESSION, BUSINESS, WAITER, { ...cash, amountReceivedUSD: 10, amountReceivedLBP: 100000 }),
+    );
+    expect([error.status, error.message]).toEqual([400, "insufficient_payment"]);
+    expect(waiterRepo.closeIfOpen).not.toHaveBeenCalled();
   });
 
   it("answers 400 insufficient_payment when both currencies are short, before any write", async () => {

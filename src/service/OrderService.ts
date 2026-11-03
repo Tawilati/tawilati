@@ -250,6 +250,32 @@ export class OrderService {
     // ─────────────────────────────────────────────────────────
     return mapToGuestBillResponse(bill);
   }
+
+  // "Ask for the bill" from the guest's phone: the waiter's tile for the table turns yellow. Same token rules
+  // as getGuestOrders; a closed tab is 409. Asking twice keeps the first time.
+  async requestBill(guestToken: string): Promise<{ billRequestedAt: string }> {
+    const guest = await guestSessionRepo.FindByToken(guestToken);
+
+    if (!guest) {
+      throw new AuthenticationException("unauthorized");
+    }
+    if (guest.expiresAt < new Date()) {
+      throw new ExpiredTokenException();
+    }
+    if (guest.revokedAt) {
+      throw new HttpException(401, "guest_session_revoked");
+    }
+    if (guest.session.status !== "OPEN") {
+      throw new ConflictException("table_session_closed");
+    }
+
+    const billRequestedAt = await tableSessionRepo.requestBill(guest.sessionId);
+    // The tab closed between the check above and the update.
+    if (!billRequestedAt) {
+      throw new ConflictException("table_session_closed");
+    }
+    return { billRequestedAt: billRequestedAt.toISOString() };
+  }
 }
 
 export const orderService = OrderService.getInstance();

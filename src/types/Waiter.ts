@@ -13,17 +13,21 @@ export interface WaiterReadyOrder {
 
 export interface WaiterTableResponse {
   sessionId: string;
+  tableId: string;
   tableLabel: string;
   status: TableSessionStatus;
   openedAt: Date;
   totalUSD: string;
   totalLBP: string;
   orderCount: number;
+  lastOrderAt: Date | null;       // latest round (cancelled ones aside); null while nothing was ordered
+  billRequestedAt: Date | null;   // a guest pressed "Ask for the bill"
   readyOrders: WaiterReadyOrder[]; // <--- The actual READY items to serve
 }
 
-// Raw record
-export type WaiterTableRecord = Prisma.TableSessionGetPayload<{
+// Raw record, plus the time of the tab's latest round (WaiterRepo.findActiveTables)
+export type WaiterTableRecord = WaiterTablePayload & { lastOrderAt: Date | null };
+type WaiterTablePayload = Prisma.TableSessionGetPayload<{
   include: {
     table: { select: { label: true } };
     _count: { select: { orders: true } };
@@ -43,12 +47,15 @@ export type WaiterTableRecord = Prisma.TableSessionGetPayload<{
 export function mapToWaiterTableResponse(record: WaiterTableRecord): WaiterTableResponse {
   return {
     sessionId: record.id,
+    tableId: record.tableId,
     tableLabel: record.table.label,
     status: record.status,
     openedAt: record.openedAt,
     totalUSD: record.totalUSD.toFixed(2),
     totalLBP: record.totalLBP.toFixed(2),
     orderCount: record._count.orders,
+    lastOrderAt: record.lastOrderAt,
+    billRequestedAt: record.billRequestedAt,
     readyOrders: record.orders.map((order) => ({
       orderId: order.id,
       createdAt: order.createdAt,
@@ -91,7 +98,7 @@ export interface WaiterBillResponse {
   orders: WaiterBillOrder[];
 }
 
-// Raw record (NO status filter — shows all orders)
+// Raw record: every round of the tab except CANCELLED ones (WaiterRepo.findBillBySessionId)
 export type WaiterBillRecord = Prisma.TableSessionGetPayload<{
   include: {
     table: { select: { label: true } };
@@ -154,5 +161,5 @@ export interface CloseTabResponse {
   amountReceivedLBP: string;
   changeUSD: string;
   changeLBP: string;
-  paymentId: string;
+  paymentId: string | null; // null when the tab had nothing on it
 }

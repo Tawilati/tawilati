@@ -56,7 +56,8 @@ export class TableSessionRepo {
     }
   }
 
-  // Adds a new round to the running bill
+  // Adds a new round to the running bill. A new round also means the guests aren't done, so any
+  // "Ask for the bill" is cleared.
   async updateTotals(
     sessionId: string,
     totalUSD: Prisma.Decimal,
@@ -69,6 +70,7 @@ export class TableSessionRepo {
         data: {
           totalUSD: { increment: totalUSD },
           totalLBP: { increment: totalLBP },
+          billRequestedAt: null,
         },
       });
     } catch (error) {
@@ -96,6 +98,28 @@ export class TableSessionRepo {
     } catch (error) {
       throw new DBException(
         "Error closing table session",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  // A guest asked for the bill. Only an open tab that hasn't asked yet is stamped, so a second tap keeps the
+  // first time (the waiter's "waiting to pay" clock doesn't restart). Returns the time on the tab, or null
+  // when the tab is no longer open.
+  async requestBill(sessionId: string, tx: DbClient = prisma): Promise<Date | null> {
+    try {
+      await tx.tableSession.updateMany({
+        where: { id: sessionId, status: "OPEN", billRequestedAt: null },
+        data: { billRequestedAt: new Date() },
+      });
+      const tab = await tx.tableSession.findFirst({
+        where: { id: sessionId, status: "OPEN" },
+        select: { billRequestedAt: true },
+      });
+      return tab?.billRequestedAt ?? null;
+    } catch (error) {
+      throw new DBException(
+        "Error requesting the bill",
         error instanceof Error ? error : new Error(String(error)),
       );
     }

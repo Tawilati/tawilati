@@ -1,6 +1,6 @@
-
-
-import prisma from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { Prisma } from "@/app/generated/prisma/client";
+import { menuItemRepo } from "@/repository/MenuItemsRepo";
 import { waiterRepo } from "@/repository/WaiterRepo";
 import {
   CloseTabInput,
@@ -13,8 +13,6 @@ import {
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
-import { Decimal } from "@prisma/client/runtime/client";
-
 
 export class WaiterService {
   private static instance: WaiterService;
@@ -40,14 +38,12 @@ export class WaiterService {
   const order = await waiterRepo.findOrderForWaiter(orderId, businessId);
 
   if (!order) {
-    throw new NotFoundException("order_not_found");
+    throw new NotFoundException("not_found");
   }
 
   // 2. Validate transition (F-04: only READY → SERVED)
   if (order.status !== "READY") {
-    throw new ConflictException(
-      `invalid_transition_from_${order.status.toLowerCase()}_to_served`,
-    );
+    throw new BadRequestException("invalid_transition");
   }
 
   // 3. Update
@@ -64,7 +60,7 @@ async getBill(
 ): Promise<WaiterBillResponse> {
   const bill = await waiterRepo.findBillBySessionId(sessionId, businessId);
   if (!bill) {
-    throw new NotFoundException("session_not_found");
+    throw new NotFoundException("not_found");
   }
   return mapToWaiterBillResponse(bill);
 }
@@ -77,20 +73,20 @@ async closeTab(
 ): Promise<CloseTabResponse> {
   // 1. Fetch the session
   const session = await waiterRepo.findSessionForClose(sessionId, businessId);
-  if (!session) throw new NotFoundException("session_not_found");
-  if (session.status === "CLOSED") {
-    throw new ConflictException("session_already_closed");
+  if (!session) {
+    throw new NotFoundException("not_found");
   }
 
-  // 2. Fetch the business exchange rate
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { exchangeRate: true },
-  });
-  if (!business) throw new NotFoundException("business_not_found");
-  const rate = Number(business.exchangeRate);
+  if (session.status === "CLOSED") {
+    throw new ConflictException("table_session_closed");
+  }
 
-  // 3. Validate payment (convert everything to USD)
+  // 2. The business's exchange rate, to count LBP received towards the bill
+  const exchangeRate = await menuItemRepo.findBusinessExchangeRate(businessId);
+  if (!exchangeRate) throw new NotFoundException("not_found");
+  const rate = Number(exchangeRate);
+
+  // 3. Validate payment (convert everything to USD): USD and LBP together must cover the bill
   const billUSD = Number(session.totalUSD);
   const receivedUSD = input.amountReceivedUSD;
   const receivedLBPAsUSD = input.amountReceivedLBP / rate;
@@ -107,44 +103,73 @@ async closeTab(
   // 5. Determine how much to record in the Payment table
   // If the guest paid more than the bill, we only record the bill amount
   // (the change is not revenue).
-let paymentUSD: Decimal;
-let paymentLBP: Decimal;
+  let paymentUSD: Prisma.Decimal;
+  let paymentLBP: Prisma.Decimal;
 
-if (receivedUSD >= billUSD) {
-  paymentUSD = new Decimal(billUSD);
-  paymentLBP = new Decimal(0);
-} else {
-  paymentUSD = new Decimal(receivedUSD);
-  paymentLBP = new Decimal((billUSD - receivedUSD) * rate);
-}
+  if (receivedUSD >= billUSD) {
+    paymentUSD = new Prisma.Decimal(billUSD);
+    paymentLBP = new Prisma.Decimal(0);
+  } else {
+    paymentUSD = new Prisma.Decimal(receivedUSD);
+    paymentLBP = new Prisma.Decimal((billUSD - receivedUSD) * rate);
+  }
+  // The maths above is in floats ((12.10 - 10) × 89000 = 186899.99999999997): record whole cents, half up.
+  paymentUSD = paymentUSD.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  paymentLBP = paymentLBP.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 
-  // 6. Transaction
-  const result = await prisma.$transaction(async (tx) => {
-    return await waiterRepo.recordPaymentAndClose(
+  // 6. Transaction. The tab is closed first, and only while it is still OPEN, so of two closes racing on
+  // one tab the second gets 409 and records nothing. Any throw below rolls the close back.
+  const paymentId = await prisma.$transaction(async (tx) => {
+    const closed = await waiterRepo.closeIfOpen(
       {
         sessionId,
-        paymentUSD,
-        paymentLBP,
-        method: input.method,
-        recordedById: waiterId,
+        businessId,
+        amountPaidUSD: paymentUSD,
+        amountPaidLBP: paymentLBP,
       },
       tx,
     );
+    if (!closed) {
+      throw new ConflictException("table_session_closed");
+    }
+
+    // Every round must be served (or cancelled) before the bill is settled.
+    if ((await waiterRepo.countUnservedOrders(sessionId, tx)) > 0) {
+      throw new ConflictException("tab_not_settleable");
+    }
+
+    // A tab with nothing on it (a guest scanned but never ordered) closes without a payment.
+    let payment: { id: string } | null = null;
+    if (!session.totalUSD.isZero() || !session.totalLBP.isZero()) {
+      payment = await waiterRepo.createPayment(
+        {
+          sessionId,
+          amountUSD: paymentUSD,
+          amountLBP: paymentLBP,
+          method: input.method,
+          recordedById: waiterId,
+        },
+        tx,
+      );
+    }
+
+    await waiterRepo.revokeGuestSessions(sessionId, tx);
+    return payment?.id ?? null;
   });
 
   // 7. Return the receipt
   return {
-    sessionId: result.session.id,
-    status: result.session.status,
-    totalUSD: result.session.totalUSD.toFixed(2),
-    totalLBP: result.session.totalLBP.toFixed(2),
-    amountPaidUSD: result.session.amountPaidUSD.toFixed(2),
-    amountPaidLBP: result.session.amountPaidLBP.toFixed(2),
+    sessionId: session.id,
+    status: "CLOSED",
+    totalUSD: session.totalUSD.toFixed(2),
+    totalLBP: session.totalLBP.toFixed(2),
+    amountPaidUSD: paymentUSD.toFixed(2),
+    amountPaidLBP: paymentLBP.toFixed(2),
     amountReceivedUSD: receivedUSD.toFixed(2),
     amountReceivedLBP: input.amountReceivedLBP.toFixed(2),
     changeUSD: changeUSD.toFixed(2),
     changeLBP: changeLBP.toFixed(2),
-    paymentId: result.payment.id,
+    paymentId,
   };
 }
 }

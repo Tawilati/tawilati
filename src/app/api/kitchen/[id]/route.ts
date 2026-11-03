@@ -2,10 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { authGuard } from "@/lib/auth/gaurd";
 import { getBusinessIdFromRequest } from "@/lib/auth/requestHelper";
-import { handle, parseBody } from "@/lib/http";
+import { handle, parseBody, parseParams } from "@/lib/http";
 
 import { PERMISSION } from "@/types/Roles";
 import { kitchenService } from "@/service/KitchenService";
+import { orderIdSchema } from "@/validation/orderSchemas";
+
+// PATCH /api/kitchen/:id (:id is a round, DiningOrder): NEW → PREPARING → READY.
 
 const statusSchema = z.object({
   status: z.enum(["PREPARING", "READY"]),
@@ -19,7 +22,7 @@ export async function PATCH(
     const denied = authGuard(request, { requirePermission: PERMISSION.KITCHEN_WRITE });
     if (denied) return denied;
 
-    const { id } = await params;
+    const { id } = await parseParams(params, orderIdSchema);
     const { status } = await parseBody(request, statusSchema);
     const businessId = getBusinessIdFromRequest(request)!;
 

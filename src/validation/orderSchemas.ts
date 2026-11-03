@@ -21,3 +21,7 @@ export const guestTokenSchema = z.string().regex(/^[0-9a-f]{64}$/);
 export const idempotencyKeySchema = z.string().trim().min(1).max(255);
 
 export type SubmitOrderBody = z.infer<typeof submitOrderSchema>;
+
+// `:id` of the kitchen and waiter routes: a round (DiningOrder) id, or a tab (TableSession) id for bill and close.
+export const orderIdSchema = z.object({ id: z.string().uuid() });
+export const tabIdSchema = z.object({ id: z.string().uuid() });

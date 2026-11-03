@@ -73,7 +73,7 @@ export function WaiterFloor() {
       )}
 
       {floor && floor.length > 0 && (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] md:gap-4 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
           {floor.map((tile) => (
             <li key={tile.tableId} className="flex min-w-0 flex-col [&>*]:flex-1">
               <TableTile tile={tile} now={now} onOpen={open} />

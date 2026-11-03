@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Button, Card, Toast } from "@/components/ui";
 import { FloatingToast } from "@/components/ui/FloatingToast";
-import { buildFloor, STATE_LABEL, type FloorTile, type TableState } from "@/utils/waiterFloor";
+import { buildFloor, STATE_LABEL, updatedAgoLabel, type FloorTile, type TableState } from "@/utils/waiterFloor";
 import { TableSheet } from "./TableSheet";
 import { TableTile, TILE_LOOK } from "./TableTile";
 import { useWaiterFloor } from "./useWaiterFloor";
@@ -40,13 +40,11 @@ export function WaiterFloor() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-bold">Tables</h1>
-        <p className="text-xs text-ink-muted" aria-live="polite">
-          {stale
-            ? "Can't refresh right now. Showing the last update."
-            : updatedAt
-              ? "Updates every few seconds"
-              : ""}
-        </p>
+        {updatedAt && (
+          <p className={`text-xs ${stale ? "font-semibold text-danger" : "text-ink-muted"}`}>
+            {stale ? "No connection. " : ""}Updated {updatedAgoLabel(updatedAt, now)}
+          </p>
+        )}
       </div>
 
       {notice && <FloatingToast key={notice.id} title={notice.title} onDismiss={dismissNotice} />}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFloor, elapsedLabel, tableState, type OpenTab } from "@/utils/waiterFloor";
+import { buildFloor, elapsedLabel, tableState, updatedAgoLabel, type OpenTab } from "@/utils/waiterFloor";
 
 const NOW = new Date("2026-11-03T13:00:00.000Z").getTime();
 const minutesAgo = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
@@ -95,5 +95,19 @@ describe("elapsedLabel", () => {
     [65, "1 h 5 min"],
   ])("%s minutes → %s", (minutes, label) => {
     expect(elapsedLabel(minutesAgo(minutes), NOW)).toBe(label);
+  });
+});
+
+describe("updatedAgoLabel", () => {
+  it.each([
+    [0, "just now"],
+    [4_000, "just now"],
+    [5_000, "5 s ago"],
+    [59_000, "59 s ago"],
+    [60_000, "1 min ago"],
+    [5 * 60_000 + 30_000, "5 min ago"],
+    [65 * 60_000, "1 h 5 min ago"],
+  ])("%s ms after the last update → %s", (ms, label) => {
+    expect(updatedAgoLabel(NOW - ms, NOW)).toBe(label);
   });
 });

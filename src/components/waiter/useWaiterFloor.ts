@@ -33,7 +33,6 @@ export function useWaiterFloor() {
       setTabs(nextTabs);
       if (nextTables) setTables(nextTables);
       setUpdatedAt(Date.now());
-      setNow(Date.now());
       setStale(false);
     } catch {
       if (request !== latest.current) return;
@@ -48,6 +47,12 @@ export function useWaiterFloor() {
     if (document.visibilityState !== "visible") return;
     await load();
   }, [load]);
+
+  // The clock ticks on its own, even offline: "updated 5 min ago" and each table's time keep counting.
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(tick);
+  }, []);
 
   useEffect(() => {
     const first = setTimeout(refresh, 0);

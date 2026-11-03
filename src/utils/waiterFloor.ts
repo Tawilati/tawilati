@@ -91,6 +91,15 @@ export function elapsedLabel(since: string, now: number): string {
   return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
 
+// When the screen last heard from the server: "just now", "12 s ago", "5 min ago". Shown at the top so a waiter
+// whose connection dropped sees how old the colours are.
+export function updatedAgoLabel(updatedAt: number, now: number): string {
+  const seconds = Math.floor((now - updatedAt) / 1000);
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds} s ago`;
+  return `${elapsedLabel(new Date(updatedAt).toISOString(), now)} ago`;
+}
+
 export const STATE_LABEL: Record<TableState, string> = {
   free: "Free",
   ordered: "Just ordered",

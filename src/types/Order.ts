@@ -113,8 +113,7 @@ export interface GuestBillResponse {
   totalLBP: string;
   guestTotalUSD: string;    // ← NEW: Guest's personal total
   guestTotalLBP: string;    // ← NEW
-  amountPaidUSD: string;
-  amountPaidLBP: string;
+ 
   orders: GuestOrderResponse[];
 }
 
@@ -164,8 +163,7 @@ export function mapToGuestBillResponse(record: GuestBillRecord): GuestBillRespon
     totalLBP: record.session.totalLBP.toFixed(2),
     guestTotalUSD: guestTotalUSD.toFixed(2),
     guestTotalLBP: guestTotalLBP.toFixed(2),
-    amountPaidUSD: record.session.amountPaidUSD.toFixed(2),
-    amountPaidLBP: record.session.amountPaidLBP.toFixed(2),
+  
     orders: record.orders.map((order) => ({
       orderId: order.id,
       status: order.status,

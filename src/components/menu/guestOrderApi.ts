@@ -42,7 +42,6 @@ const billSchema = z.object({
   status: z.enum(["OPEN", "CLOSED"]),
   totalUSD: amount, totalLBP: amount,
   guestTotalUSD: amount, guestTotalLBP: amount,
-  amountPaidUSD: amount, amountPaidLBP: amount,
   orders: z.array(z.object({
     orderId: z.string().min(1),
     status: orderSchema.shape.status,

@@ -9,8 +9,6 @@ const bill = {
   totalLBP: "3515500.00",
   guestTotalUSD: "24.50",
   guestTotalLBP: "2180500.00",
-  amountPaidUSD: "0.00",
-  amountPaidLBP: "0.00",
   orders: [{
     orderId: "o1",
     status: "PREPARING",

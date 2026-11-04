@@ -275,6 +275,17 @@
   font-weight: 600;
   line-height: 20px;
 }
+/* On a forest-green surface (the staff sidebar): cream text, lighter fills, a cream focus ring. */
+.tw-nav--inverse .tw-nav__item { color: var(--text-inverse); }
+.tw-nav--inverse .tw-nav__item:hover { background: var(--brand-primary-hover); }
+.tw-nav--inverse .tw-nav__item:focus-visible { outline-color: var(--text-inverse); }
+.tw-nav--inverse .tw-nav__item[aria-current="page"] { background: var(--text-inverse); color: var(--brand-primary); }
+.tw-nav--inverse .tw-nav__item[aria-disabled="true"] { color: color-mix(in srgb, var(--text-inverse) 55%, transparent); }
+.tw-nav--inverse .tw-nav__item[aria-disabled="true"]:hover { background: transparent; }
+.tw-nav--inverse .tw-nav__soon {
+  background: color-mix(in srgb, var(--text-inverse) 14%, transparent);
+  color: color-mix(in srgb, var(--text-inverse) 80%, transparent);
+}
 
 /* ---------- Status badge ---------- */
 .tw-badge {

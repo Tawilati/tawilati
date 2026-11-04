@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/reports/daily/route";
 import { DBException } from "@/utils/exceptions/RepoException";
+import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
 const mockedReportService = vi.hoisted(() => ({
   getDailyReport: vi.fn(),
@@ -117,6 +118,31 @@ describe("GET /api/reports/daily", () => {
     });
     expect(Object.keys(body.details)).toEqual(["date"]);
     expect(mockedReportService.getDailyReport).not.toHaveBeenCalled();
+  });
+
+  it("leaves the date to the service when none is sent, so it uses today on the café's clock", async () => {
+    const headers = new Headers({ "x-user-id": "u0000000-0000-4000-8000-000000000009", "x-user-role": "OWNER", "x-business-id": BUSINESS_ID });
+    const response = await GET(new NextRequest("http://localhost/api/reports/daily", { method: "GET", headers }));
+
+    expect(response.status).toBe(200);
+    expect(mockedReportService.getDailyReport).toHaveBeenCalledWith(BUSINESS_ID, undefined);
+  });
+
+  it("returns 400 validation_error for a day that doesn't exist", async () => {
+    const response = await GET(makeRequest({ date: "2026-02-30" }));
+
+    expect(response.status).toBe(400);
+    expect(Object.keys((await response.json()).details)).toEqual(["date"]);
+    expect(mockedReportService.getDailyReport).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 not_found when the business is gone", async () => {
+    mockedReportService.getDailyReport.mockRejectedValue(new NotFoundException("not_found"));
+
+    const response = await GET(makeRequest());
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ success: false, message: "not_found" });
   });
 
   it("returns 500 database_error when the report cannot be generated", async () => {

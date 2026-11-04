@@ -29,7 +29,7 @@ export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
     { href: "/dashboard/menu", label: "Menu", icon: MenuIcon },
     { href: "/dashboard/tables", label: "Tables", icon: TablesIcon },
     { href: "/dashboard/staff", label: "Staff", icon: StaffIcon },
-    { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon, soon: true },
+    { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon },
     { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, phoneMore: true, accountMenu: true },
   ],
   [ROLE.KITCHEN]: [

@@ -7,6 +7,8 @@ import type {
   DailyReportTopItem,
 } from "@/types/Report";
 import { Decimal } from "@prisma/client/runtime/client";
+import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
+import { dayBounds, todayIn } from "@/utils/timezone";
 
 export class ReportService {
   private static instance: ReportService;
@@ -22,15 +24,15 @@ export class ReportService {
 
   async getDailyReport(
     businessId: string,
-    date: string, // "YYYY-MM-DD"
+    requestedDate?: string, // "YYYY-MM-DD"; today on the café's clock when missing
   ): Promise<DailyReportResponse> {
     // 1. Fetch business
     const business = await reportRepo.getBusiness(businessId);
-    if (!business) throw new Error("business_not_found");
+    if (!business) throw new NotFoundException("not_found");
 
-    // 2. Compute start/end of day (UTC for simplicity)
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
+    // 2. The day runs from midnight to midnight on the café's clock, not UTC's
+    const date = requestedDate ?? todayIn(business.timezone);
+    const { start, end } = dayBounds(date, business.timezone);
 
     // 3. Fetch data
     const [payments, orders] = await Promise.all([

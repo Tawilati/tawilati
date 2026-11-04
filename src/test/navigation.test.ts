@@ -33,9 +33,9 @@ describe("staff navigation", () => {
 });
 
 describe("screens not built yet", () => {
-  it("lists the owner's Reports and the kitchen's Sold out as coming soon", () => {
+  it("lists only the kitchen's Sold out as coming soon", () => {
     const soon = (role: ROLE) => NAV_BY_ROLE[role].filter((i) => i.soon).map((i) => i.href);
-    expect(soon(ROLE.OWNER)).toEqual(["/dashboard/reports"]);
+    expect(soon(ROLE.OWNER)).toEqual([]);
     expect(soon(ROLE.KITCHEN)).toEqual(["/kitchen/sold-out"]);
     expect(soon(ROLE.WAITER)).toEqual([]);
   });

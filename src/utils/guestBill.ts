@@ -1,5 +1,6 @@
 // What the guest's order status bar says. Pure logic, no React or fetching.
 import type { GuestOrderResponse } from "@/types/Order";
+import { fromCents, toCents } from "@/utils/money";
 
 type RoundStatus = GuestOrderResponse["status"];
 
@@ -18,16 +19,6 @@ export function closedBill<T extends { status: string; orders: Pick<GuestOrderRe
     status: "CLOSED",
     orders: bill.orders.map((order) => (order.status === "CANCELLED" ? order : { ...order, status: "SERVED" })),
   };
-}
-
-// "5.00" → 500. Amounts are split as strings, so no float ever touches a price.
-function toCents(amount: string): number {
-  const [whole, cents = ""] = amount.split(".");
-  return Number(whole) * 100 + Number(cents.padEnd(2, "0").slice(0, 2));
-}
-
-function fromCents(cents: number): string {
-  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
 }
 
 // The split API rounds each share to the cent, so the shares can miss the total by a few cents

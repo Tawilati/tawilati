@@ -127,7 +127,7 @@ const splitSchema = z.object({
 export type BillSplit = z.infer<typeof splitSchema>;
 export type SplitResult = { kind: "split"; split: BillSplit } | { kind: "closed" } | { kind: "expired" } | { kind: "unavailable" };
 
-// "Equally": the table's total shared by the number of people paying. Nothing is saved.
+// "Split equally": the table's total shared by the number of people paying. Nothing is saved.
 // An expired token is renewed and the request sent once more, as for the bill.
 export async function fetchSplit(token: string, people: number): Promise<SplitResult> {
   for (let tries = 0; tries < 2; tries++) {

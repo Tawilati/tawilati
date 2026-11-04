@@ -52,8 +52,8 @@ export function SplitBill({ bill, onSplit }: { bill: GuestBill; onSplit: (people
             type="button"
             aria-pressed={mode === option}
             onClick={() => setMode(option)}
-            className={`min-h-10 flex-1 cursor-pointer rounded-full px-2 text-[13px] leading-tight font-semibold transition-colors ${
-              mode === option ? "bg-primary text-on-primary" : "text-ink hover:bg-surface-muted"
+            className={`min-h-10 flex-1 cursor-pointer whitespace-nowrap rounded-full px-1.5 text-[12px] font-semibold transition-colors ${
+              mode === option ? "bg-primary text-on-primary" : "text-ink"
             }`}
           >
             {option === "equal" ? "Split equally" : "Pay for my orders"}

@@ -85,7 +85,7 @@ export function useGuestOrders(qrToken: string) {
     return ASK_FAILED;
   }, [qrToken, load]);
 
-  // "Equally": the table's share per person, or null when it couldn't be worked out.
+  // "Split equally": the table's share per person, or null when it couldn't be worked out.
   const split = useCallback(async (people: number): Promise<BillSplit | null> => {
     const token = tokenStore(qrToken).get();
     if (!token) return null;

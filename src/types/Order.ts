@@ -181,3 +181,12 @@ export function mapToGuestBillResponse(record: GuestBillRecord): GuestBillRespon
     })),
   };
 }
+export interface BillSplitResponse {
+  sessionId: string;
+  tableLabel: string;
+  totalUSD: string;
+  totalLBP: string;
+  splitCount: number;
+  perPersonUSD: string;
+  perPersonLBP: string;
+}

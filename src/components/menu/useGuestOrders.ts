@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { closedBill } from "@/utils/guestBill";
 import { askForBill, fetchGuestBill, type GuestBill } from "./guestOrderApi";
 import { tokenStore } from "./guestCartStorage";
 
@@ -25,10 +26,11 @@ export function useGuestOrders(qrToken: string) {
     if (request !== latest.current) return;
 
     if (result.kind === "bill") {
-      setBill(result.bill);
+      setBill(result.bill.status === "CLOSED" ? closedBill(result.bill) : result.bill);
       if (result.bill.status === "CLOSED") stopped.current = true;
     } else if (result.kind === "closed") {
       setRevoked(true);
+      setBill((last) => (last ? closedBill(last) : last));
       stopped.current = true;
       // This tab is over: after a reload, this phone starts fresh rather than stay on a closed bill.
       tokenStore(qrToken).clear();
@@ -75,6 +77,7 @@ export function useGuestOrders(qrToken: string) {
     }
     if (result.kind === "closed") {
       setRevoked(true);
+      setBill((last) => (last ? closedBill(last) : last));
       stopped.current = true;
       tokenStore(qrToken).clear();
       return null;

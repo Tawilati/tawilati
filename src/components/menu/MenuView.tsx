@@ -190,6 +190,7 @@ export function MenuView({
           closed={closed}
           onChange={change}
           onSubmit={submitOrder}
+          rounds={bill?.orders}
           onClose={() => setCartOpen(false)}
           onTrack={() => {
             setCartOpen(false);

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Button, Modal, Toast } from "@/components/ui";
 import { formatUSD } from "@/utils/money";
-import type { GuestBill } from "./guestOrderApi";
+import type { BillSplit, GuestBill } from "./guestOrderApi";
 import { RoundBadge, Total } from "./OrderParts";
+import { SplitBill } from "./SplitBill";
 
 const READY = "Your order is ready!";
 const TAB_CLOSED = "This table's bill has been closed. Please ask a member of staff.";
@@ -18,11 +19,13 @@ export function OrdersSheet({
   bill,
   closed,
   onAskBill,
+  onSplit,
   onClose,
 }: {
   bill: GuestBill;
   closed: boolean;
   onAskBill: () => Promise<string | null>;
+  onSplit: (people: number) => Promise<BillSplit | null>;
   onClose: () => void;
 }) {
   const [asking, setAsking] = useState(false);
@@ -65,6 +68,7 @@ export function OrdersSheet({
           <Total label="Your orders" usd={bill.guestTotalUSD} lbp={bill.guestTotalLBP} />
           <Total label="Table total" usd={bill.totalUSD} lbp={bill.totalLBP} />
         </div>
+        {!closed && bill.orders.length > 0 && <SplitBill bill={bill} onSplit={onSplit} />}
         {!closed && bill.orders.length > 0 && (
           <div className="flex flex-col gap-2">
             {askError && <Toast tone="error" title={askError} />}

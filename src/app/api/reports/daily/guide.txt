@@ -71,7 +71,9 @@ response type
         "businessName": "Tawilati Demo Café",
         "timezone": "Asia/Beirut",
         "totalUSD": "5.00",
-        "totalLBP": "0.00",
+        "totalLBP": "447500.00",
+        "receivedUSD": "5.00",
+        "receivedLBP": "0.00",
         "averageRate": "89500.00",
         "tablesServed": 1,
         "ordersCount": 1,
@@ -81,7 +83,7 @@ response type
                 "method": "CASH",
                 "count": 1,
                 "totalUSD": "5.00",
-                "totalLBP": "0.00"
+                "totalLBP": "447500.00"
             }
         ],
         "byWaiter": [
@@ -90,7 +92,7 @@ response type
                 "waiterName": "Demo Waiter",
                 "count": 1,
                 "totalUSD": "5.00",
-                "totalLBP": "0.00"
+                "totalLBP": "447500.00"
             }
         ],
         "topItems": [
@@ -103,3 +105,23 @@ response type
         ]
     }
 }
+
+Changes (4 Nov 2026)
+--------------------
+- The day runs from midnight to midnight on the café's clock (Business.timezone), not UTC.
+  A bill closed at 01:30 in Beirut on 4 Nov counts on 4 Nov, though it is still 3 Nov in UTC.
+- Without ?date the report is today on the café's clock.
+- totalUSD / totalLBP (and the byMethod / byWaiter totals) are what the closed bills were worth:
+  each bill's own totals. A $10 bill paid $5 + 447,500 LBP counts as $10.00 / 895,000 LBP.
+- receivedUSD / receivedLBP are what was handed over in each currency (the Payment amounts),
+  for counting the drawer. For that bill: $5.00 and 447,500 LBP.
+
+Manual cases (as the owner, cookie from POST /api/auth/login)
+1. GET /api/reports/daily                    → 200, data.date is today in the café's timezone
+2. GET /api/reports/daily?date=2026-11-04    → 200
+3. GET /api/reports/daily?date=2026/11/04    → 400 validation_error, details.date
+4. GET /api/reports/daily?date=2026-02-30    → 400 validation_error (a day that doesn't exist)
+5. Same request as a WAITER or KITCHEN       → 403 forbidden
+6. Without a cookie                          → 401 unauthorized
+7. Close a $10 bill with 5 USD + 447500 LBP, then GET today:
+   totalUSD grows by 10.00, receivedUSD by 5.00, receivedLBP by 447500.00

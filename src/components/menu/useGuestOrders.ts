@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { askForBill, fetchGuestBill, type GuestBill } from "./guestOrderApi";
+import { closedBill } from "@/utils/guestBill";
+import { askForBill, fetchGuestBill, fetchSplit, type BillSplit, type GuestBill } from "./guestOrderApi";
 import { tokenStore } from "./guestCartStorage";
 
 // How often the phone re-checks its orders, so a status change in the kitchen reaches the table.
@@ -25,10 +26,11 @@ export function useGuestOrders(qrToken: string) {
     if (request !== latest.current) return;
 
     if (result.kind === "bill") {
-      setBill(result.bill);
+      setBill(result.bill.status === "CLOSED" ? closedBill(result.bill) : result.bill);
       if (result.bill.status === "CLOSED") stopped.current = true;
     } else if (result.kind === "closed") {
       setRevoked(true);
+      setBill((last) => (last ? closedBill(last) : last));
       stopped.current = true;
       // This tab is over: after a reload, this phone starts fresh rather than stay on a closed bill.
       tokenStore(qrToken).clear();
@@ -75,6 +77,7 @@ export function useGuestOrders(qrToken: string) {
     }
     if (result.kind === "closed") {
       setRevoked(true);
+      setBill((last) => (last ? closedBill(last) : last));
       stopped.current = true;
       tokenStore(qrToken).clear();
       return null;
@@ -82,5 +85,20 @@ export function useGuestOrders(qrToken: string) {
     return ASK_FAILED;
   }, [qrToken, load]);
 
-  return { bill, closed: revoked || bill?.status === "CLOSED", restart, askBill };
+  // "Split equally": the table's share per person, or null when it couldn't be worked out.
+  const split = useCallback(async (people: number): Promise<BillSplit | null> => {
+    const token = tokenStore(qrToken).get();
+    if (!token) return null;
+    const result = await fetchSplit(token, people);
+    if (result.kind === "split") return result.split;
+    if (result.kind === "closed") {
+      setRevoked(true);
+      setBill((last) => (last ? closedBill(last) : last));
+      stopped.current = true;
+      tokenStore(qrToken).clear();
+    }
+    return null;
+  }, [qrToken]);
+
+  return { bill, closed: revoked || bill?.status === "CLOSED", restart, askBill, split };
 }

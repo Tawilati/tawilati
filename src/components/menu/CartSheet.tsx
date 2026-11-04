@@ -6,7 +6,7 @@ import { CircleCheckIcon } from "@/components/icons";
 import type { PublicMenuItem } from "@/types/Menu";
 import { MAX_CART_LINES, type CartRow, type CartSummary } from "@/utils/guestCart";
 import { formatUSD } from "@/utils/money";
-import type { PlacedOrder, SubmitOutcome } from "./guestOrderApi";
+import type { GuestBill, PlacedOrder, SubmitOutcome } from "./guestOrderApi";
 import { RoundBadge, Total } from "./OrderParts";
 
 // Plain sentences for the guest; error codes are never shown.
@@ -76,7 +76,7 @@ function Confirmation({
       <div className="flex flex-col gap-2 rounded-2xl border border-border-subtle p-3.5">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[15px] font-semibold">Your order</span>
-          <RoundBadge status={order.status} />
+          <span aria-live="polite"><RoundBadge status={order.status} /></span>
         </div>
         <ul className="flex flex-col gap-0.5 text-sm">
           {order.lines.map((line) => (
@@ -107,9 +107,12 @@ export function CartSheet({
   onSubmit,
   onClose,
   onTrack,
+  rounds,
 }: {
   tableLabel: string;
   summary: CartSummary;
+  // This phone's rounds as last polled, so the confirmation follows the kitchen while it stays open.
+  rounds: GuestBill["orders"] | undefined;
   submitting: boolean;
   closed: boolean;
   onChange: Change;
@@ -143,7 +146,7 @@ export function CartSheet({
     <Modal title={`Table ${tableLabel}`} locked={submitting} onClose={onClose}>
       {placed ? (
         <Confirmation
-          order={placed.order}
+          order={{ ...placed.order, status: rounds?.find((r) => r.orderId === placed.order.orderId)?.status ?? placed.order.status }}
           earlierAttempt={placed.earlierAttempt}
           cartLeft={summary.rows.length > 0}
           onDone={() => (summary.rows.length > 0 ? setPlaced(null) : onClose())}

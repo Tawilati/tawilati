@@ -7,6 +7,8 @@ import type {
   DailyReportTopItem,
 } from "@/types/Report";
 import { Decimal } from "@prisma/client/runtime/client";
+import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
+import { dayBounds, todayIn } from "@/utils/timezone";
 
 export class ReportService {
   private static instance: ReportService;
@@ -22,15 +24,15 @@ export class ReportService {
 
   async getDailyReport(
     businessId: string,
-    date: string, // "YYYY-MM-DD"
+    requestedDate?: string, // "YYYY-MM-DD"; today on the café's clock when missing
   ): Promise<DailyReportResponse> {
     // 1. Fetch business
     const business = await reportRepo.getBusiness(businessId);
-    if (!business) throw new Error("business_not_found");
+    if (!business) throw new NotFoundException("not_found");
 
-    // 2. Compute start/end of day (UTC for simplicity)
-    const start = new Date(`${date}T00:00:00.000Z`);
-    const end = new Date(`${date}T23:59:59.999Z`);
+    // 2. The day runs from midnight to midnight on the café's clock, not UTC's
+    const date = requestedDate ?? todayIn(business.timezone);
+    const { start, end } = dayBounds(date, business.timezone);
 
     // 3. Fetch data
     const [payments, orders] = await Promise.all([
@@ -38,16 +40,23 @@ export class ReportService {
       reportRepo.getDailyOrders(businessId, start, end),
     ]);
 
-    // 4. Totals
+    // 4. Totals. Sales are what the closed bills were worth; a payment only records how the bill
+    // was split between dollars and pounds, which is what was received in each currency.
     let totalUSD = new Decimal(0);
     let totalLBP = new Decimal(0);
+    let receivedUSD = new Decimal(0);
+    let receivedLBP = new Decimal(0);
 
     const methodMap = new Map<string, DailyReportMethodBreakdown>();
     const waiterMap = new Map<string, DailyReportWaiterBreakdown>();
 
     for (const p of payments) {
-      totalUSD = totalUSD.plus(p.amountUSD);
-      totalLBP = totalLBP.plus(p.amountLBP);
+      const billUSD = p.session.totalUSD;
+      const billLBP = p.session.totalLBP;
+      totalUSD = totalUSD.plus(billUSD);
+      totalLBP = totalLBP.plus(billLBP);
+      receivedUSD = receivedUSD.plus(p.amountUSD);
+      receivedLBP = receivedLBP.plus(p.amountLBP);
 
       // By method
       const m = methodMap.get(p.method) ?? {
@@ -57,8 +66,8 @@ export class ReportService {
         totalLBP: "0.00",
       };
       m.count += 1;
-      m.totalUSD = new Decimal(m.totalUSD).plus(p.amountUSD).toFixed(2);
-      m.totalLBP = new Decimal(m.totalLBP).plus(p.amountLBP).toFixed(2);
+      m.totalUSD = new Decimal(m.totalUSD).plus(billUSD).toFixed(2);
+      m.totalLBP = new Decimal(m.totalLBP).plus(billLBP).toFixed(2);
       methodMap.set(p.method, m);
 
       // By waiter
@@ -70,8 +79,8 @@ export class ReportService {
         totalLBP: "0.00",
       };
       w.count += 1;
-      w.totalUSD = new Decimal(w.totalUSD).plus(p.amountUSD).toFixed(2);
-      w.totalLBP = new Decimal(w.totalLBP).plus(p.amountLBP).toFixed(2);
+      w.totalUSD = new Decimal(w.totalUSD).plus(billUSD).toFixed(2);
+      w.totalLBP = new Decimal(w.totalLBP).plus(billLBP).toFixed(2);
       waiterMap.set(p.recordedById, w);
     }
 
@@ -115,6 +124,8 @@ export class ReportService {
       timezone: business.timezone,
       totalUSD: totalUSD.toFixed(2),
       totalLBP: totalLBP.toFixed(2),
+      receivedUSD: receivedUSD.toFixed(2),
+      receivedLBP: receivedLBP.toFixed(2),
       averageRate,
       tablesServed: payments.length,
       ordersCount: orders.length,

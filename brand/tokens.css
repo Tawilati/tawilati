@@ -65,6 +65,10 @@
   --table-slowpay-bg: #B85A1A;    --table-slowpay-fg: #FFFFFF;   /* paying is slow (4.65:1) */
   --table-quiet-bg: #3F7A55;      --table-quiet-fg: #FFFFFF;     /* quiet a while (5.09:1) */
 
+  /* Daily report: change against the day before (always with an arrow and the amount). */
+  --trend-up-bg: #DCEBDD;         --trend-up-fg: #1F5A36;        /* more than the day before (6.59:1) */
+  --trend-down-bg: #FAEDB5;       --trend-down-fg: #5E4A00;      /* less than the day before (7.27:1) */
+
   /* Type */
   --font-brand: "Playfair Display", Georgia, serif;
   --font-ui: "Inter", Arial, sans-serif;

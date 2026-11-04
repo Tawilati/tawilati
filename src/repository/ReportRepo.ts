@@ -33,6 +33,8 @@ export class ReportRepo {
         },
         include: {
           recordedBy: { select: { id: true, name: true } },
+          // The bill's value: a payment only says how it was split between dollars and pounds.
+          session: { select: { totalUSD: true, totalLBP: true } },
         },
       });
     } catch (error) {

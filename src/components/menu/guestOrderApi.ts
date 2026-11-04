@@ -118,6 +118,36 @@ export async function askForBill(token: string): Promise<AskBillResult> {
   return { kind: "unavailable" };
 }
 
+const splitSchema = z.object({
+  totalUSD: amount, totalLBP: amount,
+  splitCount: z.number().int().min(1).max(50),
+  perPersonUSD: amount, perPersonLBP: amount,
+});
+
+export type BillSplit = z.infer<typeof splitSchema>;
+export type SplitResult = { kind: "split"; split: BillSplit } | { kind: "closed" } | { kind: "expired" } | { kind: "unavailable" };
+
+// "Split equally": the table's total shared by the number of people paying. Nothing is saved.
+// An expired token is renewed and the request sent once more, as for the bill.
+export async function fetchSplit(token: string, people: number): Promise<SplitResult> {
+  for (let tries = 0; tries < 2; tries++) {
+    const reply = await post("/api/orders/split", { Authorization: `Bearer ${token}` }, { splitCount: people });
+    if (!reply) return { kind: "unavailable" };
+    if (reply.status === 200) {
+      const split = splitSchema.safeParse(reply.data);
+      return split.success ? { kind: "split", split: split.data } : { kind: "unavailable" };
+    }
+    if (TAB_CLOSED_CODES.includes(reply.code)) return { kind: "closed" };
+    if (reply.code !== "token_expired" || tries > 0) return reply.status === 401 ? { kind: "expired" } : { kind: "unavailable" };
+
+    const renewal = await renewToken(token);
+    if (renewal === "closed") return { kind: "closed" };
+    if (renewal === "unknown") return { kind: "expired" };
+    if (renewal === "unavailable") return { kind: "unavailable" };
+  }
+  return { kind: "unavailable" };
+}
+
 // null when the server couldn't be reached.
 async function post(url: string, headers: Record<string, string>, body: unknown): Promise<Reply | null> {
   const controller = new AbortController();

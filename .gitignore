@@ -54,3 +54,6 @@ skills-lock.json
 logs/                       
 # Claude remember plugin session notes
 .remember/
+
+# brainstorming mockups
+.superpowers/

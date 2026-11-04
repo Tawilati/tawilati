@@ -15,3 +15,14 @@ export function formatUSD(amount: string): string {
 export function formatLBP(amount: string): string {
   return `${groupThousands(amount.split(".")[0])} LBP`;
 }
+
+// "5.00" → 500. For sums and differences in whole cents, so no float ever touches a price.
+export function toCents(amount: string): number {
+  const [whole, cents = ""] = amount.split(".");
+  return Number(whole) * 100 + Number(cents.padEnd(2, "0").slice(0, 2));
+}
+
+// 500 → "5.00". Whole, non-negative cents.
+export function fromCents(cents: number): string {
+  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
+}

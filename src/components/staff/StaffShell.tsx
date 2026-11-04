@@ -106,16 +106,16 @@ export function StaffShell({
   return (
     <div className="flex min-h-full flex-1">
       {/* print:!hidden on the menus: a printed page (the table stickers) shows only the screen's content. */}
-      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col gap-5 border-r border-border-subtle bg-surface px-3 py-5 md:flex print:!hidden">
+      <aside className="tw-nav--inverse sticky top-0 hidden h-dvh w-56 shrink-0 flex-col gap-5 bg-primary px-3 py-5 text-[var(--text-inverse)] md:flex print:!hidden">
         <Link href={items[0].href} className="ml-2 self-start">
-          <Logo priority className="h-auto w-32" />
+          <Logo variant="horizontal-reverse" priority className="h-auto w-32" />
         </Link>
         <nav className="tw-nav" aria-label="Staff">
           {sidebarItems.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
         </nav>
-        <div className="mt-auto flex flex-col border-t border-border-subtle pt-2">
+        <div className="mt-auto flex flex-col border-t border-[color-mix(in_srgb,var(--text-inverse)_20%,transparent)] pt-2">
           {accountOpen && (
             <div id="account-menu" className="flex flex-col gap-0.5 pb-1">
               {accountItems.length > 0 && (
@@ -125,7 +125,7 @@ export function StaffShell({
                   ))}
                 </nav>
               )}
-              <button type="button" onClick={() => setConfirmingSignOut(true)} className="tw-nav__item cursor-pointer text-ink-muted">
+              <button type="button" onClick={() => setConfirmingSignOut(true)} className="tw-nav__item cursor-pointer">
                 <LogOutIcon className="size-5" />
                 Sign out
               </button>
@@ -136,18 +136,18 @@ export function StaffShell({
             onClick={() => setAccountOpen((open) => !open)}
             aria-expanded={accountOpen}
             aria-controls="account-menu"
-            className="flex min-h-12 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-muted"
+            className="flex min-h-12 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-[var(--text-inverse)]"
           >
             <span className="flex min-w-0 flex-1 flex-col">
               <b className="truncate font-semibold">{userName}</b>
-              <span className="truncate text-ink-muted" title={businessName}>
+              <span className="truncate opacity-80" title={businessName}>
                 {ROLE_LABEL[role]} · {businessName}
               </span>
             </span>
             {/* Points up while closed (the menu opens above), down while open. */}
             <ChevronRightIcon
               aria-hidden="true"
-              className={`size-5 shrink-0 text-ink-muted transition-transform ${accountOpen ? "rotate-90" : "-rotate-90"}`}
+              className={`size-5 shrink-0 opacity-80 transition-transform ${accountOpen ? "rotate-90" : "-rotate-90"}`}
             />
             <span className="sr-only">{accountOpen ? "Hide account menu" : "Show account menu"}</span>
           </button>

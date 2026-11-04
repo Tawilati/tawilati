@@ -1,0 +1,198 @@
+═══════════════════════════════════════════════════════════════
+  TAWILATI — DEMO INFORMATION
+  Business: Café Beirut
+  Last updated: 2026-11-04
+═══════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────
+  1. STAFF ACCOUNTS (all passwords: Secret123)
+───────────────────────────────────────────────────────────────
+
+  ROLE      NAME           EMAIL
+  ────────  ─────────────  ──────────────────────────
+  OWNER     Rami Khoury    rami@cafe-beirut.com
+  WAITER    Sara Haddad    sara@cafe-beirut.com
+  KITCHEN   Ali Fares      ali@cafe-beirut.com
+
+───────────────────────────────────────────────────────────────
+  2. TABLES & QR TOKENS
+───────────────────────────────────────────────────────────────
+
+  TABLE  QR TOKEN
+  ─────  ────────────────────────────────────────────────────────────────
+  T1     36081849a4fd1599b9eed3c96e29d83eaf6299eda65f4a10288cca26cc25b4b5
+  T2     08aaa15d10ce13496bab3824ef051637c90ce547d675021adb069712528989ae
+  T3     cd6ef6dbf3885c33d9db66b6b1acf2da2640b35b6f75bba28d4bef89bba11458
+
+───────────────────────────────────────────────────────────────
+  3. CUSTOMER LINKS (frontend)
+───────────────────────────────────────────────────────────────
+
+  T1  /menu/cafe-beirut/t1?t=36081849a4fd1599b9eed3c96e29d83eaf6299eda65f4a10288cca26cc25b4b5
+  T2  /menu/cafe-beirut/t2?t=08aaa15d10ce13496bab3824ef051637c90ce547d675021adb069712528989ae
+  T3  /menu/cafe-beirut/t3?t=cd6ef6dbf3885c33d9db66b6b1acf2da2640b35b6f75bba28d4bef89bba11458
+
+───────────────────────────────────────────────────────────────
+  4. API LINKS (Postman / backend)
+───────────────────────────────────────────────────────────────
+
+  T1  /api/menu?b=cafe-beirut&t=36081849a4fd1599b9eed3c96e29d83eaf6299eda65f4a10288cca26cc25b4b5
+  T2  /api/menu?b=cafe-beirut&t=08aaa15d10ce13496bab3824ef051637c90ce547d675021adb069712528989ae
+  T3  /api/menu?b=cafe-beirut&t=cd6ef6dbf3885c33d9db66b6b1acf2da2640b35b6f75bba28d4bef89bba11458
+
+───────────────────────────────────────────────────────────────
+  5. BUSINESS INFO
+───────────────────────────────────────────────────────────────
+
+  Name:           Café Beirut
+  Slug:           cafe-beirut
+  Exchange Rate:  89,500 LBP / USD
+  Timezone:       Asia/Beirut
+
+───────────────────────────────────────────────────────────────
+  6. MENU
+───────────────────────────────────────────────────────────────
+
+  HOT DRINKS
+    Espresso               $2.50 / 223,750 LBP
+    Cappuccino             $3.50 / 313,250 LBP
+    Turkish coffee         $2.00 / 179,000 LBP
+
+  COLD DRINKS
+    Fresh lemonade         $3.00 / 268,500 LBP
+    Iced latte             $4.00 / 358,000 LBP  [SOLD OUT]
+
+  FOOD
+    Halloumi sandwich      $6.50 / 581,750 LBP
+    Za'atar man'oushe      $2.75 / 246,125 LBP
+    Fattoush               $5.25 / 469,875 LBP
+
+───────────────────────────────────────────────────────────────
+  7. POSTMAN ENVIRONMENT VARIABLES
+───────────────────────────────────────────────────────────────
+
+  baseUrl       = http://localhost:3000  (or live URL)
+  qrTokenT1     = 36081849a4fd1599b9eed3c96e29d83eaf6299eda65f4a10288cca26cc25b4b5
+  qrTokenT2     = 08aaa15d10ce13496bab3824ef051637c90ce547d675021adb069712528989ae
+  qrTokenT3     = cd6ef6dbf3885c33d9db66b6b1acf2da2640b35b6f75bba28d4bef89bba11458
+  today         = 2026-11-04  (YYYY-MM-DD)
+
+───────────────────────────────────────────────────────────────
+  8. DEMO DATA PLAN (run after deployment on live URL)
+───────────────────────────────────────────────────────────────
+
+  TABLE 1  (leave OPEN for live demo)
+  ─────────────────────────────────
+    1. Guest scans T1 → POST /api/guest-sessions
+    2. Order 2x Espresso + 1x Halloumi
+    3. Kitchen marks PREPARING
+    4. STOP. Leave it PREPARING.
+    → This table is for the live demo in the meeting.
+
+  TABLE 2  (close with CASH)
+  ─────────────────────────────────
+    1. Guest scans T2 → POST /api/guest-sessions
+    2. Order 3x Cappuccino ($10.50)
+    3. Kitchen marks PREPARING → READY
+    4. Waiter marks SERVED
+    5. Waiter closes tab (CASH, $10.50)
+    → Adds a CASH payment to the daily report.
+
+  TABLE 3  (close with CARD)
+  ─────────────────────────────────
+    1. Guest scans T3 → POST /api/guest-sessions
+    2. Order 2x Fattoush ($10.50)
+    3. Kitchen marks PREPARING → READY
+    4. Waiter marks SERVED
+    5. Waiter closes tab (EXTERNAL_CARD, $10.50)
+    → Adds a CARD payment to the daily report.
+
+───────────────────────────────────────────────────────────────
+  9. EXPECTED DAILY REPORT (after demo data)
+───────────────────────────────────────────────────────────────
+
+  GET /api/reports/daily?date=2026-11-04
+
+  {
+    "date": "2026-11-04",
+    "businessName": "Café Beirut",
+    "timezone": "Asia/Beirut",
+    "summary": {
+      "totalUSD": "21.00",
+      "totalLBP": "1879500.00",
+      "averageRate": "89500.00",
+      "tablesServed": 2,
+      "ordersCount": 3,
+      "itemsSold": 7
+    },
+    "byMethod": [
+      { "method": "CASH",          "count": 1, "totalUSD": "10.50", "totalLBP": "939750.00" },
+      { "method": "EXTERNAL_CARD", "count": 1, "totalUSD": "10.50", "totalLBP": "939750.00" }
+    ],
+    "byWaiter": [
+      { "waiterName": "Sara Haddad", "count": 2, "totalUSD": "21.00", "totalLBP": "1879500.00" }
+    ],
+    "topItems": [
+      { "name": "Cappuccino", "qty": 3, "totalUSD": "10.50" },
+      { "name": "Fattoush",   "qty": 2, "totalUSD": "10.50" }
+    ]
+  }
+
+  Note: T1's order (2 Espresso + 1 Halloumi) is NOT in the report
+  because T1 is still OPEN (no payment yet).
+
+───────────────────────────────────────────────────────────────
+  10. DEMO FLOW SCRIPT (for the meeting)
+───────────────────────────────────────────────────────────────
+
+  STEP 1  Show QR code on T1 (or the link)
+  STEP 2  Open the menu on mobile view
+  STEP 3  Add items to cart, submit order
+  STEP 4  Switch to Kitchen screen → order appears
+  STEP 5  Mark PREPARING → READY
+  STEP 6  Switch to Waiter screen → see ready order
+  STEP 7  Mark SERVED
+  STEP 8  Show guest's live bill (status updated)
+  STEP 9  (Optional) Split bill 3 ways
+  STEP 10 Waiter closes tab → payment recorded
+  STEP 11 Show Daily Report → 3 tables, $31.50 total
+          (21.00 from T2/T3 + 10.50 from T1 if closed live)
+
+───────────────────────────────────────────────────────────────
+  11. DEPLOYMENT CHECKLIST
+───────────────────────────────────────────────────────────────
+
+  [ ] DigitalOcean Managed PostgreSQL created
+  [ ] DATABASE_URL set in production
+  [ ] JWT_SECRET set in production
+  [ ] NODE_ENV=production
+  [ ] npx prisma migrate deploy  (on production DB)
+  [ ] npx prisma db seed          (on production DB)
+  [ ] QR codes point to live URL (not localhost)
+  [ ] Run Postman flow against live URL
+  [ ] Verify Daily Report has data
+  [ ] Cookies set to secure: true for HTTPS
+
+───────────────────────────────────────────────────────────────
+  12. USEFUL COMMANDS
+───────────────────────────────────────────────────────────────
+
+  # Reset local DB + seed
+  npx prisma migrate reset
+  npx prisma db seed
+
+  # Seed only (keeps schema)
+  npx prisma db seed
+
+  # Open Prisma Studio
+  npx prisma studio
+
+  # Deploy migrations to production
+  DATABASE_URL="<prod-url>" npx prisma migrate deploy
+
+  # Seed production
+  DATABASE_URL="<prod-url>" npx prisma db seed
+
+═══════════════════════════════════════════════════════════════
+  END OF DEMO INFO
+═══════════════════════════════════════════════════════════════

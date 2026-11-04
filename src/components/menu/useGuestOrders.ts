@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { closedBill } from "@/utils/guestBill";
-import { askForBill, fetchGuestBill, type GuestBill } from "./guestOrderApi";
+import { askForBill, fetchGuestBill, fetchSplit, type BillSplit, type GuestBill } from "./guestOrderApi";
 import { tokenStore } from "./guestCartStorage";
 
 // How often the phone re-checks its orders, so a status change in the kitchen reaches the table.
@@ -85,5 +85,20 @@ export function useGuestOrders(qrToken: string) {
     return ASK_FAILED;
   }, [qrToken, load]);
 
-  return { bill, closed: revoked || bill?.status === "CLOSED", restart, askBill };
+  // "Equally": the table's share per person, or null when it couldn't be worked out.
+  const split = useCallback(async (people: number): Promise<BillSplit | null> => {
+    const token = tokenStore(qrToken).get();
+    if (!token) return null;
+    const result = await fetchSplit(token, people);
+    if (result.kind === "split") return result.split;
+    if (result.kind === "closed") {
+      setRevoked(true);
+      setBill((last) => (last ? closedBill(last) : last));
+      stopped.current = true;
+      tokenStore(qrToken).clear();
+    }
+    return null;
+  }, [qrToken]);
+
+  return { bill, closed: revoked || bill?.status === "CLOSED", restart, askBill, split };
 }

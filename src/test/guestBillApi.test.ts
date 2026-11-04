@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { askForBill, fetchGuestBill } from "@/components/menu/guestOrderApi";
+import { askForBill, fetchGuestBill, fetchSplit } from "@/components/menu/guestOrderApi";
 
 const bill = {
   sessionId: "s1",
@@ -172,5 +172,60 @@ describe("askForBill", () => {
     fetchMock.mockRejectedValueOnce(new TypeError("offline"));
 
     expect(await askForBill("guest-1")).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("fetchSplit", () => {
+  const split = {
+    sessionId: "s1", tableLabel: "T1", totalUSD: "5.00", totalLBP: "447500.00",
+    splitCount: 3, perPersonUSD: "1.67", perPersonLBP: "149166.67",
+  };
+  const answered = () => reply(200, { success: true, message: "bill split", data: split });
+  // The phone keeps only what it shows.
+  const shown = { totalUSD: "5.00", totalLBP: "447500.00", splitCount: 3, perPersonUSD: "1.67", perPersonLBP: "149166.67" };
+
+  it("posts the number of people with this phone's token", async () => {
+    fetchMock.mockResolvedValueOnce(answered());
+
+    expect(await fetchSplit("guest-1", 3)).toEqual({ kind: "split", split: shown });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/orders/split");
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer guest-1");
+    expect(JSON.parse(init.body)).toEqual({ splitCount: 3 });
+  });
+
+  it("renews an expired token and asks once more", async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(401, { success: false, message: "token_expired" }))
+      .mockResolvedValueOnce(reply(200, { success: true, data: { token: "guest-1" } }))
+      .mockResolvedValueOnce(answered());
+
+    expect(await fetchSplit("guest-1", 3)).toEqual({ kind: "split", split: shown });
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/guest-sessions/renew");
+  });
+
+  it.each(["table_session_closed", "guest_session_revoked"])("reports a closed bill on %s", async (code) => {
+    fetchMock.mockResolvedValueOnce(reply(code === "table_session_closed" ? 409 : 401, { success: false, message: code }));
+
+    expect(await fetchSplit("guest-1", 3)).toEqual({ kind: "closed" });
+  });
+
+  it("stops when the server doesn't know the token", async () => {
+    fetchMock.mockResolvedValueOnce(reply(401, { success: false, message: "unauthorized" }));
+
+    expect(await fetchSplit("guest-1", 3)).toEqual({ kind: "expired" });
+  });
+
+  it("is unavailable when the phone is offline", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("offline"));
+
+    expect(await fetchSplit("guest-1", 3)).toEqual({ kind: "unavailable" });
+  });
+
+  it("is unavailable when the answer isn't a split", async () => {
+    fetchMock.mockResolvedValueOnce(reply(200, { success: true, data: { ...split, perPersonUSD: 1.67 } }));
+
+    expect(await fetchSplit("guest-1", 3)).toEqual({ kind: "unavailable" });
   });
 });

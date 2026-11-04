@@ -349,3 +349,59 @@ describe("OrderService.requestBill", () => {
     await expectHttpError(orderService.requestBill(TOKEN), 409, "table_session_closed");
   });
 });
+
+describe("OrderService.splitBill", () => {
+  const tab = { totalUSD: new Prisma.Decimal("6.00"), totalLBP: new Prisma.Decimal("537000"), table: { label: "T1" } };
+
+  it("divides the tab's totals by the number of people", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({}, tab));
+
+    await expect(orderService.splitBill(TOKEN, 4)).resolves.toEqual({
+      sessionId: "session-1",
+      tableLabel: "T1",
+      totalUSD: "6.00",
+      totalLBP: "537000.00",
+      splitCount: 4,
+      perPersonUSD: "1.50",
+      perPersonLBP: "134250.00",
+    });
+    expect(guestSessionRepo.FindByToken).toHaveBeenCalledWith(TOKEN);
+  });
+
+  it("rounds an uneven share to the nearest cent, half up", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({}, { ...tab, totalUSD: new Prisma.Decimal("5.00") }));
+
+    await expect(orderService.splitBill(TOKEN, 3)).resolves.toMatchObject({ perPersonUSD: "1.67" });
+  });
+
+  it("answers 401 unauthorized for an unknown token", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(null);
+
+    await expectHttpError(orderService.splitBill(TOKEN, 2), 401, "unauthorized");
+  });
+
+  it("answers 401 token_expired so the phone renews and asks again", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({ expiresAt: new Date(Date.now() - 1000) }, tab));
+
+    await expectHttpError(orderService.splitBill(TOKEN, 2), 401, "token_expired");
+  });
+
+  it("answers 401 guest_session_revoked once the waiter closed the tab", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({ revokedAt: new Date() }, tab));
+
+    await expectHttpError(orderService.splitBill(TOKEN, 2), 401, "guest_session_revoked");
+  });
+
+  it("answers 409 table_session_closed for a closed tab", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({}, { ...tab, status: "CLOSED" }));
+
+    await expectHttpError(orderService.splitBill(TOKEN, 2), 409, "table_session_closed");
+  });
+
+  it("answers 400 invalid_split_count outside 1 to 50", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({}, tab));
+
+    await expectHttpError(orderService.splitBill(TOKEN, 0), 400, "invalid_split_count");
+    await expectHttpError(orderService.splitBill(TOKEN, 51), 400, "invalid_split_count");
+  });
+});

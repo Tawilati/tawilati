@@ -19,3 +19,27 @@ export function closedBill<T extends { status: string; orders: Pick<GuestOrderRe
     orders: bill.orders.map((order) => (order.status === "CANCELLED" ? order : { ...order, status: "SERVED" })),
   };
 }
+
+// "5.00" → 500. Amounts are split as strings, so no float ever touches a price.
+function toCents(amount: string): number {
+  const [whole, cents = ""] = amount.split(".");
+  return Number(whole) * 100 + Number(cents.padEnd(2, "0").slice(0, 2));
+}
+
+function fromCents(cents: number): string {
+  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
+}
+
+// The split API rounds each share to the cent, so the shares can miss the total by a few cents
+// ($5.00 for 3 is $1.67 each, $5.01 in all). Says who pays a cent less (or more) so they add up.
+export function unevenShare(totalUSD: string, perPersonUSD: string, people: number): { count: number; amountUSD: string } | null {
+  const per = toCents(perPersonUSD);
+  const over = per * people - toCents(totalUSD);
+  if (over === 0) return null;
+  return { count: Math.abs(over), amountUSD: fromCents(per - Math.sign(over)) };
+}
+
+// "Pay for my orders": what the other phones at the table ordered.
+export function otherPhonesUSD(totalUSD: string, guestTotalUSD: string): string {
+  return fromCents(Math.max(0, toCents(totalUSD) - toCents(guestTotalUSD)));
+}

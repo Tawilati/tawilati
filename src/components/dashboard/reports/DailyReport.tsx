@@ -17,15 +17,22 @@ type Loaded = { day: DailyReportResponse; before: DailyReportResponse | null };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 // "↑ $166.50 vs Tue 3 Nov": more is green, less is yellow, and the arrow and words always say which.
-function Trend({ direction, text, against }: { direction: Direction; text: string; against: string }) {
+// `short` drops "vs Tue 3 Nov" on phones, where the money card's chip has already named the day.
+function Trend({ direction, text, against, short = false }: { direction: Direction; text: string; against: string; short?: boolean }) {
+  const day = short ? "sr-only sm:not-sr-only" : "";
   if (direction === "same") {
-    return <span className="inline-flex rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-ink-muted">Same as {against}</span>;
+    return (
+      <span className="inline-flex rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-ink-muted">
+        Same<span className={day}>&nbsp;as {against}</span>
+      </span>
+    );
   }
   const up = direction === "up";
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${up ? "bg-trend-up text-on-trend-up" : "bg-trend-down text-on-trend-down"}`}>
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap tabular-nums ${up ? "bg-trend-up text-on-trend-up" : "bg-trend-down text-on-trend-down"}`}>
       <span aria-hidden>{up ? "↑" : "↓"}</span>
-      <span className="sr-only">{up ? "Up" : "Down"}</span>&nbsp;{text} vs {against}
+      <span className="sr-only">{up ? "Up" : "Down"}</span>&nbsp;{text}
+      <span className={day}>&nbsp;vs {against}</span>
     </span>
   );
 }
@@ -47,7 +54,7 @@ function Count({ value, label, change, against }: { value: number; label: string
     <Card className="flex flex-col gap-1 !p-3 sm:!p-4">
       <span className="text-2xl font-extrabold tabular-nums sm:text-[26px]">{value}</span>
       <span className="text-[13px] font-semibold text-ink-muted">{label}</span>
-      {change && <span><Trend direction={change.direction} text={String(change.amount)} against={against} /></span>}
+      {change && <span><Trend direction={change.direction} text={String(change.amount)} against={against} short /></span>}
     </Card>
   );
 }
@@ -173,9 +180,15 @@ export function DailyReport() {
         <div aria-busy={loading} className={`flex flex-col gap-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
           <Card className="flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <span className="text-[13px] font-semibold text-ink-muted uppercase">{isToday ? "Taken today" : `Taken on ${dayLabel(day.date, { year: false })}`}</span>
+              <span className="text-[13px] font-semibold text-ink-muted uppercase">{isToday ? "Sales today" : `Sales on ${dayLabel(day.date, { year: false })}`}</span>
               <span className="text-[40px] leading-tight font-extrabold text-primary tabular-nums">{formatUSD(day.totalUSD)}</span>
               <span className="text-sm text-ink-muted tabular-nums">{formatLBP(day.totalLBP)}</span>
+              {!quiet && (
+                <span className="text-sm tabular-nums">
+                  <span className="text-ink-muted">Received: </span>
+                  <span className="font-semibold">{formatUSD(day.receivedUSD)} + {formatLBP(day.receivedLBP)}</span>
+                </span>
+              )}
               {takings && (
                 <span className="mt-1">
                   <Trend direction={takings.direction} text={formatUSD(takings.amountUSD)} against={against} />
@@ -183,7 +196,9 @@ export function DailyReport() {
               )}
             </div>
             <p className="max-w-64 text-xs text-ink-muted">
-              {quiet ? "No bills were closed on this day." : "Bills closed on this day, cash and card. A table counts once the waiter closes its bill."}
+              {quiet
+                ? "No bills were closed on this day."
+                : "What the bills closed on this day were worth, cash and card. Received is what was handed over in each currency, for counting the drawer."}
             </p>
           </Card>
 

@@ -40,16 +40,23 @@ export class ReportService {
       reportRepo.getDailyOrders(businessId, start, end),
     ]);
 
-    // 4. Totals
+    // 4. Totals. Sales are what the closed bills were worth; a payment only records how the bill
+    // was split between dollars and pounds, which is what was received in each currency.
     let totalUSD = new Decimal(0);
     let totalLBP = new Decimal(0);
+    let receivedUSD = new Decimal(0);
+    let receivedLBP = new Decimal(0);
 
     const methodMap = new Map<string, DailyReportMethodBreakdown>();
     const waiterMap = new Map<string, DailyReportWaiterBreakdown>();
 
     for (const p of payments) {
-      totalUSD = totalUSD.plus(p.amountUSD);
-      totalLBP = totalLBP.plus(p.amountLBP);
+      const billUSD = p.session.totalUSD;
+      const billLBP = p.session.totalLBP;
+      totalUSD = totalUSD.plus(billUSD);
+      totalLBP = totalLBP.plus(billLBP);
+      receivedUSD = receivedUSD.plus(p.amountUSD);
+      receivedLBP = receivedLBP.plus(p.amountLBP);
 
       // By method
       const m = methodMap.get(p.method) ?? {
@@ -59,8 +66,8 @@ export class ReportService {
         totalLBP: "0.00",
       };
       m.count += 1;
-      m.totalUSD = new Decimal(m.totalUSD).plus(p.amountUSD).toFixed(2);
-      m.totalLBP = new Decimal(m.totalLBP).plus(p.amountLBP).toFixed(2);
+      m.totalUSD = new Decimal(m.totalUSD).plus(billUSD).toFixed(2);
+      m.totalLBP = new Decimal(m.totalLBP).plus(billLBP).toFixed(2);
       methodMap.set(p.method, m);
 
       // By waiter
@@ -72,8 +79,8 @@ export class ReportService {
         totalLBP: "0.00",
       };
       w.count += 1;
-      w.totalUSD = new Decimal(w.totalUSD).plus(p.amountUSD).toFixed(2);
-      w.totalLBP = new Decimal(w.totalLBP).plus(p.amountLBP).toFixed(2);
+      w.totalUSD = new Decimal(w.totalUSD).plus(billUSD).toFixed(2);
+      w.totalLBP = new Decimal(w.totalLBP).plus(billLBP).toFixed(2);
       waiterMap.set(p.recordedById, w);
     }
 
@@ -117,6 +124,8 @@ export class ReportService {
       timezone: business.timezone,
       totalUSD: totalUSD.toFixed(2),
       totalLBP: totalLBP.toFixed(2),
+      receivedUSD: receivedUSD.toFixed(2),
+      receivedLBP: receivedLBP.toFixed(2),
       averageRate,
       tablesServed: payments.length,
       ordersCount: orders.length,

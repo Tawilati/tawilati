@@ -14,8 +14,18 @@ import { HttpException } from "@/utils/exceptions/http/HttpException";
 const BIZ = "biz-1";
 const dec = (v: string) => new Prisma.Decimal(v);
 
-function payment(method: "CASH" | "EXTERNAL_CARD", usd: string, lbp: string, waiter: [string, string]) {
-  return { amountUSD: dec(usd), amountLBP: dec(lbp), method, recordedById: waiter[0], recordedBy: { id: waiter[0], name: waiter[1] } };
+// One payment per closed bill: the bill's totals, and what was handed over in each currency.
+function payment(
+  method: "CASH" | "EXTERNAL_CARD",
+  bill: [string, string],
+  paid: [string, string],
+  waiter: [string, string],
+) {
+  return {
+    amountUSD: dec(paid[0]), amountLBP: dec(paid[1]), method,
+    recordedById: waiter[0], recordedBy: { id: waiter[0], name: waiter[1] },
+    session: { totalUSD: dec(bill[0]), totalLBP: dec(bill[1]) },
+  };
 }
 
 function line(id: string, name: string, qty: number, priceUSD: string) {
@@ -54,27 +64,39 @@ describe("ReportService.getDailyReport", () => {
     expect(repo.getDailyPayments).toHaveBeenCalledWith(BIZ, new Date("2026-11-03T22:00:00.000Z"), expect.any(Date));
   });
 
-  it("adds up the bills, by payment method and by waiter", async () => {
+  it("adds up what the closed bills were worth, by payment method and by waiter", async () => {
     repo.getDailyPayments.mockResolvedValue([
-      payment("CASH", "6.00", "537000", SARA),
-      payment("EXTERNAL_CARD", "3.50", "313250", SARA),
-      payment("CASH", "2.50", "223750", ALI),
+      payment("CASH", ["6.00", "537000"], ["6.00", "0"], SARA),
+      payment("EXTERNAL_CARD", ["3.50", "313250"], ["3.50", "0"], SARA),
+      // A $10 bill paid half in dollars, half in pounds: still $10 of sales.
+      payment("CASH", ["10.00", "895000"], ["5.00", "447500"], ALI),
     ]);
 
     const report = await reportService.getDailyReport(BIZ, "2026-11-04");
 
     expect(report).toMatchObject({
       date: "2026-11-04", businessName: "Demo Café", timezone: "Asia/Beirut",
-      totalUSD: "12.00", totalLBP: "1074000.00", tablesServed: 3,
+      totalUSD: "19.50", totalLBP: "1745250.00", tablesServed: 3,
     });
     expect(report.byMethod).toEqual(expect.arrayContaining([
-      { method: "CASH", count: 2, totalUSD: "8.50", totalLBP: "760750.00" },
+      { method: "CASH", count: 2, totalUSD: "16.00", totalLBP: "1432000.00" },
       { method: "EXTERNAL_CARD", count: 1, totalUSD: "3.50", totalLBP: "313250.00" },
     ]));
     expect(report.byWaiter).toEqual(expect.arrayContaining([
       { waiterId: "u-sara", waiterName: "Sara Haddad", count: 2, totalUSD: "9.50", totalLBP: "850250.00" },
-      { waiterId: "u-ali", waiterName: "Ali Fares", count: 1, totalUSD: "2.50", totalLBP: "223750.00" },
+      { waiterId: "u-ali", waiterName: "Ali Fares", count: 1, totalUSD: "10.00", totalLBP: "895000.00" },
     ]));
+  });
+
+  it("says what was handed over in each currency, for counting the drawer", async () => {
+    repo.getDailyPayments.mockResolvedValue([
+      payment("CASH", ["6.00", "537000"], ["6.00", "0"], SARA),
+      payment("CASH", ["10.00", "895000"], ["5.00", "447500"], ALI),
+    ]);
+
+    const report = await reportService.getDailyReport(BIZ, "2026-11-04");
+
+    expect(report).toMatchObject({ receivedUSD: "11.00", receivedLBP: "447500.00" });
   });
 
   it("counts rounds and items, and ranks the items by quantity", async () => {
@@ -108,7 +130,7 @@ describe("ReportService.getDailyReport", () => {
     const report = await reportService.getDailyReport(BIZ, "2026-11-04");
 
     expect(report).toMatchObject({
-      totalUSD: "0.00", totalLBP: "0.00", tablesServed: 0, ordersCount: 0, itemsSold: 0,
+      totalUSD: "0.00", totalLBP: "0.00", receivedUSD: "0.00", receivedLBP: "0.00", tablesServed: 0, ordersCount: 0, itemsSold: 0,
       byMethod: [], byWaiter: [], topItems: [],
     });
   });

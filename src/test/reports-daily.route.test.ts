@@ -44,6 +44,8 @@ const report = {
   timezone: "Asia/Beirut",
   totalUSD: "120.50",
   totalLBP: "105000.00",
+  receivedUSD: "120.50",
+  receivedLBP: "0.00",
   averageRate: "87500.00",
   tablesServed: 3,
   ordersCount: 4,

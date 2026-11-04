@@ -1,0 +1,15 @@
+the split bill will be in  any user regarfing of order status ot just put the numerb of people in that table
+reponse type
+{
+    "success": true,
+    "message": "bill split",
+    "data": {
+        "sessionId": "2de0617d-c8f2-4c43-9068-84ba513fda72",
+        "tableLabel": "T1",
+        "totalUSD": "5.00",
+        "totalLBP": "447500.00",
+        "splitCount": 4,
+        "perPersonUSD": "1.25",
+        "perPersonLBP": "111875.00"
+    }
+}

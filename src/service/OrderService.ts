@@ -4,7 +4,7 @@ import { submissionRepo } from "@/repository/SubmissionRepo";
 import { menuItemRepo } from "@/repository/MenuItemsRepo";
 import { tableSessionRepo } from "@/repository/TabelSession";
 import { Prisma } from "@/app/generated/prisma/client";
-import { GuestBillResponse, mapToGuestBillResponse, mapToOrderResponse, SubmitOrderInput, SubmitOrderResult } from "@/types/Order";
+import { BillSplitResponse, GuestBillResponse, mapToGuestBillResponse, mapToOrderResponse, SubmitOrderInput, SubmitOrderResult } from "@/types/Order";
 import {
   AuthenticationException,
   ExpiredTokenException,
@@ -15,6 +15,7 @@ import { HttpException } from "@/utils/exceptions/http/HttpException";
 import { prisma } from "@/lib/db";
 import logger from "@/utils/logger";
 import { hashOrderLines } from "@/utils/OrderHash";
+import { Decimal } from "@/app/generated/prisma/internal/prismaNamespaceBrowser";
 
 export class OrderService {
   private static instance: OrderService;
@@ -276,6 +277,42 @@ export class OrderService {
     }
     return { billRequestedAt: billRequestedAt.toISOString() };
   }
+  async splitBill(
+  guestToken: string,
+  splitCount: number,
+): Promise<BillSplitResponse> {
+  // 1. Authenticate the guest
+  const guest = await guestSessionRepo.FindByToken(guestToken);
+  if (!guest) throw new AuthenticationException("unauthorized");
+  if (guest.revokedAt) throw new HttpException(401, "guest_session_revoked");
+  if (guest.expiresAt < new Date()) throw new ExpiredTokenException();
+  if (guest.session.status !== "OPEN") {
+    throw new ConflictException("table_session_closed");
+  }
+
+  // 2. Validate split count
+  if (splitCount < 1 || splitCount > 50) {
+    throw new BadRequestException("invalid_split_count");
+  }
+
+  // 3. Compute per-person amounts (no storage)
+  const totalUSD = new Decimal(guest.session.totalUSD);
+  const totalLBP = new Decimal(guest.session.totalLBP);
+
+  const perPersonUSD = totalUSD.div(splitCount).toFixed(2);
+  const perPersonLBP = totalLBP.div(splitCount).toFixed(2);
+
+  // 4. Return the split (nothing is saved)
+  return {
+    sessionId: guest.sessionId,
+    tableLabel: guest.session.table.label,
+    totalUSD: totalUSD.toFixed(2),
+    totalLBP: totalLBP.toFixed(2),
+    splitCount,
+    perPersonUSD,
+    perPersonLBP,
+  };
+}
 }
 
 export const orderService = OrderService.getInstance();

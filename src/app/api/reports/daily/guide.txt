@@ -1,0 +1,105 @@
+However, your frontend can call it twice (once for each day) and display them side-by-side, or the owner can navigate between dates.
+
+Here is how the report handles dates and what your options are:
+
+🎯 How the Daily Report Works
+Endpoint	What it returns
+GET /api/reports/daily?date=2026-11-04	Report for Nov 4 only
+GET /api/reports/daily?date=2026-11-03	Report for Nov 3 only
+Each call returns exactly one day. The backend does not aggregate multiple days.
+
+🚨 Why It Works This Way
+The owner usually wants one day at a time. They open the report in the morning and check yesterday's sales. They don't need a two-day view.
+
+Performance: Querying one day is faster than querying multiple days.
+
+Flexibility: The frontend can call the endpoint for any date (last week, last month, etc.) without the backend changing.
+
+✅ How the Frontend Shows "Today and Yesterday"
+The frontend makes two separate calls:
+
+typescript
+// Frontend: Dashboard
+const today = new Date().toISOString().split("T")[0];
+const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+
+const [todayReport, yesterdayReport] = await Promise.all([
+  fetch(`/api/reports/daily?date=${today}`).then(r => r.json()),
+  fetch(`/api/reports/daily?date=${yesterday}`).then(r => r.json()),
+]);
+Then the UI shows:
+
+text
+┌─────────────────────────────────────────┐
+│ Today (Nov 4)                           │
+│ Total: $480.00 · 8 tables · 42 items    │
+├─────────────────────────────────────────┤
+│ Yesterday (Nov 3)                       │
+│ Total: $320.00 · 5 tables · 28 items    │
+└─────────────────────────────────────────┘
+🎯 What About a "Weekly" or "Monthly" Report?
+If the owner wants a range (e.g., "last 7 days"), you have two options:
+
+Option A: Frontend loops
+The frontend calls GET /api/reports/daily 7 times (once per day) and aggregates the results.
+
+typescript
+const days = ["2026-10-29", "2026-10-30", ..., "2026-11-04"];
+const reports = await Promise.all(days.map(d => fetch(`/api/reports/daily?date=${d}`).then(r => r.json())));
+Option B: Backend adds a range endpoint
+You build GET /api/reports/range?start=2026-10-29&end=2026-11-04 that queries the Payment table for the entire range in one query.
+
+This is a future feature, not required for Checkpoint 2.
+
+📋 Summary
+Question	Answer
+Does GET /api/reports/daily include multiple days?	No. One day per call.
+How does the frontend show today + yesterday?	Makes two calls and displays them side-by-side.
+Is this correct?	✅ Yes. It matches how real POS systems work.
+Can the owner see a range?	Yes, by calling the endpoint multiple times (frontend loops).
+Is a range endpoint needed?	No. Not for Checkpoint 2.
+Your daily report is correct. The frontend handles the "today + yesterday" view by making two calls. The backend stays simple and focused. ✅
+
+
+
+response type
+{
+    "success": true,
+    "message": "daily report",
+    "data": {
+        "date": "2026-11-04",
+        "businessName": "Tawilati Demo Café",
+        "timezone": "Asia/Beirut",
+        "totalUSD": "5.00",
+        "totalLBP": "0.00",
+        "averageRate": "89500.00",
+        "tablesServed": 1,
+        "ordersCount": 1,
+        "itemsSold": 2,
+        "byMethod": [
+            {
+                "method": "CASH",
+                "count": 1,
+                "totalUSD": "5.00",
+                "totalLBP": "0.00"
+            }
+        ],
+        "byWaiter": [
+            {
+                "waiterId": "fdd0eeef-02db-4589-bba8-f0fb4d28d348",
+                "waiterName": "Demo Waiter",
+                "count": 1,
+                "totalUSD": "5.00",
+                "totalLBP": "0.00"
+            }
+        ],
+        "topItems": [
+            {
+                "menuItemId": "64673346-2fdc-4e66-a33f-1fb9ad3882c9",
+                "name": "Espresso",
+                "qty": 2,
+                "totalUSD": "5.00"
+            }
+        ]
+    }
+}

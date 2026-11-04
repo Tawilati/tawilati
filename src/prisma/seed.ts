@@ -8,13 +8,13 @@ import { Prisma } from "../app/generated/prisma/client";
 import { prisma } from "../lib/db";
 import { makeSlug } from "../utils/slug";
 
-const BUSINESS_NAME = "Tawilati Demo Café";
+const BUSINESS_NAME = "Café Beirut";
 const EXCHANGE_RATE = new Prisma.Decimal("89500");
-const OWNER_EMAIL = "owner@tawilati.com";
+const OWNER_EMAIL = "rami@cafe-beirut.com";
 const OWNER_PASSWORD = "Secret123";
 
 const demoToken = (label: string) =>
-  createHash("sha256").update(`tawilati-demo-${label}`).digest("hex");
+  createHash("sha256").update(`cafe-beirut-${label}`).digest("hex");
 
 const menu: Record<string, [name: string, priceUSD: string, soldOut?: boolean][]> = {
   "Hot drinks": [
@@ -116,7 +116,7 @@ async function main() {
       exchangeRate: EXCHANGE_RATE,
       timezone: "Asia/Beirut",
       tables: {
-        create: ["T1", "T2"].map((label) => ({
+        create: ["T1", "T2", "T3"].map((label) => ({
           label,
           slug: makeSlug(label, "table"),
           qrToken: demoToken(label),
@@ -149,9 +149,9 @@ async function main() {
   // One account per role, all with the same password, so each staff screen can be tried.
   const passwordHash = await bcrypt.hash(OWNER_PASSWORD, 10);
   const accounts = [
-    { name: "Demo Owner", email: OWNER_EMAIL, role: "OWNER" },
-    { name: "Demo Waiter", email: "waiter@tawilati.com", role: "WAITER" },
-    { name: "Demo Kitchen", email: "kitchen@tawilati.com", role: "KITCHEN" },
+    { name: "Rami Khoury", email: OWNER_EMAIL, role: "OWNER" },
+    { name: "Sara Haddad", email: "sara@cafe-beirut.com", role: "WAITER" },
+    { name: "Ali Fares", email: "ali@cafe-beirut.com", role: "KITCHEN" },
   ] as const;
   await prisma.user.createMany({
     data: accounts.map((account) => ({ ...account, businessId: business.id, passwordHash })),
@@ -159,7 +159,7 @@ async function main() {
 
   console.log(`Seeded "${business.name}".`);
   for (const account of accounts) {
-    console.log(`  ${account.role.padEnd(7)} ${account.email} / ${OWNER_PASSWORD}`);
+    console.log(`  ${account.role.padEnd(7)} ${account.name.padEnd(12)} ${account.email} / ${OWNER_PASSWORD}`);
   }
   for (const table of business.tables) {
     console.log(`  ${table.label} customer link: /menu/${business.slug}/${table.slug}?t=${table.qrToken}`);

@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import logger from "@/utils/logger";
 import { hashOrderLines } from "@/utils/OrderHash";
 import { Decimal } from "@/app/generated/prisma/internal/prismaNamespaceBrowser";
+import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
 export class OrderService {
   private static instance: OrderService;
@@ -312,6 +313,41 @@ export class OrderService {
     perPersonUSD,
     perPersonLBP,
   };
+}
+async cancelGuestOrder(
+  orderId: string,
+  guestToken: string,
+): Promise<{ orderId: string; status: string }> {
+  // 1. Authenticate the guest
+  const guest = await guestSessionRepo.FindByToken(guestToken);
+  if (!guest) throw new AuthenticationException("unauthorized");
+  if (guest.revokedAt) throw new HttpException(401, "guest_session_revoked");
+  if (guest.expiresAt < new Date()) throw new ExpiredTokenException();
+  if (guest.session.status !== "OPEN") {
+    throw new ConflictException("table_session_closed");
+  }
+
+  // 2. Find the order (ensuring it belongs to THIS guest)
+  const order = await orderRepo.findGuestOrderForCancel(orderId, guest.id);
+  if (!order) throw new NotFoundException("order_not_found");
+
+  // 3. 🚨 Only NEW orders can be cancelled
+  if (order.status !== "NEW") {
+    throw new ConflictException("cannot_cancel_order_already_in_progress");
+  }
+
+  // 4. Transaction: cancel + decrement bill
+  const result = await prisma.$transaction(async (tx) => {
+    return await orderRepo.cancelOrderAndUpdateBill(
+      order.id,
+      order.sessionId,
+      order.totalUSD,
+      order.totalLBP,
+      tx,
+    );
+  });
+
+  return result;
 }
 }
 

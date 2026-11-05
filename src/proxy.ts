@@ -33,7 +33,8 @@ const publicApiRoutes = [
 ];
 const guestApiRoutes = [
   "/api/orders",       // POST — guest submits order
-  "/api/orders/me",    // GET — guest views their orders
+  "/api/orders/me",
+  "/api/orders/:id/cancel"    // GET — guest views their orders
 ];
 
 // ─────────────────────────────────────────────

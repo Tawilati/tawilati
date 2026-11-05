@@ -1,0 +1,120 @@
+
+
+🎯 Scenario 1: Cancel Before Submit (Frontend-Only)
+This happens entirely in the browser. The guest adds items to the cart, then removes them before clicking "Submit Order". No backend call is made.
+
+Test 1a: Remove an Item from the Cart
+Open the guest menu: https://tawilati.org/menu/cafe-beirut/t1?t=...
+
+Add 2 espressos and 1 halloumi to the cart.
+
+Open the cart.
+
+Tap the "−" on the halloumi to remove it (or reduce qty to 0).
+
+Expected: The cart shows only 2 espressos. The total updates to $5.00.
+
+Verify in DB: No DiningOrder was created. TableSession.totalUSD is still 0.00.
+
+Test 1b: Clear the Entire Cart
+Add items to the cart.
+
+Tap "Clear cart" (or remove every item).
+
+Expected: The cart is empty. The "Submit Order" button is disabled.
+
+Verify in DB: No DiningOrder, no Submission, TableSession.totalUSD = 0.00.
+
+Test 1c: Abandon the Cart (Close the Tab)
+Add items to the cart.
+
+Close the browser tab without submitting.
+
+Expected: No order is created. The backend never knew about the cart.
+
+✅ What This Proves
+The cart is purely client-side state. No backend resource is created until the guest taps "Submit Order". So "cancel before submit" is just removing items from the cart — it doesn't need any endpoint
+
+
+POST /api/orders/:id/cancel - API TEST GUIDE
+
+Purpose
+  Lets a guest cancel one of their own rounds before the kitchen starts it.
+  Cancelling marks the round CANCELLED and subtracts its totals from the
+  table's open bill.
+
+Authentication
+  Guest route. Send the guest token in Authorization: Bearer <token>.
+  Use the token that submitted the order. The order must belong to that guest
+  session; another phone's token cannot cancel it.
+  No staff cookie and no request body are required.
+
+Request
+  POST /api/orders/<orderId>/cancel
+  Authorization: Bearer <guest-token>
+
+Success response
+  Status: 200
+  {
+    "success": true,
+    "message": "order cancelled",
+    "data": {
+      "orderId": "<orderId>",
+      "status": "CANCELLED"
+    }
+  }
+
+Setup
+  1. Create a guest session using POST /api/guest-sessions and save its token.
+  2. Submit an order with POST /api/orders using that token.
+  3. Save the returned data.orderId. Do not advance the order from NEW.
+
+TEST CASES
+
+1. Cancel a NEW order
+  Use the same guest token that submitted the order.
+  Expect 200 with status CANCELLED.
+  Check that the open tab's totalUSD and totalLBP each decrease by the
+  cancelled order's totals.
+
+2. Cancel the same order again
+  Expect 409 cannot_cancel_order_already_in_progress. The bill totals must
+  not decrease a second time.
+
+3. Cancel after the kitchen starts the order
+  Move the order to PREPARING, then cancel it.
+  Expect 409 cannot_cancel_order_already_in_progress; status and bill totals
+  remain unchanged.
+
+4. Cancel a READY or SERVED order
+  Expect 409 cannot_cancel_order_already_in_progress; status and bill totals
+  remain unchanged.
+
+5. Missing or unknown guest token
+  Omit Authorization or use an unknown token.
+  Expect 401 unauthorized.
+
+6. Expired guest token
+  Set the guest session's expiresAt in the past.
+  Expect 401 token_expired.
+
+7. Revoked guest token
+  Set the guest session's revokedAt.
+  Expect 401 guest_session_revoked.
+
+8. Order does not exist
+  Use an unknown order id.
+  Expect 404 order_not_found.
+
+9. Order belongs to another guest session
+  Submit an order with guest token A, then try cancelling it with guest token B.
+  Expect 404 order_not_found; the order and bill totals remain unchanged.
+
+10. Guest tab is closed
+  With a valid, non-revoked guest session for a closed tab, attempt cancellation.
+  Expect 409 table_session_closed. Normal waiter close revokes guest sessions,
+  so a token revoked by that flow instead returns 401 guest_session_revoked.
+
+11. Method not supported
+  Try GET /api/orders/<orderId>/cancel.
+  Expect Next.js 405 Method Not Allowed.

@@ -1,4 +1,5 @@
 import { Prisma } from "@/app/generated/prisma/client";
+import { Decimal } from "@/app/generated/prisma/internal/prismaNamespace";
 import prisma from "@/lib/db";
 import type { DbClient } from "@/types/Db";
 import { DBException } from "@/utils/exceptions/RepoException";
@@ -117,7 +118,61 @@ export class OrderRepo {
       );
     }
   }
- 
+ async findGuestOrderForCancel(orderId: string, guestSessionId: string) {
+  try {
+    return await prisma.diningOrder.findFirst({
+      where: {
+        id: orderId,
+        guestSessionId, 
+      },
+      select: {
+        id: true,
+        status: true,
+        sessionId: true,
+        totalUSD: true,
+        totalLBP: true,
+      },
+    });
+  } catch (error) {
+    throw new DBException(
+      "Error finding guest order for cancel",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
+
+async cancelOrderAndUpdateBill(
+  orderId: string,
+  sessionId: string,
+  totalUSD: Decimal,
+  totalLBP: Decimal,
+  tx: DbClient = prisma,
+) {
+  try {
+    // 1. Mark order as CANCELLED
+    await tx.diningOrder.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED" },
+    });
+
+    // 2. Decrement the TableSession total
+    await tx.tableSession.update({
+      where: { id: sessionId },
+      data: {
+        totalUSD: { decrement: totalUSD },
+        totalLBP: { decrement: totalLBP },
+      },
+    });
+
+    return { orderId, status: "CANCELLED" };
+  } catch (error) {
+    throw new DBException(
+      "Error cancelling order",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
+
 
 }
 

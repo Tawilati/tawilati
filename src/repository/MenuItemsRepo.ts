@@ -223,6 +223,33 @@ export class MenuItemRepo {
       throw new DBException("Error deleting menu item", err as Error);
     }
   }
+  
+async setSoldOut(
+  itemId: string,
+  businessId: string,
+  soldOut: boolean,
+  tx: DbClient = prisma,
+) {
+  try {
+    // Ensure the item belongs to this business
+    const item = await tx.menuItem.findFirst({
+      where: { id: itemId, businessId },
+      select: { id: true },
+    });
+
+    if (!item) return null;
+
+    return await tx.menuItem.update({
+      where: { id: itemId },
+      data: { soldOut },
+    });
+  } catch (error) {
+    throw new DBException(
+      "Error toggling sold-out",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
 }
 
 export const menuItemRepo = MenuItemRepo.getInstance();

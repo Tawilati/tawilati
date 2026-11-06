@@ -192,6 +192,17 @@ export class MenuItemService {
       throw new ConflictException("menu_item_in_use");
     }
   }
+  async setSoldOut(
+  itemId: string,
+  businessId: string,
+  soldOut: boolean,
+) {
+  const updated = await menuItemRepo.setSoldOut(itemId, businessId, soldOut);
+  if (!updated) {
+    throw new NotFoundException("menu_item_not_found");
+  }
+  return updated;
+}
 }
 
 //Export the shared service instance for route handlers.

@@ -62,6 +62,8 @@ async function openTab(statuses: OrderStatus[]) {
       sessionId: tab.id,
       token: randomBytes(32).toString("hex"),
       expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      // This phone already ordered on the tab, so a waiter confirmed it.
+      status: "ACTIVE",
     },
   });
   const orders = [];
@@ -154,10 +156,10 @@ describe("PATCH /api/waiter/order/:id/served", () => {
 });
 
 describe("GET /api/waiter/order/:id/bill", () => {
-  it("lists every round except cancelled ones, so the lines add up to the totals", async () => {
+  it("lists cancelled rounds too, but only the others add up to the totals", async () => {
     const { tab, orders } = await openTab(["SERVED", "PREPARING"]);
-    // A cancelled round isn't part of the tab's totals.
-    await prisma.diningOrder.update({ where: { id: orders[1].id }, data: { status: "CANCELLED" } });
+    // A cancelled round isn't part of the tab's totals; the sheet shows it greyed.
+    await prisma.diningOrder.update({ where: { id: orders[1].id }, data: { status: "CANCELLED", cancelledAt: new Date() } });
     await prisma.tableSession.update({ where: { id: tab.id }, data: { totalUSD: 5, totalLBP: 447500 } });
     await prisma.diningOrder.create({
       data: {
@@ -170,8 +172,10 @@ describe("GET /api/waiter/order/:id/bill", () => {
 
     expect(response.status).toBe(200);
     const data = (await response.json()).data;
-    expect(data.orders.map((o: { status: string }) => o.status)).toEqual(["SERVED", "NEW"]);
+    expect(data.orders.map((o: { status: string }) => o.status)).toEqual(["SERVED", "CANCELLED", "NEW"]);
+    expect(data.orderCount).toBe(2);
     const linesUSD = data.orders
+      .filter((o: { status: string }) => o.status !== "CANCELLED")
       .flatMap((o: { lines: { qty: number; priceUSD: string }[] }) => o.lines)
       .reduce((sum: number, l: { qty: number; priceUSD: string }) => sum + l.qty * Number(l.priceUSD), 0);
     expect(linesUSD.toFixed(2)).toBe(data.totalUSD);

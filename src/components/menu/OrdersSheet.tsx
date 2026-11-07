@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Button, Modal, Toast } from "@/components/ui";
 import { formatUSD } from "@/utils/money";
-import type { GuestBill } from "./guestOrderApi";
+import type { BillSplit, GuestBill } from "./guestOrderApi";
+import { CancelRound, roundSummary } from "./CancelRound";
 import { RoundBadge, Total } from "./OrderParts";
+import { SplitBill } from "./SplitBill";
 
 const READY = "Your order is ready!";
 const TAB_CLOSED = "This table's bill has been closed. Please ask a member of staff.";
@@ -18,11 +20,16 @@ export function OrdersSheet({
   bill,
   closed,
   onAskBill,
+  onSplit,
+  onCancel,
   onClose,
 }: {
   bill: GuestBill;
   closed: boolean;
   onAskBill: () => Promise<string | null>;
+  onSplit: (people: number) => Promise<BillSplit | null>;
+  // Cancels a round still marked New; a sentence when it didn't work.
+  onCancel: (orderId: string) => Promise<string | null>;
   onClose: () => void;
 }) {
   const [asking, setAsking] = useState(false);
@@ -58,6 +65,9 @@ export function OrdersSheet({
                 ))}
               </ul>
               <p className="text-right text-[15px] font-bold tabular-nums">{formatUSD(order.totalUSD)}</p>
+              {!closed && order.status === "NEW" && (
+                <CancelRound summary={roundSummary(order.lines, order.totalUSD)} onCancel={() => onCancel(order.orderId)} />
+              )}
             </li>
           ))}
         </ul>
@@ -65,13 +75,14 @@ export function OrdersSheet({
           <Total label="Your orders" usd={bill.guestTotalUSD} lbp={bill.guestTotalLBP} />
           <Total label="Table total" usd={bill.totalUSD} lbp={bill.totalLBP} />
         </div>
+        {!closed && bill.orders.length > 0 && <SplitBill bill={bill} onSplit={onSplit} />}
         {!closed && bill.orders.length > 0 && (
           <div className="flex flex-col gap-2">
             {askError && <Toast tone="error" title={askError} />}
             {bill.billRequestedAt ? (
               <p role="status" className="rounded-xl bg-surface-muted p-3 text-sm">{BILL_ASKED}</p>
             ) : (
-              <Button block variant="secondary" loading={asking} onClick={() => void ask()}>
+              <Button block loading={asking} onClick={() => void ask()}>
                 Ask for the bill
               </Button>
             )}

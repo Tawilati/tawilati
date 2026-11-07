@@ -7,12 +7,14 @@ import {
   CloseTabResponse,
   mapToWaiterBillResponse,
   mapToWaiterTableResponse,
+  PendingGuestResponse,
   WaiterBillResponse,
   type WaiterTableResponse,
 } from "@/types/Waiter";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
 import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
+import { guestSessionRepo } from "@/repository/GuestSessionRepo";
 
 export class WaiterService {
   private static instance: WaiterService;
@@ -171,6 +173,40 @@ async closeTab(
     changeLBP: changeLBP.toFixed(2),
     paymentId,
   };
+}
+async getPendingGuests(businessId: string): Promise<PendingGuestResponse[]> {
+  const guests = await guestSessionRepo.findPendingByBusiness(businessId);
+  return guests.map((g) => ({
+    guestSessionId: g.id,
+    tableId: g.session.tableId,
+    tableLabel: g.session.table.label,
+    createdAt: g.createdAt,
+    expiresAt: g.expiresAt,
+  }));
+}
+
+async confirmGuest(guestSessionId: string, businessId: string) {
+  const guest = await guestSessionRepo.findById(guestSessionId);
+  if (!guest) throw new NotFoundException("guest_not_found");
+  if (guest.session.businessId !== businessId) {
+    throw new NotFoundException("guest_not_found");
+  }
+  if (guest.status !== "PENDING") {
+    throw new ConflictException("guest_not_pending");
+  }
+  return await guestSessionRepo.updateStatus(guestSessionId, "ACTIVE");
+}
+
+async rejectGuest(guestSessionId: string, businessId: string) {
+  const guest = await guestSessionRepo.findById(guestSessionId);
+  if (!guest) throw new NotFoundException("guest_not_found");
+  if (guest.session.businessId !== businessId) {
+    throw new NotFoundException("guest_not_found");
+  }
+  if (guest.status !== "PENDING") {
+    throw new ConflictException("guest_not_pending");
+  }
+  return await guestSessionRepo.updateStatus(guestSessionId, "REJECTED");
 }
 }
 

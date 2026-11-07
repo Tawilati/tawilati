@@ -146,6 +146,7 @@ model GuestSession {
   id        String        @id @default(uuid())
   sessionId String
   token     String        @unique @db.Char(64)
+   status    GuestSessionStatus @default(PENDING)
   createdAt DateTime      @default(now())
   expiresAt DateTime
   revokedAt DateTime?
@@ -154,6 +155,7 @@ model GuestSession {
 
   @@index([sessionId])
   @@index([expiresAt])
+  @@index([status])
 }
 
 model DiningOrder {
@@ -166,6 +168,8 @@ model DiningOrder {
   totalUSD       Decimal       @default(0) @db.Decimal(12, 2)
   totalLBP       Decimal       @default(0) @db.Decimal(14, 2)
   createdAt      DateTime      @default(now())
+  // Set when the guest cancels the round while it is still NEW; the kitchen shows it crossed out for a minute.
+  cancelledAt    DateTime?
   business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
   session        TableSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -252,3 +256,9 @@ enum PaymentMethod {
   CASH
   EXTERNAL_CARD
 }
+enum GuestSessionStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+

@@ -40,6 +40,10 @@
   --color-on-table-slowpay: var(--table-slowpay-fg);
   --color-table-quiet: var(--table-quiet-bg);
   --color-on-table-quiet: var(--table-quiet-fg);
+  --color-trend-up: var(--trend-up-bg);
+  --color-on-trend-up: var(--trend-up-fg);
+  --color-trend-down: var(--trend-down-bg);
+  --color-on-trend-down: var(--trend-down-fg);
   --font-sans: var(--font-ui);
   --font-display: var(--font-brand);
 }

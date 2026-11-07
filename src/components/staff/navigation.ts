@@ -30,13 +30,13 @@ export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
     { href: "/dashboard/menu", label: "Menu", icon: MenuIcon },
     { href: "/dashboard/tables", label: "Tables", icon: TablesIcon },
     { href: "/dashboard/staff", label: "Staff", icon: StaffIcon },
-    { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon, soon: true },
+    { href: "/dashboard/reports", label: "Reports", icon: ReportsIcon },
     { href: "/dashboard/integrations", label: "AI integrations", icon: SparklesIcon, phoneMore: true },
     { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, phoneMore: true, accountMenu: true },
   ],
   [ROLE.KITCHEN]: [
     { href: "/kitchen", label: "Kitchen", icon: KitchenIcon, exact: true },
-    { href: "/kitchen/sold-out", label: "Sold out", icon: MenuIcon, soon: true },
+    { href: "/kitchen/sold-out", label: "Sold out", icon: MenuIcon },
   ],
   [ROLE.WAITER]: [
     { href: "/waiter", label: "Tables", icon: TablesIcon, exact: true },

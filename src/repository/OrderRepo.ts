@@ -1,4 +1,5 @@
 import { Prisma } from "@/app/generated/prisma/client";
+import { Decimal } from "@/app/generated/prisma/internal/prismaNamespace";
 import prisma from "@/lib/db";
 import type { DbClient } from "@/types/Db";
 import { DBException } from "@/utils/exceptions/RepoException";
@@ -117,7 +118,61 @@ export class OrderRepo {
       );
     }
   }
- 
+ async findGuestOrderForCancel(orderId: string, guestSessionId: string) {
+  try {
+    return await prisma.diningOrder.findFirst({
+      where: {
+        id: orderId,
+        guestSessionId, 
+      },
+      select: {
+        id: true,
+        status: true,
+        sessionId: true,
+        totalUSD: true,
+        totalLBP: true,
+      },
+    });
+  } catch (error) {
+    throw new DBException(
+      "Error finding guest order for cancel",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
+
+// Cancels the round only if it is still NEW, then takes its amount off the tab. False (and nothing written)
+// when the kitchen started it first. Run it inside the caller's transaction.
+async cancelOrderAndUpdateBill(
+  orderId: string,
+  sessionId: string,
+  totalUSD: Decimal,
+  totalLBP: Decimal,
+  tx: DbClient = prisma,
+): Promise<boolean> {
+  try {
+    const { count } = await tx.diningOrder.updateMany({
+      where: { id: orderId, status: "NEW" },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    });
+    if (count === 0) return false;
+
+    await tx.tableSession.update({
+      where: { id: sessionId },
+      data: {
+        totalUSD: { decrement: totalUSD },
+        totalLBP: { decrement: totalLBP },
+      },
+    });
+    return true;
+  } catch (error) {
+    throw new DBException(
+      "Error cancelling order",
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
+
 
 }
 

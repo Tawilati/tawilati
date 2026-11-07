@@ -93,6 +93,20 @@ describe("POST /api/orders", () => {
   });
 
   describe("guest authentication", () => {
+    it("returns 403 while the guest session is awaiting waiter approval", async () => {
+      mockedOrderService.createOrder.mockRejectedValue(
+        new HttpException(403, "guest_session_pending_approval"),
+      );
+
+      const response = await POST(makeRequest(body));
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({
+        success: false,
+        message: "guest_session_pending_approval",
+      });
+    });
+
     it("returns 401 unauthorized without an Authorization header", async () => {
       const response = await POST(makeRequest(body, { token: null }));
 

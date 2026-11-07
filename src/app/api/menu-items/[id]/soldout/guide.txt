@@ -1,0 +1,84 @@
+MENU ITEM SOLD-OUT API - TEST GUIDE
+
+Route
+  PATCH /api/menu-items/:id/soldout
+  The route folder is named "soldout" (no hyphen).
+
+Authentication and permissions
+  Requires a signed-in staff session with SOLD_OUT_TOGGLE permission.
+  OWNER and KITCHEN are allowed; WAITER is not.
+  The businessId is taken from the authenticated identity, never from the body.
+  :id must be a UUID. The request body must contain soldOut as a boolean.
+
+Request
+  PATCH /api/menu-items/<itemId>/soldout
+  Content-Type: application/json
+
+  { "soldOut": true }
+
+  Set soldOut to false to make the item available again.
+
+Success
+  Status: 200
+  {
+    "success": true,
+    "message": "item marked as sold out",
+    "data": { "id": "<itemId>", "soldOut": true }
+  }
+  When soldOut is false, the message is "item marked as available".
+
+Guest menu behavior
+  A successful update invalidates the guest menu page cache for
+  /menu/[business]/[table]. Open guest menus also refresh from GET /api/menu
+  every 10 seconds while visible, so the sold-out state should appear without
+  reopening the QR link.
+
+Setup
+  1. Run npm run db:seed, or sign in as an OWNER and create a menu item.
+  2. Sign in as an OWNER or KITCHEN user and obtain a staff session.
+  3. Save a menu item UUID and open its guest menu link in another browser.
+
+TEST CASES
+
+1. Mark an available item sold out
+  Send { "soldOut": true } as OWNER or KITCHEN.
+  Expect 200, message "item marked as sold out", and data.soldOut true.
+  Check the guest menu: the item remains visible and is marked sold out;
+  guests cannot add it to their cart.
+
+2. Make a sold-out item available
+  Send { "soldOut": false }.
+  Expect 200, message "item marked as available", and data.soldOut false.
+  Check the guest menu: the item can be added to the cart again.
+
+3. Toggle from the kitchen
+  Repeat cases 1 and 2 using a KITCHEN session.
+  Both updates should succeed.
+
+4. WAITER lacks permission
+  Send either update using a WAITER session.
+  Expect 403 forbidden; the item's soldOut value remains unchanged.
+
+5. Unauthenticated request
+  Send the request without a valid staff session.
+  Expect 401 unauthorized; no update is made.
+
+6. Invalid item id
+  Use an id such as "abc".
+  Expect 400 validation_error with details.id; no update is made.
+
+7. Invalid body
+  Try an empty body, { "soldOut": "true" }, or { "soldOut": 1 }.
+  Expect 400 validation_error; no update is made.
+
+8. Malformed JSON
+  Send an invalid JSON body.
+  Expect 400 invalid_json; no update is made.
+
+9. Unknown item or another business's item
+  Use a UUID that does not belong to the signed-in business.
+  Expect 404 menu_item_not_found; another business's item must remain unchanged.
+
+10. Method not supported
+  Try GET /api/menu-items/<itemId>/soldout.
+  Expect Next.js 405 Method Not Allowed.

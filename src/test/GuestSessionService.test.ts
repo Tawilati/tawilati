@@ -62,6 +62,12 @@ describe("RenewGuestSession", () => {
     expect(mockedGuestSessionRepo.extend).not.toHaveBeenCalled();
   });
 
+  it("refuses a phone the waiter turned away with 403 guest_session_rejected", async () => {
+    mockedGuestSessionRepo.FindByToken.mockResolvedValue(guest({ status: "REJECTED", revokedAt: NOW }));
+
+    await expect(guestSessionService.RenewGuestSession(TOKEN)).rejects.toMatchObject({ status: 403, message: "guest_session_rejected" });
+  });
+
   it("refuses a revoked session with 401 guest_session_revoked", async () => {
     mockedGuestSessionRepo.FindByToken.mockResolvedValue(guest({ revokedAt: NOW }));
 

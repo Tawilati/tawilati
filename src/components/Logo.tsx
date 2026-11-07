@@ -3,6 +3,8 @@ import Image from "next/image";
 // The approved logo files from brand/logo/, served from public/brand/. Never redraw the logo.
 const LOGOS = {
   horizontal: { src: "/brand/tawilati-horizontal.svg", width: 496, height: 108 },
+  // For dark backgrounds (the forest-green staff sidebar).
+  "horizontal-reverse": { src: "/brand/tawilati-horizontal-reverse.svg", width: 496, height: 108 },
   icon: { src: "/brand/tawilati-icon.svg", width: 85, height: 89 },
 } as const;
 

@@ -84,7 +84,7 @@ async markOrderAsServed(orderId: string, tx: DbClient = prisma) {
     );
   }
 }
-// Every round on the tab except cancelled ones, so the lines add up to the tab's totals.
+// Every round on the tab, cancelled ones included (the sheet shows them greyed; they're not in the tab's totals).
 async findBillBySessionId(
   sessionId: string,
   businessId: string,
@@ -95,7 +95,6 @@ async findBillBySessionId(
       include: {
         table: { select: { label: true } },
         orders: {
-          where: { status: { not: "CANCELLED" } },
           include: {
             orderLines: {
               include: { menuItem: { select: { name: true } } },

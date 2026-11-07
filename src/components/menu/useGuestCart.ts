@@ -45,10 +45,18 @@ export function useGuestCart(menu: PublicMenu, qrToken: string) {
   const change = useCallback(
     (item: Pick<PublicMenuItem, "id" | "name">, delta: number) => {
       if (inFlight.current) return;
-      save((current) => ({ ...current, lines: addToCart(current.lines, item, delta) }));
+      // While a waiter is confirming the phone, the cart is what will be sent: it stays as it is.
+      save((current) => (current.awaiting ? current : { ...current, lines: addToCart(current.lines, item, delta) }));
     },
     [save],
   );
+
+  // "Change my order" while waiting. The server refused the attempt before recording anything under its key,
+  // so dropping it can't lose a ticket; the next Submit asks the waiter again (or goes straight through).
+  const stopWaiting = useCallback(() => {
+    if (inFlight.current) return;
+    save((current) => ({ ...current, attempt: null, awaiting: false }));
+  }, [save]);
 
   const submit = useCallback(async (): Promise<SubmitOutcome | null> => {
     if (inFlight.current) return null;
@@ -66,12 +74,16 @@ export function useGuestCart(menu: PublicMenu, qrToken: string) {
 
       const outcome = await submitCart({ qrToken, lines, attempt, tokens: tokenStore(qrToken) });
 
+      const awaiting = outcome.kind === "awaiting_approval";
       if (outcome.kind === "sent") {
-        save((state) => ({ ...state, lines: subtractLines(state.lines, outcome.sentLines), attempt: null }));
+        save((state) => ({ ...state, lines: subtractLines(state.lines, outcome.sentLines), attempt: null, awaiting }));
       } else if (outcome.kind === "tab_closed") {
-        save((state) => ({ ...state, closed: true }));
-      } else if (outcome.kind !== "failed" || !outcome.keepAttempt) {
-        save((state) => ({ ...state, attempt: null }));
+        save((state) => ({ ...state, closed: true, awaiting }));
+      } else if (awaiting || (outcome.kind === "failed" && outcome.keepAttempt)) {
+        // Waiting keeps the attempt: once confirmed, the same key goes out, so it still can't make two tickets.
+        save((state) => ({ ...state, awaiting }));
+      } else {
+        save((state) => ({ ...state, attempt: null, awaiting }));
       }
       return outcome;
     } catch {
@@ -82,5 +94,5 @@ export function useGuestCart(menu: PublicMenu, qrToken: string) {
     }
   }, [qrToken, save, storageKey, summary.blocked]);
 
-  return { lines: saved.lines, summary, submitting, closed: saved.closed, change, submit };
+  return { lines: saved.lines, summary, submitting, closed: saved.closed, awaiting: saved.awaiting, change, submit, stopWaiting };
 }

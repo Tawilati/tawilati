@@ -6,9 +6,17 @@ import { isOverdue, type KitchenTicket } from "@/utils/kitchenQueue";
 const BAND: Record<KitchenTicket["status"], string> = {
   NEW: "bg-[var(--status-new-bg)]",
   PREPARING: "bg-[var(--status-preparing-bg)]",
+  CANCELLED: "bg-surface-muted",
+};
+
+const SPOKEN: Record<KitchenTicket["status"], string> = {
+  NEW: "new",
+  PREPARING: "preparing",
+  CANCELLED: "cancelled by the guest",
 };
 
 // One round to cook: table, how long it has waited, the items, and the one button for the next step.
+// A round the guest cancelled stays in its place for a minute, faded and crossed out, with no button.
 export function TicketCard({
   ticket,
   now,
@@ -20,15 +28,20 @@ export function TicketCard({
   busy: boolean;
   onAdvance: (ticket: KitchenTicket) => void;
 }) {
+  const cancelled = ticket.status === "CANCELLED";
   const late = isOverdue(ticket, now);
   const waited = elapsedLabel(ticket.createdAt, now);
   const next = ticket.status === "NEW" ? "Start" : "Ready";
 
   return (
     <article
-      aria-label={`${ticket.tableLabel}, ${ticket.status === "NEW" ? "new" : "preparing"}, ${waited}${late ? ", overdue" : ""}`}
-      className={`flex min-h-56 min-w-0 flex-col overflow-hidden rounded-2xl bg-surface ${
-        late ? "border-2 border-danger" : "border border-border-subtle"
+      aria-label={`${ticket.tableLabel}, ${SPOKEN[ticket.status]}, ${waited}${late ? ", overdue" : ""}`}
+      className={`flex min-h-56 min-w-0 flex-col overflow-hidden rounded-2xl ${
+        cancelled
+          ? "border-2 border-dashed border-border-strong bg-surface-muted opacity-70"
+          : late
+            ? "border-2 border-danger bg-surface"
+            : "border border-border-subtle bg-surface"
       }`}
     >
       <header className={`flex flex-col gap-1.5 px-4 pt-3 pb-2.5 ${BAND[ticket.status]}`}>
@@ -42,10 +55,16 @@ export function TicketCard({
             <span className="shrink-0 text-sm font-medium tabular-nums text-ink-muted">{waited}</span>
           )}
         </div>
-        <StatusBadge status={ticket.status} className="self-start" />
+        {ticket.status === "CANCELLED" ? (
+          <StatusBadge status="CLOSED" className="self-start">
+            Cancelled
+          </StatusBadge>
+        ) : (
+          <StatusBadge status={ticket.status} className="self-start" />
+        )}
       </header>
 
-      <ul className="flex flex-1 flex-col gap-1.5 px-4 py-3 text-lg">
+      <ul className={`flex flex-1 flex-col gap-1.5 px-4 py-3 text-lg ${cancelled ? "text-ink-muted line-through" : ""}`}>
         {ticket.lines.map((line) => (
           <li key={line.menuItemId} className="flex gap-2 leading-snug">
             <span className="min-w-8 font-bold tabular-nums">{line.qty}×</span>
@@ -55,9 +74,13 @@ export function TicketCard({
       </ul>
 
       <div className="px-4 pb-4">
-        <Button block loading={busy} onClick={() => onAdvance(ticket)} aria-label={`${next} ${ticket.tableLabel}`}>
-          {next}
-        </Button>
+        {cancelled ? (
+          <p className="text-center text-sm font-semibold text-ink-muted">The guest cancelled this order. Don&apos;t make it.</p>
+        ) : (
+          <Button block loading={busy} onClick={() => onAdvance(ticket)} aria-label={`${next} ${ticket.tableLabel}`}>
+            {next}
+          </Button>
+        )}
       </div>
     </article>
   );

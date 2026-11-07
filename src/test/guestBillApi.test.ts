@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { askForBill, fetchGuestBill, fetchSplit } from "@/components/menu/guestOrderApi";
+import { askForBill, cancelRound, fetchGuestBill, fetchSplit } from "@/components/menu/guestOrderApi";
 
 const bill = {
   sessionId: "s1",
@@ -227,5 +227,57 @@ describe("fetchSplit", () => {
     fetchMock.mockResolvedValueOnce(reply(200, { success: true, data: { ...split, perPersonUSD: 1.67 } }));
 
     expect(await fetchSplit("guest-1", 3)).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("cancelRound", () => {
+  const ORDER = "f0000000-0000-4000-8000-000000000001";
+  const done = () => reply(200, { success: true, data: { orderId: ORDER, status: "CANCELLED" } });
+  const refused = (status: number, message: string) => reply(status, { success: false, message });
+
+  it("posts to this round's cancel with this phone's token", async () => {
+    fetchMock.mockResolvedValueOnce(done());
+
+    expect(await cancelRound("guest-1", ORDER)).toEqual({ kind: "cancelled" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/orders/${ORDER}/cancel`);
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer guest-1");
+  });
+
+  it("treats a round that was already cancelled (a double tap) as cancelled", async () => {
+    fetchMock.mockResolvedValueOnce(refused(409, "order_already_cancelled"));
+    expect(await cancelRound("guest-1", ORDER)).toEqual({ kind: "cancelled" });
+  });
+
+  it("says when the kitchen started it first", async () => {
+    fetchMock.mockResolvedValueOnce(refused(409, "cannot_cancel_order_already_in_progress"));
+    expect(await cancelRound("guest-1", ORDER)).toEqual({ kind: "started" });
+  });
+
+  it("says when the bill was closed", async () => {
+    fetchMock.mockResolvedValueOnce(refused(409, "table_session_closed"));
+    expect(await cancelRound("guest-1", ORDER)).toEqual({ kind: "closed" });
+  });
+
+  it("renews an expired token and cancels once more", async () => {
+    fetchMock
+      .mockResolvedValueOnce(refused(401, "token_expired"))
+      .mockResolvedValueOnce(reply(200, { success: true, data: { token: "guest-1" } }))
+      .mockResolvedValueOnce(done());
+
+    expect(await cancelRound("guest-1", ORDER)).toEqual({ kind: "cancelled" });
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      `/api/orders/${ORDER}/cancel`,
+      "/api/guest-sessions/renew",
+      `/api/orders/${ORDER}/cancel`,
+    ]);
+  });
+
+  it("reports an unreachable server or an unknown answer as unavailable", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("offline"));
+    expect(await cancelRound("guest-1", ORDER)).toEqual({ kind: "unavailable" });
+    fetchMock.mockResolvedValueOnce(refused(404, "order_not_found"));
+    expect(await cancelRound("guest-1", ORDER)).toEqual({ kind: "unavailable" });
   });
 });

@@ -110,6 +110,28 @@ describe("getBill", () => {
     expect(waiterRepo.findBillBySessionId).toHaveBeenCalledWith(SESSION, BUSINESS);
   });
 
+  it("lists a cancelled round but leaves it out of the round count", async () => {
+    const createdAt = new Date("2026-11-03T10:00:00Z");
+    const round = (id: string, status: string) => ({
+      id, status, createdAt, orderLines: [],
+      totalUSD: new Prisma.Decimal("5.00"), totalLBP: new Prisma.Decimal("445000.00"),
+    });
+    waiterRepo.findBillBySessionId.mockResolvedValue({
+      ...openTab(),
+      openedAt: createdAt,
+      table: { label: "T1" },
+      orders: [round("order-1", "SERVED"), round("order-2", "CANCELLED")],
+    });
+
+    const bill = await waiterService.getBill(SESSION, BUSINESS);
+
+    expect(bill.orderCount).toBe(1);
+    expect(bill.orders.map((o) => [o.orderId, o.status])).toEqual([
+      ["order-1", "SERVED"],
+      ["order-2", "CANCELLED"],
+    ]);
+  });
+
   it("maps every round with its lines and the tab's totals", async () => {
     const createdAt = new Date("2026-11-03T10:00:00Z");
     waiterRepo.findBillBySessionId.mockResolvedValue({

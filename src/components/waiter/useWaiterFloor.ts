@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/components/dashboard/api";
 import type { FloorTable, OpenTab } from "@/utils/waiterFloor";
-import { waiterApi } from "./waiterApi";
+import { waiterApi, type PendingGuest } from "./waiterApi";
 
 // How often the waiter's screen re-reads the tables, so a new round or a guest asking for the bill shows up.
 const REFRESH_MS = 5_000;
-// The table list (names, disabled) changes rarely: re-read it every few refreshes only.
+// The table list (names, disabled) and the exchange rate change rarely: re-read them every few refreshes only.
 const TABLES_EVERY = 6;
 
 // Open tabs and every table, refreshed while the screen is visible. A failed refresh keeps the last answer on
@@ -15,6 +15,10 @@ const TABLES_EVERY = 6;
 export function useWaiterFloor() {
   const [tables, setTables] = useState<FloorTable[] | null>(null);
   const [tabs, setTabs] = useState<OpenTab[] | null>(null);
+  // Phones waiting for a waiter to confirm someone is at their table, oldest first.
+  const [pending, setPending] = useState<PendingGuest[]>([]);
+  // LBP for 1 USD, as the owner set it. Null until the first read.
+  const [rate, setRate] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [stale, setStale] = useState(false);
   // The server says this account may not read it (403): another tab signed in with another role.
@@ -28,13 +32,17 @@ export function useWaiterFloor() {
     const request = ++latest.current;
     const withTables = round.current++ % TABLES_EVERY === 0;
     try {
-      const [nextTabs, nextTables] = await Promise.all([
+      const [nextTabs, nextPending, nextTables, nextRate] = await Promise.all([
         waiterApi.tabs(),
+        waiterApi.pendingGuests(),
         withTables ? waiterApi.tables() : Promise.resolve(null),
+        withTables ? waiterApi.rate() : Promise.resolve(null),
       ]);
       if (request !== latest.current) return;
       setTabs(nextTabs);
+      setPending(nextPending);
       if (nextTables) setTables(nextTables);
+      if (nextRate) setRate(nextRate);
       setUpdatedAt(Date.now());
       setStale(false);
       setOtherAccount(false);
@@ -74,5 +82,5 @@ export function useWaiterFloor() {
     };
   }, [refresh]);
 
-  return { tables, tabs, now, updatedAt, stale, otherAccount, refresh: load };
+  return { tables, tabs, pending, rate, now, updatedAt, stale, otherAccount, refresh: load };
 }

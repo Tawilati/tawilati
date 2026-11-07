@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { closedBill } from "@/utils/guestBill";
-import { askForBill, fetchGuestBill, fetchSplit, type BillSplit, type GuestBill } from "./guestOrderApi";
+import { askForBill, cancelRound, fetchGuestBill, fetchSplit, type BillSplit, type GuestBill } from "./guestOrderApi";
 import { tokenStore } from "./guestCartStorage";
 
 // How often the phone re-checks its orders, so a status change in the kitchen reaches the table.
 const REFRESH_MS = 10_000;
 const ASK_FAILED = "We couldn't reach the waiter's screen. Please try again, or wave to a member of staff.";
+const CANCEL_FAILED = "We couldn't cancel your order. Check your connection and try again.";
+const CANCEL_STARTED = "The kitchen has already started this order, so it can't be cancelled. Please ask your waiter.";
+const CANCEL_CLOSED = "This table's bill has been closed. Please ask a member of staff.";
 
 // This phone's orders and the table's bill. An expired token is renewed while the tab is open. Once the
 // bill has closed or the server no longer knows the token, polling stops and keeps the last answer.
@@ -36,6 +39,10 @@ export function useGuestOrders(qrToken: string) {
       tokenStore(qrToken).clear();
     } else if (result.kind === "expired") {
       stopped.current = true;
+    } else if (result.kind === "rejected") {
+      // The waiter turned this phone away before it ordered: not a closed bill. The next submit asks again.
+      stopped.current = true;
+      tokenStore(qrToken).clear();
     }
   }, [qrToken]);
 
@@ -85,6 +92,30 @@ export function useGuestOrders(qrToken: string) {
     return ASK_FAILED;
   }, [qrToken, load]);
 
+  // "Cancel order" on a round still marked New. Returns a sentence when it didn't go through, null when it did
+  // (the round then leaves this phone's list on the reload below).
+  const cancel = useCallback(async (orderId: string): Promise<string | null> => {
+    const token = tokenStore(qrToken).get();
+    if (!token) return CANCEL_FAILED;
+    const result = await cancelRound(token, orderId);
+    if (result.kind === "cancelled") {
+      await load();
+      return null;
+    }
+    if (result.kind === "started") {
+      await load();
+      return CANCEL_STARTED;
+    }
+    if (result.kind === "closed") {
+      setRevoked(true);
+      setBill((last) => (last ? closedBill(last) : last));
+      stopped.current = true;
+      tokenStore(qrToken).clear();
+      return CANCEL_CLOSED;
+    }
+    return CANCEL_FAILED;
+  }, [qrToken, load]);
+
   // "Split equally": the table's share per person, or null when it couldn't be worked out.
   const split = useCallback(async (people: number): Promise<BillSplit | null> => {
     const token = tokenStore(qrToken).get();
@@ -100,5 +131,5 @@ export function useGuestOrders(qrToken: string) {
     return null;
   }, [qrToken]);
 
-  return { bill, closed: revoked || bill?.status === "CLOSED", restart, askBill, split };
+  return { bill, closed: revoked || bill?.status === "CLOSED", restart, askBill, split, cancel };
 }

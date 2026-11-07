@@ -77,4 +77,12 @@ describe("POST /api/orders/:id/cancel", () => {
     });
     expect(mockedOrderService.cancelGuestOrder).toHaveBeenCalledWith(ORDER_ID, GUEST_TOKEN);
   });
+
+  it("returns 400 validation_error for an id that isn't a UUID, without calling the service", async () => {
+    const response = await POST(makeRequest(`Bearer ${GUEST_TOKEN}`), makeContext("not-a-uuid"));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ success: false, message: "validation_error" });
+    expect(mockedOrderService.cancelGuestOrder).not.toHaveBeenCalled();
+  });
 });

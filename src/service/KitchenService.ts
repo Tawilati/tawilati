@@ -4,7 +4,11 @@ import {
   type KitchenOrdersResponse,
 } from "@/types/Kitchen";
 import { BadRequestException } from "@/utils/exceptions/http/BadRequestException";
+import { ConflictException } from "@/utils/exceptions/http/ConflictException";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
+
+// A round the guest cancelled stays on the kitchen screen, crossed out, for this long.
+export const CANCELLED_VISIBLE_MS = 60_000;
 
 export class KitchenService {
   private static instance: KitchenService;
@@ -20,7 +24,7 @@ export class KitchenService {
   }
 
   async getKitchenOrders(businessId: string): Promise<KitchenOrdersResponse> {
-    const orders = await kitchenRepo.findKitchenOrders(businessId);
+    const orders = await kitchenRepo.findKitchenOrders(businessId, new Date(Date.now() - CANCELLED_VISIBLE_MS));
     return mapToKitchenOrdersResponse(orders);
   }
   
@@ -37,6 +41,10 @@ async updateKitchenOrderStatus(
     throw new NotFoundException("not_found");
   }
 
+  if (order.status === "CANCELLED") {
+    throw new ConflictException("order_cancelled");
+  }
+
   // 2. Validate the transition (F-04: reject invalid transitions)
   const validTransition =
     (order.status === "NEW" && newStatus === "PREPARING") ||
@@ -46,13 +54,16 @@ async updateKitchenOrderStatus(
     throw new BadRequestException("invalid_transition");
   }
 
-  // 3. Update the status
-  const updatedOrder = await kitchenRepo.updateOrderStatus(orderId, newStatus);
+  // 3. Update the status, only if nobody changed it since the read: a guest cancelling the round, or another
+  // kitchen screen moving it, at the same moment. Exactly one of them wins.
+  const updated = await kitchenRepo.updateOrderStatus(orderId, order.status, newStatus);
+  if (!updated) {
+    const now = await kitchenRepo.findOrderForKitchen(orderId, businessId);
+    if (now?.status === "CANCELLED") throw new ConflictException("order_cancelled");
+    throw new BadRequestException("invalid_transition");
+  }
 
-  return {
-    orderId: updatedOrder.id,
-    status: updatedOrder.status,
-  };
+  return { orderId, status: newStatus };
 }
 
 }

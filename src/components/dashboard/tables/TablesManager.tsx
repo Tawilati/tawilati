@@ -81,7 +81,7 @@ export function TablesManager() {
     const error =
       current && current !== "new"
         ? await run(() => tablesApi.rename(current.id, label), "Table renamed", true)
-        : await run(() => tablesApi.add(label), `${label} added. Download its sticker to print it.`, true);
+        : await run(() => tablesApi.add(label), `${label} added. Download its QR to print it.`, true);
     if (!error) setEditing(null);
     return error;
   }
@@ -120,7 +120,7 @@ export function TablesManager() {
       {withActions && (
         <div className="grid w-full grid-cols-2 gap-2.5 sm:flex sm:w-auto">
           {canPrint && (
-            <Link href="/dashboard/tables/print" className={buttonClassName({ variant: "secondary" })}>
+            <Link href="/dashboard/tables/print" className={buttonClassName({ variant: "accent" })}>
               <PrinterIcon className="size-5" />
               {/* One text box, so the button's gap doesn't split "Print all" from "stickers". */}
               <span>
@@ -216,7 +216,7 @@ export function TablesManager() {
         {tables.length === 0 ? (
           <Card>
             <p className="text-sm text-ink-muted">
-              No tables yet. Add your first table, then download its QR sticker and put it on the table.
+              No tables yet. Add your first table, then download its QR and put it on the table.
             </p>
           </Card>
         ) : (
@@ -292,12 +292,11 @@ export function TablesManager() {
                 </p>
               ) : (
                 <Button
-                  variant="secondary"
                   block
                   loading={downloading === table.id}
                   onClick={() => void download(table)}
                 >
-                  <DownloadIcon className="size-[18px]" /> Download sticker
+                  <DownloadIcon className="size-[18px]" /> Download QR
                 </Button>
               )}
             </li>
@@ -339,7 +338,7 @@ function LabelForm({
         error={error}
         hint={
           table
-            ? "The printed QR code keeps working. Download a new sticker if you want the new name on it."
+            ? "The printed QR code keeps working. Download a new QR if you want the new name on it."
             : "Short names work best, like T7, Terrace 3 or Bar 2. Guests see it when they scan."
         }
         maxLength={50}

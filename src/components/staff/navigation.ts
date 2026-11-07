@@ -34,7 +34,7 @@ export const NAV_BY_ROLE: Record<ROLE, NavItem[]> = {
   ],
   [ROLE.KITCHEN]: [
     { href: "/kitchen", label: "Kitchen", icon: KitchenIcon, exact: true },
-    { href: "/kitchen/sold-out", label: "Sold out", icon: MenuIcon, soon: true },
+    { href: "/kitchen/sold-out", label: "Sold out", icon: MenuIcon },
   ],
   [ROLE.WAITER]: [
     { href: "/waiter", label: "Tables", icon: TablesIcon, exact: true },

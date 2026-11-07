@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/components/dashboard/api";
-import { applyStatus, type KitchenStatus, type KitchenTicket } from "@/utils/kitchenQueue";
+import { applyStatus, newlyCancelled, type KitchenStatus, type KitchenTicket } from "@/utils/kitchenQueue";
 import { kitchenApi } from "./kitchenApi";
 
 // How often the kitchen re-reads the queue, so a round a guest just sent shows up.
@@ -19,12 +19,18 @@ export function useKitchenQueue() {
   const [now, setNow] = useState(() => Date.now());
   // Only the newest request may answer, so a slow old one can't put a ticket back after a tap.
   const latest = useRef(0);
+  // Rounds a guest cancelled since the last read, for a notice. `lastRead` is the server's previous answer.
+  const [cancelled, setCancelled] = useState<{ id: number; tickets: KitchenTicket[] } | null>(null);
+  const lastRead = useRef<KitchenTicket[] | null>(null);
 
   const load = useCallback(async () => {
     const request = ++latest.current;
     try {
       const next = await kitchenApi.queue();
       if (request !== latest.current) return;
+      const justCancelled = newlyCancelled(lastRead.current, next);
+      lastRead.current = next;
+      if (justCancelled.length > 0) setCancelled({ id: Date.now(), tickets: justCancelled });
       setTickets(next);
       setUpdatedAt(Date.now());
       setStale(false);
@@ -69,5 +75,7 @@ export function useKitchenQueue() {
     };
   }, [refresh]);
 
-  return { tickets, now, updatedAt, stale, otherAccount, refresh: load, apply };
+  const dismissCancelled = useCallback(() => setCancelled(null), []);
+
+  return { tickets, now, updatedAt, stale, otherAccount, refresh: load, apply, cancelled, dismissCancelled };
 }

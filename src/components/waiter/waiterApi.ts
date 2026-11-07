@@ -39,9 +39,19 @@ export type CloseReceipt = {
   paymentId: string | null;
 };
 
+// A phone that scanned a table and wants to order, waiting for a waiter to check someone is sitting there.
+export type PendingGuest = { guestSessionId: string; tableId: string; tableLabel: string; createdAt: string; expiresAt: string };
+
 export const waiterApi = {
+  pendingGuests: () => call<PendingGuest[]>("/api/waiter/guest-sessions/pending", "GET"),
+  confirmGuest: (guestSessionId: string) =>
+    call<{ guestSessionId: string; status: string }>(`/api/waiter/guest-sessions/${guestSessionId}/confirm`, "PATCH"),
+  rejectGuest: (guestSessionId: string) =>
+    call<{ guestSessionId: string; status: string }>(`/api/waiter/guest-sessions/${guestSessionId}/reject`, "PATCH"),
   tabs: () => call<OpenTab[]>("/api/waiter/tabels", "GET"),
   tables: () => call<FloorTable[]>("/api/tables", "GET"),
+  // The business's exchange rate (a decimal string, e.g. "89500"), the one the close uses to count LBP received.
+  rate: async () => (await call<{ exchangeRate: string }>("/api/business", "GET")).exchangeRate,
   bill: (sessionId: string) => call<TabBill>(`/api/waiter/order/${sessionId}/bill`, "GET"),
   serve: (orderId: string) => call<{ orderId: string; status: RoundStatus }>(`/api/waiter/order/${orderId}/served`, "PATCH"),
   // Amounts go as JSON numbers, the shape the close route accepts today.
@@ -60,6 +70,8 @@ const SENTENCES: Record<string, string> = {
   tab_not_settleable: "Serve every round before closing the bill.",
   insufficient_payment: "USD and LBP received together are less than the bill.",
   validation_error: "Check the amounts: they must be numbers of 0 or more.",
+  guest_not_found: "This request is no longer there. The list will refresh.",
+  guest_not_pending: "Someone already answered this request.",
 };
 
 export function waiterSentenceFor(error: unknown): string {

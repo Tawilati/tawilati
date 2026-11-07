@@ -13,7 +13,7 @@ import { useKitchenQueue } from "./useKitchenQueue";
 // The kitchen screen: every round still to cook, oldest first, left to right then top to bottom. Start keeps a
 // ticket in its place; Ready takes it off (the waiter's screen shows "1 ready").
 export function KitchenQueue() {
-  const { tickets, now, updatedAt, stale, otherAccount, refresh, apply } = useKitchenQueue();
+  const { tickets, now, updatedAt, stale, otherAccount, refresh, apply, cancelled, dismissCancelled } = useKitchenQueue();
   const [busy, setBusy] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState<{ id: number; title: string } | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
@@ -52,8 +52,18 @@ export function KitchenQueue() {
 
       {otherAccount && <SignedInElsewhere role="kitchen" />}
 
-      {notice && (
+      {notice ? (
         <FloatingToast key={notice.id} tone="error" title={notice.title} duration={6000} onDismiss={dismissNotice} />
+      ) : (
+        cancelled && (
+          <FloatingToast
+            key={cancelled.id}
+            tone="error"
+            title={cancelled.tickets.map(cancelledSentence).join(" ")}
+            duration={10_000}
+            onDismiss={dismissCancelled}
+          />
+        )
       )}
 
       {summary && (
@@ -98,6 +108,12 @@ export function KitchenQueue() {
       )}
     </div>
   );
+}
+
+// "Table T1 cancelled an order: 2 × Espresso, 1 × Cake."
+function cancelledSentence(ticket: KitchenTicket): string {
+  const items = ticket.lines.map((line) => `${line.qty} × ${line.name}`).join(", ");
+  return `Table ${ticket.tableLabel} cancelled an order: ${items}.`;
 }
 
 function SummaryItem({ label, value, className }: { label: string; value: number; className: string }) {

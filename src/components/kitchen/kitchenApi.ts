@@ -1,12 +1,20 @@
-// The kitchen screen talks to /api/kitchen/orders (the queue) and /api/kitchen/:id (Start, Ready).
+// The kitchen screens talk to /api/kitchen/orders (the queue), /api/kitchen/:id (Start, Ready), and for Sold out
+// to /api/categories, /api/menu-items and /api/menu-items/:id/soldout.
 // Error codes never reach the cook: `kitchenSentenceFor` turns each one into a sentence.
 import { ApiError, call } from "@/components/dashboard/api";
 import type { KitchenTicket } from "@/utils/kitchenQueue";
+import type { BoardItem } from "@/utils/soldOutBoard";
+
+export type BoardCategory = { id: string; name: string };
 
 export const kitchenApi = {
   queue: () => call<KitchenTicket[]>("/api/kitchen/orders", "GET"),
   setStatus: (orderId: string, status: "PREPARING" | "READY") =>
     call<{ orderId: string; status: string }>(`/api/kitchen/${orderId}`, "PATCH", { status }),
+  categories: () => call<BoardCategory[]>("/api/categories", "GET"),
+  items: () => call<BoardItem[]>("/api/menu-items", "GET"),
+  setSoldOut: (itemId: string, soldOut: boolean) =>
+    call<{ id: string; soldOut: boolean }>(`/api/menu-items/${itemId}/soldout`, "PATCH", { soldOut }),
 };
 
 const SENTENCES: Record<string, string> = {
@@ -16,7 +24,11 @@ const SENTENCES: Record<string, string> = {
   forbidden: "This browser is signed in with another account. Sign in again as the kitchen.",
   // Someone else (another kitchen screen) moved the ticket first: the queue refreshes.
   invalid_transition: "This ticket was already updated on another screen.",
+  // The guest cancelled the round a moment before the cook tapped Start.
+  order_cancelled: "The guest cancelled this order. No need to make it.",
   not_found: "This ticket is no longer there.",
+  menu_item_not_found: "This item is no longer on the menu. The list has been refreshed.",
+  validation_error: "This item is no longer on the menu. The list has been refreshed.",
 };
 
 export function kitchenSentenceFor(error: unknown): string {

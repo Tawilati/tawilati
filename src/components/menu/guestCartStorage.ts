@@ -2,14 +2,16 @@ import { z } from "zod";
 import type { SubmitAttempt, TokenStore } from "./guestOrderApi";
 import type { CartLine } from "@/utils/guestCart";
 
-export type SavedCart = { lines: CartLine[]; attempt: SubmitAttempt | null; closed: boolean };
+// `awaiting`: the attempt is waiting for a waiter to confirm this phone; it goes out as soon as they do.
+export type SavedCart = { lines: CartLine[]; attempt: SubmitAttempt | null; closed: boolean; awaiting: boolean };
 const line = z.object({ menuItemId: z.string().min(1), qty: z.number().int().min(1).max(99) });
 const schema = z.object({
   lines: z.array(line.extend({ name: z.string() })).refine((lines) => new Set(lines.map((line) => line.menuItemId)).size === lines.length),
   attempt: z.object({ key: z.string().min(1).max(255), lines: z.array(line).min(1).max(50) }).nullable(),
   closed: z.boolean().default(false),
+  awaiting: z.boolean().default(false),
 });
-const EMPTY: SavedCart = { lines: [], attempt: null, closed: false };
+const EMPTY: SavedCart = { lines: [], attempt: null, closed: false, awaiting: false };
 
 export function parseSaved(raw: string | null): SavedCart {
   if (!raw) return EMPTY;

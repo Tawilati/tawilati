@@ -1,3 +1,4 @@
+import type { OrderStatus } from "@/app/generated/prisma/client";
 import prisma from "@/lib/db";
 import { DbClient } from "@/types/Db";
 import type { KitchenOrderRecord } from "@/types/Kitchen";
@@ -16,12 +17,16 @@ export class KitchenRepo {
     return KitchenRepo.instance;
   }
 
- async findKitchenOrders(businessId: string): Promise<KitchenOrderRecord[]> {
+ // Rounds still to cook, plus those the guest cancelled since `cancelledSince` (shown crossed out for a while).
+ async findKitchenOrders(businessId: string, cancelledSince: Date): Promise<KitchenOrderRecord[]> {
   try {
     return await prisma.diningOrder.findMany({
       where: {
         businessId,
-        status: { in: ["NEW", "PREPARING"] },
+        OR: [
+          { status: { in: ["NEW", "PREPARING"] } },
+          { status: "CANCELLED", cancelledAt: { gte: cancelledSince } },
+        ],
       },
       include: {
         table: { select: { label: true } },
@@ -55,16 +60,20 @@ async findOrderForKitchen(orderId: string, businessId: string) {
   }
 }
 
+// Moves the round only if it is still `from`; false when something else changed it first (a guest's cancel,
+// another kitchen screen), so the caller can say which.
 async updateOrderStatus(
   orderId: string,
-  newStatus: "PREPARING" | "READY",
+  from: OrderStatus,
+  to: "PREPARING" | "READY",
   tx: DbClient = prisma,
-) {
+): Promise<boolean> {
   try {
-    return await tx.diningOrder.update({
-      where: { id: orderId },
-      data: { status: newStatus },
+    const { count } = await tx.diningOrder.updateMany({
+      where: { id: orderId, status: from },
+      data: { status: to },
     });
+    return count === 1;
   } catch (error) {
     throw new DBException(
       "Error updating order status",

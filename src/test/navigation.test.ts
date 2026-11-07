@@ -33,11 +33,14 @@ describe("staff navigation", () => {
 });
 
 describe("screens not built yet", () => {
-  it("lists only the kitchen's Sold out as coming soon", () => {
-    const soon = (role: ROLE) => NAV_BY_ROLE[role].filter((i) => i.soon).map((i) => i.href);
-    expect(soon(ROLE.OWNER)).toEqual([]);
-    expect(soon(ROLE.KITCHEN)).toEqual(["/kitchen/sold-out"]);
-    expect(soon(ROLE.WAITER)).toEqual([]);
+  it("lists no screen as coming soon", () => {
+    for (const role of [ROLE.OWNER, ROLE.KITCHEN, ROLE.WAITER]) {
+      expect(NAV_BY_ROLE[role].filter((i) => i.soon)).toEqual([]);
+    }
+  });
+
+  it("gives the kitchen its queue and the Sold out screen", () => {
+    expect(NAV_BY_ROLE[ROLE.KITCHEN].map((i) => i.href)).toEqual(["/kitchen", "/kitchen/sold-out"]);
   });
 
   it("gives the waiter only the Tables screen", () => {

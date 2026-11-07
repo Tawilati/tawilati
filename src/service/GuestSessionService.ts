@@ -102,6 +102,8 @@ export class GuestSessionService {
       throw new AuthenticationException("unauthorized");
     }
 
+    // The waiter turned this phone away (nobody at the table): its own code, so the phone doesn't read it as a closed bill.
+    if (guest.status === "REJECTED") throw new HttpException(403, "guest_session_rejected");
     if (guest.revokedAt) {
       logger.error("guest session revoked");
       throw new HttpException(401, "guest_session_revoked");

@@ -98,7 +98,9 @@ export class GuestSessionRepo {
           table: { select: { label: true } },
         },
       },
+      // A cancelled round leaves this phone's list and its total (the tab's total already dropped).
       orders: {
+        where: { status: { not: "CANCELLED" } },
         include: {
           orderLines: {
             include: { menuItem: { select: { name: true } } },

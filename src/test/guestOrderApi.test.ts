@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { submitCart, type TokenStore } from "@/components/menu/guestOrderApi";
+import { fetchApproval, submitCart, type TokenStore } from "@/components/menu/guestOrderApi";
 
 const QR = "a".repeat(64);
 const lines = [{ menuItemId: "esp", qty: 2 }];
@@ -245,5 +245,45 @@ describe("submitCart", () => {
       expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
       expect(await pending).toEqual({ kind: "failed", keepAttempt: true });
     } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("waiting for a waiter to confirm a new phone", () => {
+  it("reports a phone still waiting and keeps its token, so the same session goes out once confirmed", async () => {
+    fetchMock.mockResolvedValueOnce(failure(403, "guest_session_pending_approval"));
+    const tokens = tokenStore("guest");
+
+    expect(await submitCart({ qrToken: QR, lines, attempt, tokens })).toEqual({ kind: "awaiting_approval" });
+    expect(tokens.value).toBe("guest");
+  });
+
+  it("drops the token when the waiter turned the phone away, so the next submit asks again", async () => {
+    fetchMock.mockResolvedValueOnce(failure(403, "guest_session_rejected"));
+    const tokens = tokenStore("guest");
+
+    expect(await submitCart({ qrToken: QR, lines, attempt, tokens })).toEqual({ kind: "rejected" });
+    expect(tokens.value).toBeNull();
+  });
+
+  const me = (status: string, tabOpen = true) => reply(200, { success: true, data: { status, tabOpen, sessionId: "s1", tableLabel: "T1" } });
+
+  it.each([
+    ["PENDING", true, "pending"],
+    ["ACTIVE", true, "active"],
+    ["REJECTED", false, "rejected"],
+    // The tab was closed while the phone waited (closing revokes every session on it).
+    ["PENDING", false, "gone"],
+  ])("reads %s (tab open: %s) as %s", async (status, tabOpen, expected) => {
+    fetchMock.mockResolvedValueOnce(me(status as string, tabOpen as boolean));
+    expect(await fetchApproval("guest")).toBe(expected);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/guest-sessions/me");
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer guest");
+  });
+
+  it("treats an unknown token as gone and a failed check as unavailable", async () => {
+    fetchMock.mockResolvedValueOnce(failure(404, "guest_not_found")).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(failure(500, "internal_server_error"));
+    expect(await fetchApproval("guest")).toBe("gone");
+    expect(await fetchApproval("guest")).toBe("unavailable");
+    expect(await fetchApproval("guest")).toBe("unavailable");
   });
 });

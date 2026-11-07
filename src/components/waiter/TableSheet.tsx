@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Modal, StatusBadge, TextField, Toast } from "@/components/ui";
 import { minorToAmount, toMinor } from "@/utils/guestCart";
 import { formatLBP, formatUSD } from "@/utils/money";
+import { formatRate } from "@/components/dashboard/settings/settingsApi";
 import type { FloorTile } from "@/utils/waiterFloor";
 import {
   waiterApi,
@@ -29,11 +30,14 @@ function amount(value: string): number | null {
 // `refreshKey` changes whenever the floor refreshes, so a round the kitchen finished shows up here too.
 export function TableSheet({
   tile,
+  rate,
   refreshKey,
   onChanged,
   onClose,
 }: {
   tile: FloorTile;
+  // LBP for 1 USD (the rate the close counts LBP received with), or null until the floor has read it.
+  rate: string | null;
   refreshKey: number | null;
   onChanged: () => void;
   onClose: (closedLabel?: string) => void;
@@ -217,6 +221,11 @@ export function TableSheet({
                     </Button>
                   ))}
                 </div>
+                {method === "CASH" && rate && (
+                  <p className="rounded-lg bg-table-bill px-3 py-2 text-sm text-on-table-bill">
+                    LBP counts at <span className="font-semibold tabular-nums">1 USD = {formatRate(rate)} LBP</span>
+                  </p>
+                )}
                 {method === "CASH" ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <TextField

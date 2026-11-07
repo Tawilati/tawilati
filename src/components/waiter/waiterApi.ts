@@ -42,6 +42,8 @@ export type CloseReceipt = {
 export const waiterApi = {
   tabs: () => call<OpenTab[]>("/api/waiter/tabels", "GET"),
   tables: () => call<FloorTable[]>("/api/tables", "GET"),
+  // The business's exchange rate (a decimal string, e.g. "89500"), the one the close uses to count LBP received.
+  rate: async () => (await call<{ exchangeRate: string }>("/api/business", "GET")).exchangeRate,
   bill: (sessionId: string) => call<TabBill>(`/api/waiter/order/${sessionId}/bill`, "GET"),
   serve: (orderId: string) => call<{ orderId: string; status: RoundStatus }>(`/api/waiter/order/${orderId}/served`, "PATCH"),
   // Amounts go as JSON numbers, the shape the close route accepts today.

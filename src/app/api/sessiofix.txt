@@ -1,0 +1,122 @@
+Guest browses menu (public, no session) ✅ Same
+    ↓
+Guest adds items to cart ✅ Same
+    ↓
+Guest clicks "Submit Order"
+    ↓
+Frontend calls POST /api/guest-sessions → creates PENDING session
+    ↓
+Frontend shows: "Waiting for waiter to confirm..."
+    ↓
+Waiter taps Confirm → session becomes ACTIVE
+    ↓
+Frontend polls status → sees ACTIVE → calls POST /api/orders
+    ↓
+Order is created
+🛠️ What Changes in the Code
+1. Schema: Add status to GuestSession (as described earlier).
+
+2. POST /api/guest-sessions: The session is created with status: "PENDING" (default).
+
+3. OrderService.createOrder: Add a check after finding the guest:
+
+typescript
+// Step 1: After findByToken
+if (guest.status !== "ACTIVE") {
+  throw new HttpException(403, "guest_session_pending_approval");
+}
+4. New endpoint: GET /api/guest-sessions/me (public, uses the token) — returns the session status so the frontend can poll:
+
+typescript
+// GET /api/guest-sessions/me
+export async function GET(request: NextRequest) {
+  const token = getGuestTokenFromRequest(request);
+  if (!token) throw new AuthenticationException("unauthorized");
+  
+  const guest = await guestSessionRepo.FindByToken(token);
+  if (!guest) throw new NotFoundException("guest_not_found");
+  
+  return NextResponse.json({
+    success: true,
+    data: { status: guest.status, sessionId: guest.sessionId },
+  });
+}
+5. Waiter endpoints:
+
+GET /api/waiter/pending-guests — lists all PENDING sessions for the business.
+
+PATCH /api/waiter/guest-sessions/:id/confirm — sets status: "ACTIVE".
+
+PATCH /api/waiter/guest-sessions/:id/reject — sets status: "REJECTED" and revokedAt.
+
+6. Frontend (guest):
+
+typescript
+async function submitOrder() {
+  // 1. Create session (returns PENDING)
+  const sessionRes = await fetch("/api/guest-sessions", {
+    method: "POST",
+    body: JSON.stringify({ qrToken }),
+  });
+  const { token } = await sessionRes.json();
+  localStorage.setItem("guestToken", token);
+
+  // 2. Poll until ACTIVE
+  showScreen("Waiting for waiter to confirm...");
+  const poller = setInterval(async () => {
+    const statusRes = await fetch("/api/guest-sessions/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const { data } = await statusRes.json();
+
+    if (data.status === "ACTIVE") {
+      clearInterval(poller);
+      // 3. Now submit the order
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+        body: JSON.stringify({ items: cart }),
+      });
+      showScreen("Order submitted!");
+    } else if (data.status === "REJECTED") {
+      clearInterval(poller);
+      showScreen("Waiter rejected your session. Please ask for help.");
+    }
+  }, 3000); // poll every 3s
+}
+🎯 What the Waiter Sees
+On the waiter dashboard, a new section:
+
+text
+┌─────────────────────────────────────────┐
+│ Pending Guest Confirmations             │
+├─────────────────────────────────────────┤
+│ Table T1 — Guest requested to order     │
+│ [ Confirm ]  [ Reject ]                 │
+│                                         │
+│ Table T2 — Guest requested to order     │
+│ [ Confirm ]  [ Reject ]                 │
+└─────────────────────────────────────────┘
+The waiter looks at the physical table:
+
+If someone is sitting there → tap Confirm.
+
+If the table is empty (old guest from home) → tap Reject.
+
+📋 Summary
+Layer	Change
+Schema	GuestSession.status (PENDING/ACTIVE/REJECTED)
+Create	POST /api/guest-sessions creates PENDING
+Order	POST /api/orders rejects if not ACTIVE
+Poll	GET /api/guest-sessions/me returns status
+Waiter list	GET /api/waiter/pending-guests
+Confirm	PATCH /api/waiter/guest-sessions/:id/confirm
+Reject	PATCH /api/waiter/guest-sessions/:id/reject
+The menu browsing is unchanged. The only change is the "Submit Order" flow now waits for waiter confirmation. ✅
+
+
+i added session status to the schema so run last migration and generate client
+then reseed

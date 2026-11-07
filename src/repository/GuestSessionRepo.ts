@@ -109,6 +109,57 @@ export class GuestSessionRepo {
     },
   });
 }
+async findById(guestSessionId: string) {
+  try {
+    return await prisma.guestSession.findUnique({
+      where: { id: guestSessionId },
+      include: {
+        session: {
+          include: { table: { select: { label: true } } },
+        },
+      },
+    });
+  } catch (error) {
+    throw new DBException("Error finding guest session", error as Error);
+  }
+}
+
+async findPendingByBusiness(businessId: string) {
+  try {
+    return await prisma.guestSession.findMany({
+      where: {
+        status: "PENDING",
+        session: { businessId, status: "OPEN" },
+      },
+      include: {
+        session: {
+          include: { table: { select: { label: true } } },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+  } catch (error) {
+    throw new DBException("Error finding pending guests", error as Error);
+  }
+}
+
+async updateStatus(
+  guestSessionId: string,
+  status: "ACTIVE" | "REJECTED",
+  tx: DbClient = prisma,
+) {
+  try {
+    return await tx.guestSession.update({
+      where: { id: guestSessionId },
+      data: {
+        status,
+        ...(status === "REJECTED" ? { revokedAt: new Date() } : {}),
+      },
+    });
+  } catch (error) {
+    throw new DBException("Error updating guest session status", error as Error);
+  }
+}
 }
 
 export const guestSessionRepo = GuestSessionRepo.getInstance();

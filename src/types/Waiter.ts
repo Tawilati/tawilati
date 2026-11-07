@@ -163,3 +163,9 @@ export interface CloseTabResponse {
   changeLBP: string;
   paymentId: string | null; // null when the tab had nothing on it
 }
+export interface PendingGuestResponse {
+  guestSessionId: string;
+  tableLabel: string;
+  createdAt: Date;
+  expiresAt: Date;
+}

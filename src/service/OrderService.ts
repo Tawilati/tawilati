@@ -55,6 +55,9 @@ export class OrderService {
       logger.error("table session is closed and bill is paid");
       throw new ConflictException("table_session_closed");
     }
+    if (guest.status !== "ACTIVE") {
+  throw new HttpException(403, "guest_session_pending_approval");
+}
 
     // ─────────────────────────────────────────────────────────
     // STEP 2: Idempotency check

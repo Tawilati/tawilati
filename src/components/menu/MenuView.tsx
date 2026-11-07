@@ -20,6 +20,8 @@ import { useGuestOrders } from "./useGuestOrders";
 
 // How often the open menu re-checks the server, so a sold-out switch reaches every open phone.
 const REFRESH_MS = 10_000;
+// After an Add, check the menu once the taps settle, so a burst of taps shares one request.
+const CHECK_AFTER_ADD_MS = 400;
 const NOTICE_MS = 6_000;
 // Heights of the bars fixed to the bottom of the screen, gap included.
 const CART_BAR_PX = 60;
@@ -80,6 +82,28 @@ export function MenuView({
     };
   }, [refresh]);
 
+  // Adding an item also checks the menu, so an item sold out since the last refresh is flagged within a second
+  // instead of up to 10 s later. The item goes into the cart at once; the check never makes the tap wait.
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const changeAndCheck = useCallback<typeof change>(
+    (item, delta) => {
+      change(item, delta);
+      if (delta <= 0) return;
+      if (checkTimer.current) clearTimeout(checkTimer.current);
+      checkTimer.current = setTimeout(() => {
+        checkTimer.current = null;
+        void refresh();
+      }, CHECK_AFTER_ADD_MS);
+    },
+    [change, refresh],
+  );
+  useEffect(
+    () => () => {
+      if (checkTimer.current) clearTimeout(checkTimer.current);
+    },
+    [],
+  );
+
   const submitOrder = useCallback(async () => {
     const outcome = await submit();
     // The server refused an item the menu here still shows: fetch it so the cart rows get flagged.
@@ -129,7 +153,7 @@ export function MenuView({
           className="flex flex-col gap-2.5 px-[max(18px,env(safe-area-inset-left,0px))] pt-4"
         >
           {active.items.map((item) => (
-            <MenuItemCard key={item.id} item={item} qty={cartQty(lines, item.id)} onChange={change} canAdd={lines.length < MAX_CART_LINES} />
+            <MenuItemCard key={item.id} item={item} qty={cartQty(lines, item.id)} onChange={changeAndCheck} canAdd={lines.length < MAX_CART_LINES} />
           ))}
         </ul>
         </fieldset>
@@ -167,7 +191,11 @@ export function MenuView({
           {hasCart && (
             <button
               type="button"
-              onClick={() => setCartOpen(true)}
+              onClick={() => {
+                setCartOpen(true);
+                // Check the menu as the cart opens, so a just-sold-out item is flagged before Submit.
+                void refresh();
+              }}
               className="pointer-events-auto flex min-h-[52px] w-full max-w-[552px] cursor-pointer items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-3 font-semibold text-on-primary shadow-[var(--shadow-raised)] hover:bg-primary-hover"
             >
               <span className="flex items-center gap-2.5">
@@ -188,7 +216,7 @@ export function MenuView({
           summary={summary}
           submitting={submitting}
           closed={closed}
-          onChange={change}
+          onChange={changeAndCheck}
           onSubmit={submitOrder}
           rounds={bill?.orders}
           onClose={() => setCartOpen(false)}

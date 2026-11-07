@@ -222,7 +222,7 @@ export function TableSheet({
                   ))}
                 </div>
                 {method === "CASH" && rate && (
-                  <p className="rounded-lg bg-table-bill px-3 py-2 text-sm text-on-table-bill">
+                  <p className="rounded-lg bg-accent px-3 py-2 text-sm text-ink">
                     LBP counts at <span className="font-semibold tabular-nums">1 USD = {formatRate(rate)} LBP</span>
                   </p>
                 )}

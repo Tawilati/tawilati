@@ -38,6 +38,7 @@ function guest(overrides: Record<string, unknown> = {}, sessionOverrides: Record
     id: "guest-1",
     sessionId: "session-1",
     token: TOKEN,
+    status: "ACTIVE",
     expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     revokedAt: null,
     session: { id: "session-1", businessId: "biz-1", tableId: "table-1", status: "OPEN", ...sessionOverrides },
@@ -110,7 +111,7 @@ beforeEach(() => {
 // ── Tests ─────────────────────────────────────────────────────
 describe("OrderService.createOrder", () => {
   describe("new submission", () => {
-    it("creates the order with price snapshots and Decimal totals in one transaction", async () => {
+    it("creates the order for an approved guest with price snapshots and Decimal totals in one transaction", async () => {
       const result = await orderService.createOrder(input);
 
       expect(result.created).toBe(true);
@@ -148,6 +149,7 @@ describe("OrderService.createOrder", () => {
         orderData.totalLBP,
         tx,
       );
+      expect(guestSessionRepo.FindByToken).toHaveBeenCalledWith(TOKEN);
     });
 
     it("looks the menu items up in the guest's business only", async () => {
@@ -201,6 +203,15 @@ describe("OrderService.createOrder", () => {
 
       await expectHttpError(orderService.createOrder(input), 409, "table_session_closed");
       expectNothingWritten();
+    });
+
+    it("rejects an unapproved guest with 403 before creating an order", async () => {
+      guestSessionRepo.FindByToken.mockResolvedValue(guest({ status: "PENDING" }));
+
+      await expectHttpError(orderService.createOrder(input), 403, "guest_session_pending_approval");
+      expectNothingWritten();
+      expect(submissionRepo.FindByKey).not.toHaveBeenCalled();
+      expect(menuItemRepo.findManyByIds).not.toHaveBeenCalled();
     });
   });
 

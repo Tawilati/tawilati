@@ -126,6 +126,7 @@ model GuestSession {
   id        String        @id @default(uuid())
   sessionId String
   token     String        @unique @db.Char(64)
+   status    GuestSessionStatus @default(PENDING)
   createdAt DateTime      @default(now())
   expiresAt DateTime
   revokedAt DateTime?
@@ -134,6 +135,7 @@ model GuestSession {
 
   @@index([sessionId])
   @@index([expiresAt])
+  @@index([status])
 }
 
 model DiningOrder {
@@ -232,3 +234,9 @@ enum PaymentMethod {
   CASH
   EXTERNAL_CARD
 }
+enum GuestSessionStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+

@@ -165,6 +165,8 @@ export interface CloseTabResponse {
 }
 export interface PendingGuestResponse {
   guestSessionId: string;
+  // The waiter's floor shows the request on this table's tile.
+  tableId: string;
   tableLabel: string;
   createdAt: Date;
   expiresAt: Date;

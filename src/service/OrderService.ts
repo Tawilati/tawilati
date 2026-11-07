@@ -46,6 +46,8 @@ export class OrderService {
       throw new ExpiredTokenException();
     }
 
+    // The waiter turned this phone away (nobody at the table): its own code, so the phone doesn't read it as a closed bill.
+    if (guest.status === "REJECTED") throw new HttpException(403, "guest_session_rejected");
     if (guest.revokedAt) {
       logger.error("the waiter closed the table session");
       throw new HttpException(401, "guest_session_revoked");
@@ -55,9 +57,10 @@ export class OrderService {
       logger.error("table session is closed and bill is paid");
       throw new ConflictException("table_session_closed");
     }
+    // A new phone orders only once a waiter has confirmed someone is at the table.
     if (guest.status !== "ACTIVE") {
-  throw new HttpException(403, "guest_session_pending_approval");
-}
+      throw new HttpException(403, "guest_session_pending_approval");
+    }
 
     // ─────────────────────────────────────────────────────────
     // STEP 2: Idempotency check
@@ -235,6 +238,8 @@ export class OrderService {
       throw new ExpiredTokenException();
     }
 
+    // The waiter turned this phone away (nobody at the table): its own code, so the phone doesn't read it as a closed bill.
+    if (guest.status === "REJECTED") throw new HttpException(403, "guest_session_rejected");
     if (guest.revokedAt) {
       logger.error("guest session revoked");
       throw new HttpException(401, "guest_session_revoked");
@@ -267,6 +272,8 @@ export class OrderService {
     if (guest.expiresAt < new Date()) {
       throw new ExpiredTokenException();
     }
+    // The waiter turned this phone away (nobody at the table): its own code, so the phone doesn't read it as a closed bill.
+    if (guest.status === "REJECTED") throw new HttpException(403, "guest_session_rejected");
     if (guest.revokedAt) {
       throw new HttpException(401, "guest_session_revoked");
     }
@@ -288,6 +295,8 @@ export class OrderService {
   // 1. Authenticate the guest
   const guest = await guestSessionRepo.FindByToken(guestToken);
   if (!guest) throw new AuthenticationException("unauthorized");
+  // The waiter turned this phone away (nobody at the table): its own code, so the phone doesn't read it as a closed bill.
+  if (guest.status === "REJECTED") throw new HttpException(403, "guest_session_rejected");
   if (guest.revokedAt) throw new HttpException(401, "guest_session_revoked");
   if (guest.expiresAt < new Date()) throw new ExpiredTokenException();
   if (guest.session.status !== "OPEN") {
@@ -324,6 +333,8 @@ async cancelGuestOrder(
   // 1. Authenticate the guest
   const guest = await guestSessionRepo.FindByToken(guestToken);
   if (!guest) throw new AuthenticationException("unauthorized");
+  // The waiter turned this phone away (nobody at the table): its own code, so the phone doesn't read it as a closed bill.
+  if (guest.status === "REJECTED") throw new HttpException(403, "guest_session_rejected");
   if (guest.revokedAt) throw new HttpException(401, "guest_session_revoked");
   if (guest.expiresAt < new Date()) throw new ExpiredTokenException();
   if (guest.session.status !== "OPEN") {

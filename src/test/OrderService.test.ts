@@ -203,6 +203,21 @@ describe("OrderService.createOrder", () => {
       expectNothingWritten();
     });
 
+    it("holds a phone no waiter has confirmed yet with 403 guest_session_pending_approval", async () => {
+      guestSessionRepo.FindByToken.mockResolvedValue(guest({ status: "PENDING" }));
+
+      await expectHttpError(orderService.createOrder(input), 403, "guest_session_pending_approval");
+      expectNothingWritten();
+    });
+
+    it("answers a phone the waiter turned away with 403 guest_session_rejected, not as a closed bill", async () => {
+      // Rejecting also revokes the session; the phone must still tell the two apart.
+      guestSessionRepo.FindByToken.mockResolvedValue(guest({ status: "REJECTED", revokedAt: new Date() }));
+
+      await expectHttpError(orderService.createOrder(input), 403, "guest_session_rejected");
+      expectNothingWritten();
+    });
+
     it("rejects a closed tab with 409", async () => {
       guestSessionRepo.FindByToken.mockResolvedValue(guest({}, { status: "CLOSED" }));
 

@@ -18,6 +18,10 @@ export type PlacedOrder = Pick<OrderResponse, "orderId" | "tableLabel" | "status
 export type SubmitOutcome =
   | { kind: "sent"; order: PlacedOrder; sentLines: OrderLine[]; earlierAttempt: boolean }
   | { kind: "blocked" }
+  // A new phone waits until a waiter confirms someone is at the table; nothing was recorded under the key.
+  | { kind: "awaiting_approval" }
+  // The waiter turned this phone away. Its token is dropped, so the next submit asks again.
+  | { kind: "rejected" }
   | { kind: "tab_closed" }
   | { kind: "table_problem"; problem: "invalid_qr" | "table_disabled" }
   | { kind: "failed"; keepAttempt: boolean; reason?: "storage_unavailable" };
@@ -26,6 +30,8 @@ type Reply = { status: number; code: string; data: unknown };
 
 const BLOCKING_CODES = ["menu_item_sold_out", "menu_item_archived", "menu_item_not_found"];
 const TAB_CLOSED_CODES = ["guest_session_revoked", "table_session_closed"];
+const PENDING_CODE = "guest_session_pending_approval";
+const REJECTED_CODE = "guest_session_rejected";
 const amount = z.string().regex(/^\d+(\.\d{1,2})?$/);
 const orderSchema = z.object({
   orderId: z.string().min(1), tableLabel: z.string().min(1),
@@ -58,6 +64,7 @@ export type BillResult =
   | { kind: "bill"; bill: GuestBill }
   | { kind: "expired" }
   | { kind: "closed" }
+  | { kind: "rejected" }
   | { kind: "unavailable" };
 
 async function readBill(token: string): Promise<BillResult | { kind: "token_expired" }> {
@@ -74,6 +81,7 @@ async function readBill(token: string): Promise<BillResult | { kind: "token_expi
       if (json?.message === "token_expired") return { kind: "token_expired" };
       return { kind: json?.message === "guest_session_revoked" ? "closed" : "expired" };
     }
+    if (json?.message === REJECTED_CODE) return { kind: "rejected" };
     const bill = billSchema.safeParse(json?.data);
     return res.ok && bill.success ? { kind: "bill", bill: bill.data } : { kind: "unavailable" };
   } catch {
@@ -168,6 +176,35 @@ export async function fetchSplit(token: string, people: number): Promise<SplitRe
     if (renewal === "unavailable") return { kind: "unavailable" };
   }
   return { kind: "unavailable" };
+}
+
+export type Approval = "pending" | "active" | "rejected" | "gone" | "unavailable";
+
+const approvalSchema = z.object({ status: z.enum(["PENDING", "ACTIVE", "REJECTED"]), tabOpen: z.boolean() });
+
+// Where this phone stands while it waits for a waiter. "gone": the token is unknown or its tab was closed in
+// the meantime, so the phone starts over on the table's next tab.
+export async function fetchApproval(token: string): Promise<Approval> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch("/api/guest-sessions/me", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const json = await res.json().catch(() => null);
+    if (res.status === 404 || res.status === 401) return "gone";
+    const parsed = approvalSchema.safeParse(json?.data);
+    if (!res.ok || !parsed.success) return "unavailable";
+    if (parsed.data.status === "REJECTED") return "rejected";
+    if (!parsed.data.tabOpen) return "gone";
+    return parsed.data.status === "ACTIVE" ? "active" : "pending";
+  } catch {
+    return "unavailable";
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // null when the server couldn't be reached.
@@ -269,6 +306,11 @@ export async function submitCart({
     return { kind: "sent", order: order.data, sentLines: attempt.lines, earlierAttempt };
   }
   if (BLOCKING_CODES.includes(result.code)) return { kind: "blocked" };
+  if (result.code === PENDING_CODE) return { kind: "awaiting_approval" };
+  if (result.code === REJECTED_CODE) {
+    tokens.clear();
+    return { kind: "rejected" };
+  }
   if (TAB_CLOSED_CODES.includes(result.code)) {
     tokens.clear();
     return { kind: "tab_closed" };

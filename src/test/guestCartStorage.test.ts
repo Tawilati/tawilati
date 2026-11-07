@@ -5,14 +5,14 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("saved guest cart", () => {
   it.each(["null", "{}", "[]", '{"lines":null}', '{"lines":[{"menuItemId":"x","name":"X","qty":-1}],"attempt":null}', "not json"])("recovers safely from invalid storage: %s", (raw) => {
-    expect(parseSaved(raw)).toEqual({ lines: [], attempt: null, closed: false });
+    expect(parseSaved(raw)).toEqual({ lines: [], attempt: null, closed: false, awaiting: false });
   });
-  it("keeps the frozen attempt and closed state across a reload", () => {
-    const saved = { lines: [{ menuItemId: "x", name: "X", qty: 2 }], attempt: { key: "retry-key", lines: [{ menuItemId: "x", qty: 1 }] }, closed: true };
+  it("keeps the frozen attempt, closed and waiting state across a reload", () => {
+    const saved = { lines: [{ menuItemId: "x", name: "X", qty: 2 }], attempt: { key: "retry-key", lines: [{ menuItemId: "x", qty: 1 }] }, closed: true, awaiting: true };
     expect(parseSaved(JSON.stringify(saved))).toEqual(saved);
   });
-  it("supports carts saved before the closed flag was added", () => {
-    expect(parseSaved('{"lines":[],"attempt":null}')).toEqual({ lines: [], attempt: null, closed: false });
+  it("supports carts saved before the closed and waiting flags were added", () => {
+    expect(parseSaved('{"lines":[],"attempt":null}')).toEqual({ lines: [], attempt: null, closed: false, awaiting: false });
   });
   it("keeps cart edits in memory when storage is blocked, but reports that they are not persisted", () => {
     vi.stubGlobal("sessionStorage", { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } });

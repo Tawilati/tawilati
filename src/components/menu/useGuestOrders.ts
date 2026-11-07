@@ -39,6 +39,10 @@ export function useGuestOrders(qrToken: string) {
       tokenStore(qrToken).clear();
     } else if (result.kind === "expired") {
       stopped.current = true;
+    } else if (result.kind === "rejected") {
+      // The waiter turned this phone away before it ordered: not a closed bill. The next submit asks again.
+      stopped.current = true;
+      tokenStore(qrToken).clear();
     }
   }, [qrToken]);
 

@@ -82,7 +82,7 @@ export function OrdersSheet({
             {bill.billRequestedAt ? (
               <p role="status" className="rounded-xl bg-surface-muted p-3 text-sm">{BILL_ASKED}</p>
             ) : (
-              <Button block variant="secondary" loading={asking} onClick={() => void ask()}>
+              <Button block loading={asking} onClick={() => void ask()}>
                 Ask for the bill
               </Button>
             )}

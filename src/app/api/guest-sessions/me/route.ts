@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
         sessionId: guest.sessionId,
         tableLabel: guest.session.table.label,
         expiresAt: guest.expiresAt,
+        // False once the tab closed (closing revokes every session on it, a pending one too): the phone
+        // waiting for approval then starts over on the table's next tab instead of waiting forever.
+        tabOpen: guest.session.status === "OPEN" && !guest.revokedAt,
       },
     });
   });

@@ -15,6 +15,9 @@ import { MenuItemCard } from "./MenuItemCard";
 import { MenuStateScreen, type MenuProblem } from "./MenuStateScreen";
 import { RoundBadge } from "./OrderParts";
 import { OrdersSheet } from "./OrdersSheet";
+import type { SubmitOutcome } from "./guestOrderApi";
+import { tokenStore } from "./guestCartStorage";
+import { useGuestApproval } from "./useGuestApproval";
 import { useGuestCart } from "./useGuestCart";
 import { useGuestOrders } from "./useGuestOrders";
 
@@ -45,7 +48,11 @@ export function MenuView({
   const [cartOpen, setCartOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const menuRef = useRef(initialMenu);
-  const { lines, summary, submitting, closed: cartClosed, change, submit } = useGuestCart(menu, qrToken);
+  const { lines, summary, submitting, closed: cartClosed, awaiting, change, submit, stopWaiting } = useGuestCart(menu, qrToken);
+  // What happened once the waiter answered, shown when the cart opens with it.
+  const [answered, setAnswered] = useState<{ id: number; outcome: SubmitOutcome } | null>(null);
+  // Bumped to start a fresh wait (a new guest session after the old tab closed).
+  const [waitRound, setWaitRound] = useState(0);
   const { bill, closed: billClosed, restart, askBill, split, cancel } = useGuestOrders(qrToken);
   const closed = cartClosed || billClosed;
 
@@ -113,6 +120,32 @@ export function MenuView({
     return outcome;
   }, [submit, refresh, restart]);
 
+  // A new phone's first order waits for a waiter to confirm someone is at the table. Confirmed: the saved
+  // attempt goes out (same key). Turned away: the phone forgets its token, so the next Submit asks again.
+  // Tab closed meanwhile: start over on the table's next tab.
+  const onWaiterAnswer = useCallback(
+    async (answer: "active" | "rejected" | "gone") => {
+      let outcome: SubmitOutcome | null;
+      if (answer === "rejected") {
+        tokenStore(qrToken).clear();
+        stopWaiting();
+        outcome = { kind: "rejected" };
+      } else {
+        if (answer === "gone") tokenStore(qrToken).clear();
+        outcome = await submitOrder();
+      }
+      if (!outcome) return;
+      if (outcome.kind === "awaiting_approval") {
+        setWaitRound((round) => round + 1);
+        return;
+      }
+      setAnswered({ id: Date.now(), outcome });
+      setCartOpen(true);
+    },
+    [qrToken, stopWaiting, submitOrder],
+  );
+  useGuestApproval(qrToken, awaiting ? waitRound : null, onWaiterAnswer);
+
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(null), NOTICE_MS);
@@ -145,7 +178,7 @@ export function MenuView({
       {closed && <p role="status" className="px-4 pt-3 text-sm text-ink-muted">This table&apos;s bill has been closed. Please ask a member of staff.</p>}
 
       <main className="flex-1">
-        <fieldset disabled={closed || submitting} className="contents">
+        <fieldset disabled={closed || submitting || awaiting} className="contents">
         <ul
           role="tabpanel"
           id={`panel-${active.id}`}
@@ -202,7 +235,7 @@ export function MenuView({
                 <span className="min-w-6 rounded-full bg-accent px-2 py-0.5 text-center text-[13px] font-bold text-ink tabular-nums">
                   {summary.count}
                 </span>
-                View cart
+                {awaiting ? "Waiting for your waiter…" : "View cart"}
               </span>
               <span className="tabular-nums">{formatUSD(summary.totalUSD)}</span>
             </button>
@@ -212,15 +245,22 @@ export function MenuView({
 
       {cartOpen && (
         <CartSheet
+          key={answered?.id ?? 0}
+          initialOutcome={answered?.outcome}
           tableLabel={menu.table.label}
           summary={summary}
           submitting={submitting}
           closed={closed}
+          awaiting={awaiting}
+          onStopWaiting={stopWaiting}
           onChange={changeAndCheck}
           onSubmit={submitOrder}
           onCancelRound={cancel}
           rounds={bill?.orders}
-          onClose={() => setCartOpen(false)}
+          onClose={() => {
+            setCartOpen(false);
+            setAnswered(null);
+          }}
           onTrack={() => {
             setCartOpen(false);
             setOrdersOpen(true);

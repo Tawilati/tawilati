@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Modal, QuantityStepper, StatusBadge, Toast } from "@/components/ui";
-import { CircleCheckIcon, XIcon } from "@/components/icons";
+import { CircleCheckIcon, ClockIcon, XIcon } from "@/components/icons";
 import type { PublicMenuItem } from "@/types/Menu";
 import { MAX_CART_LINES, type CartRow, type CartSummary } from "@/utils/guestCart";
 import { formatUSD } from "@/utils/money";
@@ -14,6 +14,28 @@ import { RoundBadge, Total } from "./OrderParts";
 const FAILED = "We couldn't submit your order. Please try again.";
 const BLOCKED = "Some items just became unavailable. Remove them to submit.";
 const TAB_CLOSED = "This table's bill has been closed. Please ask a member of staff.";
+const REJECTED = "A waiter couldn't confirm you're at this table, so your order wasn't sent. Please ask a member of staff, then submit again.";
+const NO_STORAGE = "Your browser couldn't save this order safely. Allow site storage, then try again. Nothing was sent.";
+
+type Placed = { order: PlacedOrder; earlierAttempt: boolean; cancelled?: boolean };
+
+// What the sheet shows after an answer: the confirmation, or a sentence (never an error code).
+function afterOutcome(outcome: SubmitOutcome | null | undefined): { placed: Placed | null; error: string | null } {
+  switch (outcome?.kind) {
+    case "sent":
+      return { placed: { order: outcome.order, earlierAttempt: outcome.earlierAttempt }, error: null };
+    case "blocked":
+      return { placed: null, error: BLOCKED };
+    case "tab_closed":
+      return { placed: null, error: TAB_CLOSED };
+    case "rejected":
+      return { placed: null, error: REJECTED };
+    case "failed":
+      return { placed: null, error: outcome.reason === "storage_unavailable" ? NO_STORAGE : FAILED };
+    default:
+      return { placed: null, error: null };
+  }
+}
 
 type Change = (item: Pick<PublicMenuItem, "id" | "name">, delta: number) => void;
 
@@ -129,11 +151,45 @@ function Confirmation({
   );
 }
 
+// A new phone's first order, held until a waiter confirms someone is at the table. It goes out on its own.
+function Waiting({ tableLabel, summary, onStopWaiting }: { tableLabel: string; summary: CartSummary; onStopWaiting: () => void }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div role="status" className="flex flex-col items-center gap-1.5 text-center">
+        <span className="inline-flex size-[52px] items-center justify-center rounded-full bg-primary-tint text-primary">
+          <ClockIcon className="size-[26px] motion-safe:animate-pulse" />
+        </span>
+        <p className="text-lg font-bold text-balance">Waiting for your waiter</p>
+        <p className="text-sm text-balance text-ink-muted">
+          A waiter will confirm you&apos;re at Table {tableLabel}, then your order goes straight to the kitchen. Keep this page open.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2 rounded-2xl border border-border-subtle p-3.5">
+        <span className="text-[15px] font-semibold">Your order</span>
+        <ul className="flex flex-col gap-0.5 text-sm">
+          {summary.rows.map((row) => (
+            <li key={row.menuItemId}>
+              {row.qty} × {row.name}
+            </li>
+          ))}
+        </ul>
+        <Total label="Total" usd={summary.totalUSD} lbp={summary.totalLBP} />
+      </div>
+      <Button block variant="secondary" onClick={onStopWaiting}>
+        Change my order
+      </Button>
+    </div>
+  );
+}
+
 export function CartSheet({
+  initialOutcome,
   tableLabel,
   summary,
   submitting,
   closed,
+  awaiting,
+  onStopWaiting,
   onChange,
   onSubmit,
   onCancelRound,
@@ -141,8 +197,13 @@ export function CartSheet({
   onTrack,
   rounds,
 }: {
+  // The answer that opened the sheet (the order sent once a waiter confirmed the phone, or turned it away).
+  initialOutcome?: SubmitOutcome;
   tableLabel: string;
   summary: CartSummary;
+  // A waiter has yet to confirm this phone; the order goes out as soon as they do.
+  awaiting: boolean;
+  onStopWaiting: () => void;
   // This phone's rounds as last polled, so the confirmation follows the kitchen while it stays open.
   rounds: GuestBill["orders"] | undefined;
   submitting: boolean;
@@ -154,8 +215,8 @@ export function CartSheet({
   onClose: () => void;
   onTrack: () => void;
 }) {
-  const [placed, setPlaced] = useState<{ order: PlacedOrder; earlierAttempt: boolean; cancelled?: boolean } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [placed, setPlaced] = useState<Placed | null>(() => afterOutcome(initialOutcome).placed);
+  const [error, setError] = useState<string | null>(() => afterOutcome(initialOutcome).error);
 
   // Any edit answers the last error, so it doesn't stay on screen.
   const edit: Change = (item, delta) => {
@@ -168,12 +229,9 @@ export function CartSheet({
     setError(null);
     const outcome = await onSubmit();
     if (!outcome) return;
-    if (outcome.kind === "sent") setPlaced({ order: outcome.order, earlierAttempt: outcome.earlierAttempt });
-    else if (outcome.kind === "blocked") setError(BLOCKED);
-    else if (outcome.kind === "tab_closed") setError(TAB_CLOSED);
-    else if (outcome.kind === "failed") setError(outcome.reason === "storage_unavailable"
-      ? "Your browser couldn't save this order safely. Allow site storage, then try again. Nothing was sent."
-      : FAILED);
+    const next = afterOutcome(outcome);
+    if (next.placed) setPlaced(next.placed);
+    setError(next.error);
   }
 
   return (
@@ -193,6 +251,8 @@ export function CartSheet({
           onDone={() => (summary.rows.length > 0 ? setPlaced(null) : onClose())}
           onTrack={onTrack}
         />
+      ) : awaiting && summary.rows.length > 0 ? (
+        <Waiting tableLabel={tableLabel} summary={summary} onStopWaiting={onStopWaiting} />
       ) : summary.rows.length === 0 ? (
         <p className="py-4 text-center text-sm text-ink-muted">Your cart is empty. Add something from the menu.</p>
       ) : (

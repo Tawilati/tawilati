@@ -178,6 +178,7 @@ async getPendingGuests(businessId: string): Promise<PendingGuestResponse[]> {
   const guests = await guestSessionRepo.findPendingByBusiness(businessId);
   return guests.map((g) => ({
     guestSessionId: g.id,
+    tableId: g.session.tableId,
     tableLabel: g.session.table.label,
     createdAt: g.createdAt,
     expiresAt: g.expiresAt,

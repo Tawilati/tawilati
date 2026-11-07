@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button, Modal, Toast } from "@/components/ui";
 import { formatUSD } from "@/utils/money";
 import type { BillSplit, GuestBill } from "./guestOrderApi";
+import { CancelRound, roundSummary } from "./CancelRound";
 import { RoundBadge, Total } from "./OrderParts";
 import { SplitBill } from "./SplitBill";
 
@@ -20,12 +21,15 @@ export function OrdersSheet({
   closed,
   onAskBill,
   onSplit,
+  onCancel,
   onClose,
 }: {
   bill: GuestBill;
   closed: boolean;
   onAskBill: () => Promise<string | null>;
   onSplit: (people: number) => Promise<BillSplit | null>;
+  // Cancels a round still marked New; a sentence when it didn't work.
+  onCancel: (orderId: string) => Promise<string | null>;
   onClose: () => void;
 }) {
   const [asking, setAsking] = useState(false);
@@ -61,6 +65,9 @@ export function OrdersSheet({
                 ))}
               </ul>
               <p className="text-right text-[15px] font-bold tabular-nums">{formatUSD(order.totalUSD)}</p>
+              {!closed && order.status === "NEW" && (
+                <CancelRound summary={roundSummary(order.lines, order.totalUSD)} onCancel={() => onCancel(order.orderId)} />
+              )}
             </li>
           ))}
         </ul>

@@ -32,11 +32,17 @@ describe("KitchenService", () => {
     expect(KitchenService.getInstance()).toBe(kitchenService);
   });
 
-  it("loads and maps kitchen orders for the requested business", async () => {
+  it("loads the business's queue, with rounds cancelled in the last minute", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-07T15:00:00.000Z"));
     mockedKitchenRepo.findKitchenOrders.mockResolvedValue([]);
 
     await expect(kitchenService.getKitchenOrders("business-1")).resolves.toEqual([]);
-    expect(mockedKitchenRepo.findKitchenOrders).toHaveBeenCalledWith("business-1");
+    expect(mockedKitchenRepo.findKitchenOrders).toHaveBeenCalledWith(
+      "business-1",
+      new Date("2026-11-07T14:59:00.000Z"),
+    );
+    vi.useRealTimers();
   });
 
   describe("updateKitchenOrderStatus", () => {
@@ -45,13 +51,14 @@ describe("KitchenService", () => {
       ["PREPARING", "READY"],
     ] as const)("moves a round from %s to %s", async (from, to) => {
       mockedKitchenRepo.findOrderForKitchen.mockResolvedValue({ id: "order-1", status: from });
-      mockedKitchenRepo.updateOrderStatus.mockResolvedValue({ id: "order-1", status: to } as never);
+      mockedKitchenRepo.updateOrderStatus.mockResolvedValue(true);
 
       await expect(
         kitchenService.updateKitchenOrderStatus("order-1", "business-1", to),
       ).resolves.toEqual({ orderId: "order-1", status: to });
       expect(mockedKitchenRepo.findOrderForKitchen).toHaveBeenCalledWith("order-1", "business-1");
-      expect(mockedKitchenRepo.updateOrderStatus).toHaveBeenCalledWith("order-1", to);
+      // The write only lands if the round is still in the status it was read in.
+      expect(mockedKitchenRepo.updateOrderStatus).toHaveBeenCalledWith("order-1", from, to);
     });
 
     it("answers 404 not_found for a round that isn't in this business", async () => {
@@ -70,7 +77,6 @@ describe("KitchenService", () => {
       ["READY", "PREPARING"],
       ["READY", "READY"],
       ["SERVED", "READY"],
-      ["CANCELLED", "PREPARING"],
     ] as const)("answers 400 invalid_transition from %s to %s, with no write", async (from, to) => {
       mockedKitchenRepo.findOrderForKitchen.mockResolvedValue({ id: "order-1", status: from });
 
@@ -79,6 +85,40 @@ describe("KitchenService", () => {
       );
       expect([error.status, error.message]).toEqual([400, "invalid_transition"]);
       expect(mockedKitchenRepo.updateOrderStatus).not.toHaveBeenCalled();
+    });
+
+    it("answers 409 order_cancelled for a round the guest cancelled, with no write", async () => {
+      mockedKitchenRepo.findOrderForKitchen.mockResolvedValue({ id: "order-1", status: "CANCELLED" });
+
+      const error = await rejection(
+        kitchenService.updateKitchenOrderStatus("order-1", "business-1", "PREPARING"),
+      );
+      expect([error.status, error.message]).toEqual([409, "order_cancelled"]);
+      expect(mockedKitchenRepo.updateOrderStatus).not.toHaveBeenCalled();
+    });
+
+    it("answers 409 order_cancelled when the guest cancels between the read and the write", async () => {
+      mockedKitchenRepo.findOrderForKitchen
+        .mockResolvedValueOnce({ id: "order-1", status: "NEW" })
+        .mockResolvedValueOnce({ id: "order-1", status: "CANCELLED" });
+      mockedKitchenRepo.updateOrderStatus.mockResolvedValue(false);
+
+      const error = await rejection(
+        kitchenService.updateKitchenOrderStatus("order-1", "business-1", "PREPARING"),
+      );
+      expect([error.status, error.message]).toEqual([409, "order_cancelled"]);
+    });
+
+    it("answers 400 invalid_transition when another screen moved the round between the read and the write", async () => {
+      mockedKitchenRepo.findOrderForKitchen
+        .mockResolvedValueOnce({ id: "order-1", status: "NEW" })
+        .mockResolvedValueOnce({ id: "order-1", status: "PREPARING" });
+      mockedKitchenRepo.updateOrderStatus.mockResolvedValue(false);
+
+      const error = await rejection(
+        kitchenService.updateKitchenOrderStatus("order-1", "business-1", "PREPARING"),
+      );
+      expect([error.status, error.message]).toEqual([400, "invalid_transition"]);
     });
   });
 });

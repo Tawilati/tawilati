@@ -16,6 +16,7 @@ export interface KitchenOrderResponse {
   sessionStatus: TableSessionStatus;
   status: OrderStatus;
   createdAt: Date;
+  cancelledAt: Date | null; // set on a round the guest cancelled (shown crossed out for a minute)
   lines: KitchenOrderLineResponse[];
 }
 
@@ -48,6 +49,7 @@ export function mapToKitchenOrderResponse(record: KitchenOrderRecord): KitchenOr
     sessionStatus: record.session.status,
     status: record.status,
     createdAt: record.createdAt,
+    cancelledAt: record.cancelledAt,
     lines: record.orderLines.map((line) => ({
       menuItemId: line.menuItemId,
       name: line.menuItem.name,

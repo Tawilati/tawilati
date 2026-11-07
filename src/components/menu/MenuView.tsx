@@ -46,7 +46,7 @@ export function MenuView({
   const [ordersOpen, setOrdersOpen] = useState(false);
   const menuRef = useRef(initialMenu);
   const { lines, summary, submitting, closed: cartClosed, change, submit } = useGuestCart(menu, qrToken);
-  const { bill, closed: billClosed, restart, askBill, split } = useGuestOrders(qrToken);
+  const { bill, closed: billClosed, restart, askBill, split, cancel } = useGuestOrders(qrToken);
   const closed = cartClosed || billClosed;
 
   const refresh = useCallback(async () => {
@@ -218,6 +218,7 @@ export function MenuView({
           closed={closed}
           onChange={changeAndCheck}
           onSubmit={submitOrder}
+          onCancelRound={cancel}
           rounds={bill?.orders}
           onClose={() => setCartOpen(false)}
           onTrack={() => {
@@ -227,7 +228,7 @@ export function MenuView({
         />
       )}
 
-      {ordersOpen && bill && <OrdersSheet bill={bill} closed={closed} onAskBill={askBill} onSplit={split} onClose={() => setOrdersOpen(false)} />}
+      {ordersOpen && bill && <OrdersSheet bill={bill} closed={closed} onAskBill={askBill} onSplit={split} onCancel={cancel} onClose={() => setOrdersOpen(false)} />}
 
       <div
         role="status"

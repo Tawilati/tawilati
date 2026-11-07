@@ -141,21 +141,22 @@ export class OrderRepo {
   }
 }
 
+// Cancels the round only if it is still NEW, then takes its amount off the tab. False (and nothing written)
+// when the kitchen started it first. Run it inside the caller's transaction.
 async cancelOrderAndUpdateBill(
   orderId: string,
   sessionId: string,
   totalUSD: Decimal,
   totalLBP: Decimal,
   tx: DbClient = prisma,
-) {
+): Promise<boolean> {
   try {
-    // 1. Mark order as CANCELLED
-    await tx.diningOrder.update({
-      where: { id: orderId },
-      data: { status: "CANCELLED" },
+    const { count } = await tx.diningOrder.updateMany({
+      where: { id: orderId, status: "NEW" },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
     });
+    if (count === 0) return false;
 
-    // 2. Decrement the TableSession total
     await tx.tableSession.update({
       where: { id: sessionId },
       data: {
@@ -163,8 +164,7 @@ async cancelOrderAndUpdateBill(
         totalLBP: { decrement: totalLBP },
       },
     });
-
-    return { orderId, status: "CANCELLED" };
+    return true;
   } catch (error) {
     throw new DBException(
       "Error cancelling order",

@@ -5,6 +5,7 @@ import { Button, Card, Toast } from "@/components/ui";
 import { FloatingToast } from "@/components/ui/FloatingToast";
 import { buildFloor, STATE_LABEL, updatedAgoLabel, type FloorTile, type TableState } from "@/utils/waiterFloor";
 import { SignedInElsewhere } from "@/components/staff/SignedInElsewhere";
+import { formatRate } from "@/components/dashboard/settings/settingsApi";
 import { TableSheet } from "./TableSheet";
 import { TableTile, TILE_LOOK } from "./TableTile";
 import { useWaiterFloor } from "./useWaiterFloor";
@@ -14,7 +15,7 @@ const LEGEND: TableState[] = ["ordered", "bill", "slowPay", "quiet", "free"];
 // The waiter's Tables screen: every table, coloured by what it needs, refreshed every few seconds.
 // Tapping a table with guests opens its bill.
 export function WaiterFloor() {
-  const { tables, tabs, now, updatedAt, stale, otherAccount, refresh } = useWaiterFloor();
+  const { tables, tabs, rate, now, updatedAt, stale, otherAccount, refresh } = useWaiterFloor();
   const [openSessionId, setOpenSessionId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ id: number; title: string } | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
@@ -47,6 +48,12 @@ export function WaiterFloor() {
           </p>
         )}
       </div>
+
+      {rate && (
+        <p className="self-start rounded-xl bg-accent px-4 py-2 text-sm text-ink">
+          Exchange rate: <span className="font-semibold tabular-nums">1 USD = {formatRate(rate)} LBP</span>
+        </p>
+      )}
 
       {otherAccount && <SignedInElsewhere role="waiter" />}
 
@@ -89,6 +96,7 @@ export function WaiterFloor() {
         <TableSheet
           key={sheetTile.tab.sessionId}
           tile={sheetTile}
+          rate={rate}
           refreshKey={updatedAt}
           onChanged={() => void refresh()}
           onClose={closeSheet}

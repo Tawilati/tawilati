@@ -148,6 +148,8 @@ model DiningOrder {
   totalUSD       Decimal       @default(0) @db.Decimal(12, 2)
   totalLBP       Decimal       @default(0) @db.Decimal(14, 2)
   createdAt      DateTime      @default(now())
+  // Set when the guest cancels the round while it is still NEW; the kitchen shows it crossed out for a minute.
+  cancelledAt    DateTime?
   business       Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   guestSession   GuestSession? @relation(fields: [guestSessionId], references: [id])
   session        TableSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)

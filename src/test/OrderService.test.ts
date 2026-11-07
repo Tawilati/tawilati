@@ -8,7 +8,12 @@ import { hashOrderLines } from "@/utils/OrderHash";
 const repos = vi.hoisted(() => ({
   guestSessionRepo: { FindByToken: vi.fn(), extend: vi.fn() },
   submissionRepo: { FindByKey: vi.fn(), create: vi.fn(), linkToOrder: vi.fn() },
-  orderRepo: { findByIdWithRelations: vi.fn(), create: vi.fn() },
+  orderRepo: {
+    findByIdWithRelations: vi.fn(),
+    create: vi.fn(),
+    findGuestOrderForCancel: vi.fn(),
+    cancelOrderAndUpdateBill: vi.fn(),
+  },
   menuItemRepo: { findManyByIds: vi.fn(), findBusinessExchangeRate: vi.fn() },
   tableSessionRepo: { updateTotals: vi.fn(), requestBill: vi.fn() },
   tx: { fake: "transaction" },
@@ -414,5 +419,66 @@ describe("OrderService.splitBill", () => {
 
     await expectHttpError(orderService.splitBill(TOKEN, 0), 400, "invalid_split_count");
     await expectHttpError(orderService.splitBill(TOKEN, 51), 400, "invalid_split_count");
+  });
+});
+
+// ── Cancelling a round (guest) ────────────────────────────────
+describe("orderService.cancelGuestOrder", () => {
+  const ORDER = "f0000000-0000-4000-8000-000000000001";
+  const newRound = {
+    id: ORDER,
+    status: "NEW",
+    sessionId: "session-1",
+    totalUSD: new Prisma.Decimal("5.00"),
+    totalLBP: new Prisma.Decimal("447500"),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    guestSessionRepo.FindByToken.mockResolvedValue(guest());
+    orderRepo.findGuestOrderForCancel.mockResolvedValue(newRound);
+    orderRepo.cancelOrderAndUpdateBill.mockResolvedValue(true);
+  });
+
+  it("cancels this phone's NEW round and takes it off the tab, in one transaction", async () => {
+    await expect(orderService.cancelGuestOrder(ORDER, TOKEN)).resolves.toEqual({ orderId: ORDER, status: "CANCELLED" });
+    expect(orderRepo.findGuestOrderForCancel).toHaveBeenCalledWith(ORDER, "guest-1");
+    expect(orderRepo.cancelOrderAndUpdateBill).toHaveBeenCalledWith(
+      ORDER, "session-1", newRound.totalUSD, newRound.totalLBP, tx,
+    );
+  });
+
+  it("answers 404 order_not_found for a round that isn't this phone's", async () => {
+    orderRepo.findGuestOrderForCancel.mockResolvedValue(null);
+    await expectHttpError(orderService.cancelGuestOrder(ORDER, TOKEN), 404, "order_not_found");
+    expect(orderRepo.cancelOrderAndUpdateBill).not.toHaveBeenCalled();
+  });
+
+  it.each(["PREPARING", "READY", "SERVED"])("answers 409 when the round is already %s, with no write", async (status) => {
+    orderRepo.findGuestOrderForCancel.mockResolvedValue({ ...newRound, status });
+    await expectHttpError(orderService.cancelGuestOrder(ORDER, TOKEN), 409, "cannot_cancel_order_already_in_progress");
+    expect(orderRepo.cancelOrderAndUpdateBill).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 order_already_cancelled on a second cancel, with no write", async () => {
+    orderRepo.findGuestOrderForCancel.mockResolvedValue({ ...newRound, status: "CANCELLED" });
+    await expectHttpError(orderService.cancelGuestOrder(ORDER, TOKEN), 409, "order_already_cancelled");
+    expect(orderRepo.cancelOrderAndUpdateBill).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 when the kitchen starts the round between the read and the write", async () => {
+    orderRepo.cancelOrderAndUpdateBill.mockResolvedValue(false);
+    await expectHttpError(orderService.cancelGuestOrder(ORDER, TOKEN), 409, "cannot_cancel_order_already_in_progress");
+  });
+
+  it("refuses a closed tab with 409 table_session_closed", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(guest({}, { status: "CLOSED" }));
+    await expectHttpError(orderService.cancelGuestOrder(ORDER, TOKEN), 409, "table_session_closed");
+    expect(orderRepo.cancelOrderAndUpdateBill).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unknown token with 401", async () => {
+    guestSessionRepo.FindByToken.mockResolvedValue(null);
+    await expectHttpError(orderService.cancelGuestOrder(ORDER, TOKEN), 401, "unauthorized");
   });
 });

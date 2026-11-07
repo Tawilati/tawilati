@@ -98,7 +98,7 @@ export interface WaiterBillResponse {
   orders: WaiterBillOrder[];
 }
 
-// Raw record: every round of the tab except CANCELLED ones (WaiterRepo.findBillBySessionId)
+// Raw record: every round of the tab, CANCELLED ones included (WaiterRepo.findBillBySessionId)
 export type WaiterBillRecord = Prisma.TableSessionGetPayload<{
   include: {
     table: { select: { label: true } };
@@ -121,7 +121,7 @@ export function mapToWaiterBillResponse(record: WaiterBillRecord): WaiterBillRes
     tableLabel: record.table.label,
     status: record.status,
     openedAt: record.openedAt,
-    orderCount: record.orders.length,
+    orderCount: record.orders.filter((order) => order.status !== "CANCELLED").length,
     totalUSD: record.totalUSD.toFixed(2),
     totalLBP: record.totalLBP.toFixed(2),
     amountPaidUSD: record.amountPaidUSD.toFixed(2),

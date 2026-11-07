@@ -24,6 +24,8 @@ const SENTENCES: Record<string, string> = {
   forbidden: "This browser is signed in with another account. Sign in again as the kitchen.",
   // Someone else (another kitchen screen) moved the ticket first: the queue refreshes.
   invalid_transition: "This ticket was already updated on another screen.",
+  // The guest cancelled the round a moment before the cook tapped Start.
+  order_cancelled: "The guest cancelled this order. No need to make it.",
   not_found: "This ticket is no longer there.",
   menu_item_not_found: "This item is no longer on the menu. The list has been refreshed.",
   validation_error: "This item is no longer on the menu. The list has been refreshed.",

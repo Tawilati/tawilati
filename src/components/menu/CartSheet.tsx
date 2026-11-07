@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Button, Modal, QuantityStepper, StatusBadge, Toast } from "@/components/ui";
-import { CircleCheckIcon } from "@/components/icons";
+import { CircleCheckIcon, XIcon } from "@/components/icons";
 import type { PublicMenuItem } from "@/types/Menu";
 import { MAX_CART_LINES, type CartRow, type CartSummary } from "@/utils/guestCart";
 import { formatUSD } from "@/utils/money";
 import type { GuestBill, PlacedOrder, SubmitOutcome } from "./guestOrderApi";
+import { CancelRound, roundSummary } from "./CancelRound";
 import { RoundBadge, Total } from "./OrderParts";
 
 // Plain sentences for the guest; error codes are never shown.
@@ -52,16 +53,45 @@ function CartRowView({ row, onChange }: { row: CartRow; onChange: Change }) {
 function Confirmation({
   order,
   earlierAttempt,
+  cancelled,
+  canCancel,
   cartLeft,
+  onCancel,
   onDone,
   onTrack,
 }: {
   order: PlacedOrder;
   earlierAttempt: boolean;
+  // The guest cancelled it from here.
+  cancelled: boolean;
+  canCancel: boolean;
   cartLeft: boolean;
+  onCancel: () => Promise<string | null>;
   onDone: () => void;
   onTrack: () => void;
 }) {
+  const done = (
+    <Button block onClick={onDone}>
+      {cartLeft ? "Back to my cart" : "Order something else"}
+    </Button>
+  );
+
+  if (cancelled) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div role="status" className="flex flex-col items-center gap-1.5 text-center">
+          <span className="inline-flex size-[52px] items-center justify-center rounded-full bg-surface-muted text-ink-muted">
+            <XIcon className="size-[26px]" />
+          </span>
+          <p className="text-lg font-bold text-balance">Order cancelled</p>
+          <p className="text-sm text-ink-muted">{roundSummary(order.lines, order.totalUSD)}. The kitchen won&apos;t make it.</p>
+        </div>
+        {cartLeft && <p className="text-sm text-ink-muted">Some items are still in your cart. They haven&apos;t been sent yet.</p>}
+        {done}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col items-center gap-1.5 text-center">
@@ -86,11 +116,12 @@ function Confirmation({
           ))}
         </ul>
         <Total label="Total" usd={order.totalUSD} lbp={order.totalLBP} />
+        {canCancel && order.status === "NEW" && (
+          <CancelRound label="Cancel order" summary={roundSummary(order.lines, order.totalUSD)} onCancel={onCancel} />
+        )}
       </div>
       {cartLeft && <p className="text-sm text-ink-muted">Some items are still in your cart. They haven&apos;t been sent yet.</p>}
-      <Button block onClick={onDone}>
-        {cartLeft ? "Back to my cart" : "Order something else"}
-      </Button>
+      {done}
       <Button block variant="secondary" onClick={onTrack}>
         Follow your order
       </Button>
@@ -105,6 +136,7 @@ export function CartSheet({
   closed,
   onChange,
   onSubmit,
+  onCancelRound,
   onClose,
   onTrack,
   rounds,
@@ -117,10 +149,12 @@ export function CartSheet({
   closed: boolean;
   onChange: Change;
   onSubmit: () => Promise<SubmitOutcome | null>;
+  // Cancels a round still marked New; a sentence when it didn't work.
+  onCancelRound: (orderId: string) => Promise<string | null>;
   onClose: () => void;
   onTrack: () => void;
 }) {
-  const [placed, setPlaced] = useState<{ order: PlacedOrder; earlierAttempt: boolean } | null>(null);
+  const [placed, setPlaced] = useState<{ order: PlacedOrder; earlierAttempt: boolean; cancelled?: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Any edit answers the last error, so it doesn't stay on screen.
@@ -148,6 +182,13 @@ export function CartSheet({
         <Confirmation
           order={{ ...placed.order, status: rounds?.find((r) => r.orderId === placed.order.orderId)?.status ?? placed.order.status }}
           earlierAttempt={placed.earlierAttempt}
+          cancelled={placed.cancelled === true}
+          canCancel={!closed}
+          onCancel={async () => {
+            const sentence = await onCancelRound(placed.order.orderId);
+            if (!sentence) setPlaced((current) => current && { ...current, cancelled: true });
+            return sentence;
+          }}
           cartLeft={summary.rows.length > 0}
           onDone={() => (summary.rows.length > 0 ? setPlaced(null) : onClose())}
           onTrack={onTrack}

@@ -159,14 +159,24 @@ export function TableSheet({
 
             <ol className="flex flex-col divide-y divide-border-subtle">
               {bill.orders.map((order, index) => (
-                <li key={order.orderId} className="flex flex-col gap-1.5 py-3 first:pt-0">
+                <li
+                  key={order.orderId}
+                  className={`flex flex-col gap-1.5 py-3 first:pt-0 ${order.status === "CANCELLED" ? "text-ink-muted" : ""}`}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold">
                       Round {index + 1} · {time(order.createdAt)}
                     </span>
-                    {order.status !== "CANCELLED" && <StatusBadge status={order.status} />}
+                    {order.status === "CANCELLED" ? (
+                      <StatusBadge status="CLOSED">Cancelled</StatusBadge>
+                    ) : (
+                      <StatusBadge status={order.status} />
+                    )}
                   </div>
-                  <ul className="flex flex-col gap-0.5 text-sm">
+                  {order.status === "CANCELLED" && (
+                    <p className="text-xs">The guest cancelled this round. It isn&apos;t on the bill.</p>
+                  )}
+                  <ul className={`flex flex-col gap-0.5 text-sm ${order.status === "CANCELLED" ? "line-through" : ""}`}>
                     {order.lines.map((line) => (
                       <li key={line.menuItemId} className="flex justify-between gap-3 tabular-nums">
                         <span className="min-w-0 truncate">

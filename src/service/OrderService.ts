@@ -334,20 +334,26 @@ async cancelGuestOrder(
   const order = await orderRepo.findGuestOrderForCancel(orderId, guest.id);
   if (!order) throw new NotFoundException("order_not_found");
 
-  // 3. 🚨 Only NEW orders can be cancelled
+  // 3. Only a round the kitchen hasn't started can be cancelled.
+  if (order.status === "CANCELLED") {
+    throw new ConflictException("order_already_cancelled");
+  }
   if (order.status !== "NEW") {
     throw new ConflictException("cannot_cancel_order_already_in_progress");
   }
 
-  // 4. Transaction: cancel + decrement bill
+  // 4. Transaction: cancel + take it off the tab. The cancel only lands if the round is still NEW, so a kitchen
+  // tapping Start at the same moment wins or loses as a whole (the totals are untouched when it wins).
   const result = await prisma.$transaction(async (tx) => {
-    return await orderRepo.cancelOrderAndUpdateBill(
+    const cancelled = await orderRepo.cancelOrderAndUpdateBill(
       order.id,
       order.sessionId,
       order.totalUSD,
       order.totalLBP,
       tx,
     );
+    if (!cancelled) throw new ConflictException("cannot_cancel_order_already_in_progress");
+    return { orderId: order.id, status: "CANCELLED" };
   });
 
   return result;

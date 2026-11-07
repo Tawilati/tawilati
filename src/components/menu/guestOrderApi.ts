@@ -118,6 +118,28 @@ export async function askForBill(token: string): Promise<AskBillResult> {
   return { kind: "unavailable" };
 }
 
+export type CancelResult = { kind: "cancelled" } | { kind: "started" } | { kind: "closed" } | { kind: "expired" } | { kind: "unavailable" };
+
+// "Cancel order" on a round the kitchen hasn't started. A second tap finds it already cancelled, which is what the
+// guest wanted; if the kitchen started it first, the round stays. An expired token is renewed and the request sent
+// once more, as for the bill.
+export async function cancelRound(token: string, orderId: string): Promise<CancelResult> {
+  for (let tries = 0; tries < 2; tries++) {
+    const reply = await post(`/api/orders/${orderId}/cancel`, { Authorization: `Bearer ${token}` }, undefined);
+    if (!reply) return { kind: "unavailable" };
+    if (reply.status === 200 || reply.code === "order_already_cancelled") return { kind: "cancelled" };
+    if (reply.code === "cannot_cancel_order_already_in_progress") return { kind: "started" };
+    if (TAB_CLOSED_CODES.includes(reply.code)) return { kind: "closed" };
+    if (reply.code !== "token_expired" || tries > 0) return reply.status === 401 ? { kind: "expired" } : { kind: "unavailable" };
+
+    const renewal = await renewToken(token);
+    if (renewal === "closed") return { kind: "closed" };
+    if (renewal === "unknown") return { kind: "expired" };
+    if (renewal === "unavailable") return { kind: "unavailable" };
+  }
+  return { kind: "unavailable" };
+}
+
 const splitSchema = z.object({
   totalUSD: amount, totalLBP: amount,
   splitCount: z.number().int().min(1).max(50),

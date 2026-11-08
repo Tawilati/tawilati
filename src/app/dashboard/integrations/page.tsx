@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "AI integrations · Tawilati" };
 
 export default function OwnerIntegrationsPage() {
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex max-w-4xl flex-col gap-4">
       <IntegrationsManager />
     </div>
   );

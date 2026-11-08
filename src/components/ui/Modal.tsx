@@ -24,11 +24,13 @@ export function Modal({
   title,
   children,
   locked = false,
+  wide = false,
   onClose,
 }: {
   title: string;
   children: ReactNode;
   locked?: boolean;
+  wide?: boolean;
   onClose: () => void;
 }) {
   const [dirty, setDirty] = useState(false);
@@ -48,7 +50,7 @@ export function Modal({
 
   return (
     <GuardContext.Provider value={guard}>
-      <ModalFrame title={title} locked={locked} onClose={requestClose}>
+      <ModalFrame title={title} locked={locked} wide={wide} onClose={requestClose}>
         {children}
       </ModalFrame>
       {confirming && (

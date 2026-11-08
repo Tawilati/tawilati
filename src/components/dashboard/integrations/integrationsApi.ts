@@ -53,14 +53,15 @@ export function formatDay(iso: string): string {
 }
 
 // The address an AI assistant connects to. The public address wins, like the QR codes.
-// Pasted on its own into Claude's "Add custom connector", Claude asks the owner to sign in.
+// Pasted on its own into Claude or ChatGPT, the assistant asks the owner to sign in.
 export function mcpUrl(origin: string): string {
   return `${process.env.NEXT_PUBLIC_APP_URL ?? origin}/api/mcp`;
 }
 
-// The same address with a key in it, for a connector set up without signing in.
-export function mcpKeyUrl(origin: string, token: string): string {
-  return `${mcpUrl(origin)}/${token}`;
+// What goes in the assistant's "Authorization" header for a connection made with a key. A header keeps the key
+// out of addresses (and so out of server logs); /api/mcp/<key> still works for assistants that can't send one.
+export function authorizationHeader(token: string): string {
+  return `Bearer ${token}`;
 }
 
 // One line the owner can paste into a terminal to add Tawilati to Claude Code. User scope, so it works

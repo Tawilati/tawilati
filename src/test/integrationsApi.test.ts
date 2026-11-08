@@ -5,6 +5,7 @@ import {
   connectionStatus,
   integrationSentenceFor,
   integrationsApi,
+  mcpKeyUrl,
   mcpUrl,
   type Connection,
 } from "@/components/dashboard/integrations/integrationsApi";
@@ -27,6 +28,7 @@ const connection: Connection = {
   revokedAt: null,
   lastUsedAt: null,
   createdAt: "2026-11-03T00:00:00.000Z",
+  source: "key",
 };
 
 describe("AI integrations API calls", () => {
@@ -97,9 +99,14 @@ describe("connecting an assistant", () => {
     expect(mcpUrl("http://localhost:3000")).toBe("https://tawilati.app/api/mcp");
   });
 
-  it("builds the Claude Code command with the key as a Bearer header", () => {
+  it("builds the Claude Code command with the key as a Bearer header, for every folder (user scope)", () => {
     expect(claudeCodeCommand("https://tawilati.app/api/mcp", "abc")).toBe(
-      'claude mcp add --transport http tawilati https://tawilati.app/api/mcp --header "Authorization: Bearer abc"',
+      'claude mcp add --scope user --transport http tawilati https://tawilati.app/api/mcp --header "Authorization: Bearer abc"',
     );
+  });
+
+  it("puts the key at the end of the address for a connector set up without signing in", () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://tawilati.app");
+    expect(mcpKeyUrl("http://localhost:3000", "abc")).toBe("https://tawilati.app/api/mcp/abc");
   });
 });

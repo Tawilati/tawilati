@@ -10,6 +10,8 @@ export type Connection = {
   revokedAt: string | null;
   lastUsedAt: string | null;
   createdAt: string;
+  // "key": created on this screen. "sign-in": an assistant connected by having the owner sign in.
+  source: "key" | "sign-in";
 };
 
 // Only the create response carries the key.
@@ -51,11 +53,18 @@ export function formatDay(iso: string): string {
 }
 
 // The address an AI assistant connects to. The public address wins, like the QR codes.
+// Pasted on its own into Claude's "Add custom connector", Claude asks the owner to sign in.
 export function mcpUrl(origin: string): string {
   return `${process.env.NEXT_PUBLIC_APP_URL ?? origin}/api/mcp`;
 }
 
-// One line the owner can paste into a terminal to add Tawilati to Claude Code.
+// The same address with a key in it, for a connector set up without signing in.
+export function mcpKeyUrl(origin: string, token: string): string {
+  return `${mcpUrl(origin)}/${token}`;
+}
+
+// One line the owner can paste into a terminal to add Tawilati to Claude Code. User scope, so it works
+// in every folder (a local server is tied to one folder's exact path, which Windows spells two ways).
 export function claudeCodeCommand(url: string, token: string): string {
-  return `claude mcp add --transport http tawilati ${url} --header "Authorization: Bearer ${token}"`;
+  return `claude mcp add --scope user --transport http tawilati ${url} --header "Authorization: Bearer ${token}"`;
 }

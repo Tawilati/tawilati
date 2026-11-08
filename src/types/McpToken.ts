@@ -8,6 +8,7 @@ export type McpTokenRecord = {
   revokedAt: Date | null;
   lastUsedAt: Date | null;
   createdAt: Date;
+  clientId: string | null;
 };
 
 // What findActiveByHash returns: enough to decide whether the token may be used, and as whom.
@@ -34,6 +35,9 @@ export interface McpTokenResponse {
   revokedAt: Date | null;
   lastUsedAt: Date | null;
   createdAt: Date;
+  // "key": the owner created it on the AI integrations screen. "sign-in": an assistant got it by
+  // having the owner sign in (OAuth).
+  source: "key" | "sign-in";
 }
 
 // Sent only once, when the token is created. The raw token can't be shown again.
@@ -49,6 +53,7 @@ export function mapToMcpTokenResponse(record: McpTokenRecord): McpTokenResponse 
     revokedAt: record.revokedAt,
     lastUsedAt: record.lastUsedAt,
     createdAt: record.createdAt,
+    source: record.clientId ? "sign-in" : "key",
   };
 }
 

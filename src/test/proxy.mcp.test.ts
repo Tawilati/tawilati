@@ -36,4 +36,33 @@ describe("proxy and the MCP endpoint", () => {
     expect(response.headers.get("x-middleware-request-x-business-id")).toBeNull();
     expect(response.headers.get("x-middleware-request-x-user-role")).toBeNull();
   });
+
+  it.each(["/api/mcp/" + "a".repeat(64), "/api/oauth/register", "/api/oauth/token"])(
+    "lets %s through without a staff cookie",
+    async (path) => {
+      const response = await send(path);
+
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+    },
+  );
+
+  it("still requires the owner's cookie for the Allow button (/api/oauth/authorize)", async () => {
+    expect((await send("/api/oauth/authorize")).status).toBe(401);
+  });
+
+  it("sends a signed-out owner from the assistant sign-in screen to /login and back, request intact", async () => {
+    const response = await proxy(new NextRequest("http://localhost/oauth/authorize?client_id=abc&state=x%20y"));
+
+    expect(response.status).toBe(307);
+    const login = new URL(response.headers.get("location")!);
+    expect(login.pathname).toBe("/login");
+    expect(login.searchParams.get("reason")).toBe("unauthorized");
+    expect(login.searchParams.get("next")).toBe("/oauth/authorize?client_id=abc&state=x%20y");
+  });
+
+  it("adds no next to other screens' sign-in redirect", async () => {
+    const response = await proxy(new NextRequest("http://localhost/dashboard/menu"));
+
+    expect(new URL(response.headers.get("location")!).searchParams.has("next")).toBe(false);
+  });
 });

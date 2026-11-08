@@ -12,6 +12,7 @@ import {
   formatDay,
   integrationSentenceFor,
   integrationsApi,
+  mcpKeyUrl,
   mcpUrl,
   type Connection,
   type NewConnection,
@@ -20,8 +21,9 @@ import {
 // `id` is new for every message, so the same text shown twice restarts its timer.
 type Notice = { id: number; tone: "success" | "error"; title: string };
 
-// The owner's AI integrations: keys that let an AI assistant (Claude, for example) work with this business
-// through /api/mcp. Create one, copy the key once, revoke it to cut access straight away.
+// The owner's AI integrations: connections that let an AI assistant (Claude, for example) work with this
+// business through /api/mcp. Two ways in: paste the address into Claude and sign in (the connection then
+// appears here by itself), or create a key here and paste its link or command. Revoke cuts either off.
 export function IntegrationsManager() {
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -86,7 +88,8 @@ export function IntegrationsManager() {
         )}
       </div>
       <p className="text-sm text-ink-muted">
-        Let an AI assistant such as Claude look after your menu and tables for you. Each connection has its own key.
+        Let an AI assistant such as Claude look after your menu and tables for you. Each connection can be cut off on
+        its own.
       </p>
     </div>
   );
@@ -127,12 +130,14 @@ export function IntegrationsManager() {
         />
       )}
 
+      <ConnectBySigningIn />
+
       <WhatItCanDo />
 
       {connections.length === 0 ? (
         <Card>
           <p className="text-sm text-ink-muted">
-            No connections yet. Create one, then paste its key into your AI assistant.
+            No connections yet. Connect Claude by signing in, or create a key with New connection.
           </p>
         </Card>
       ) : (
@@ -170,6 +175,28 @@ export function IntegrationsManager() {
         </ConfirmDialog>
       )}
     </div>
+  );
+}
+
+// The simplest way in: Claude on the web, the desktop app or a phone. Claude asks the owner to sign in,
+// and the connection shows up in the list below once they tap Allow.
+function ConnectBySigningIn() {
+  // Rendered only once the list has loaded in the browser, so `window` is there.
+  const url = mcpUrl(window.location.origin);
+  return (
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-lg font-bold">Connect Claude by signing in</h2>
+      <ol className="list-decimal pl-5 text-sm text-ink-muted">
+        <li>In Claude, open Settings, then Connectors, then Add custom connector.</li>
+        <li>Name it Tawilati and paste the address below. Leave the advanced settings empty.</li>
+        <li>Press Connect, sign in to Tawilati if asked, and tap Allow.</li>
+      </ol>
+      <CopyField label="Address to paste" value={url} />
+      <p className="text-[13px] text-ink-muted">
+        It works in Claude on the web, the desktop app and the phone app. Claude needs to reach this address over
+        the internet, so use the address of your live Tawilati site.
+      </p>
+    </Card>
   );
 }
 
@@ -215,7 +242,7 @@ function ConnectionRow({ connection, onRevoke }: { connection: Connection; onRev
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className={`truncate text-base font-semibold ${active ? "text-ink" : "text-ink-muted"}`}>{connection.name}</p>
         <p className="text-[13px] text-ink-muted">
-          Created {formatDay(connection.createdAt)} ·{" "}
+          {connection.source === "sign-in" ? "Connected by signing in" : "Key"} · Created {formatDay(connection.createdAt)} ·{" "}
           {connection.lastUsedAt ? `Last used ${formatDay(connection.lastUsedAt)}` : "Never used"}
         </p>
         {active && <p className="text-[13px] text-ink-muted">Works until {formatDay(connection.expiresAt)}</p>}
@@ -322,11 +349,14 @@ function ShowKey({ connection, onDone }: { connection: NewConnection; onDone: ()
   return (
     <div className="flex flex-col gap-4">
       <p className="rounded-xl border border-border-subtle bg-surface-muted px-4 py-3 text-sm text-ink">
-        <span className="font-semibold">You won&apos;t see this key again.</span> Copy it now and keep it somewhere safe.
-        Anyone with it can change your menu, so don&apos;t share it.
+        <span className="font-semibold">You won&apos;t see this again.</span> Copy what you need now. Anyone with this
+        link or key can change your menu, so don&apos;t share them.
       </p>
-      <CopyField label="Key" value={connection.token} />
-      <CopyField label="Server address" value={url} />
+      <CopyField
+        label="Connector link (Claude: Settings, Connectors, Add custom connector)"
+        value={mcpKeyUrl(window.location.origin, connection.token)}
+        multiline
+      />
       <CopyField
         label="Add to Claude Code (paste in a terminal)"
         value={claudeCodeCommand(url, connection.token)}

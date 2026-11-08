@@ -10,6 +10,7 @@ const mcpTokenSelect = {
   revokedAt: true,
   lastUsedAt: true,
   createdAt: true,
+  clientId: true,
 } as const;
 
 export class McpTokenRepo {
@@ -31,6 +32,8 @@ export class McpTokenRepo {
     name: string;
     tokenHash: string;
     expiresAt: Date;
+    // The assistant that got this token by signing in, if it did.
+    clientId?: string;
   }): Promise<McpTokenRecord> {
     try {
       return await prisma.mcpToken.create({ data, select: mcpTokenSelect });

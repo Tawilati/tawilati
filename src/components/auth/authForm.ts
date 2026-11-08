@@ -100,6 +100,13 @@ export function errorsFromResponse(mode: AuthMode, body: unknown): AuthErrors {
   }
 }
 
+// After signing in from an AI assistant's sign-in screen, go back to it (the proxy put it in ?next=).
+// Only that screen on this site: any other address is ignored, so the link can't send anyone elsewhere.
+export function safeNext(next: string | null): string | null {
+  if (!next) return null;
+  return next === "/oauth/authorize" || next.startsWith("/oauth/authorize?") ? next : null;
+}
+
 // Where a person lands after signing in: the first screen of their role.
 export function destinationFor(role: unknown): string | null {
   const known = typeof role === "string" ? toRole(role) : undefined;

@@ -28,6 +28,7 @@ const record: McpTokenRecord = {
   revokedAt: null,
   lastUsedAt: null,
   createdAt: new Date("2026-11-01T00:00:00.000Z"),
+  clientId: null,
 };
 
 const active: ActiveMcpTokenRecord = {
@@ -119,9 +120,15 @@ describe("verifying a token", () => {
 
 describe("listing and revoking tokens", () => {
   it("lists the tokens of the business", async () => {
-    repo.findManyByBusiness.mockResolvedValue([record]);
+    const signedIn = { ...record, id: "token-2", clientId: "client-1" };
+    repo.findManyByBusiness.mockResolvedValue([record, signedIn]);
 
-    await expect(mcpTokenService.list("business-1")).resolves.toEqual([record]);
+    // The client id stays on the server; the screen only learns how the connection was made.
+    const { clientId: _hidden, ...shown } = record;
+    await expect(mcpTokenService.list("business-1")).resolves.toEqual([
+      { ...shown, source: "key" },
+      { ...shown, id: "token-2", source: "sign-in" },
+    ]);
     expect(repo.findManyByBusiness).toHaveBeenCalledWith("business-1");
   });
 
@@ -129,7 +136,8 @@ describe("listing and revoking tokens", () => {
     const revoked = { ...record, revokedAt: new Date("2026-11-03T00:00:00.000Z") };
     repo.revoke.mockResolvedValue(revoked);
 
-    await expect(mcpTokenService.revoke("token-1", "business-1")).resolves.toEqual(revoked);
+    const { clientId: _hidden, ...shown } = revoked;
+    await expect(mcpTokenService.revoke("token-1", "business-1")).resolves.toEqual({ ...shown, source: "key" });
     expect(repo.revoke).toHaveBeenCalledWith("token-1", "business-1");
   });
 

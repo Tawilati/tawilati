@@ -10,7 +10,7 @@ import {
 } from "@/types/McpToken";
 import { NotFoundException } from "@/utils/exceptions/http/NotFoundException";
 
-const TOKEN_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+export const TOKEN_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
 // The token is 32 random bytes, so SHA-256 is enough; bcrypt would slow every MCP request.
 function hashToken(rawToken: string): string {
@@ -31,10 +31,12 @@ export class McpTokenService {
   }
 
   // Only the hash is stored, so this response is the one time the raw token exists.
+  // clientId is set when an assistant gets the token by having the owner sign in (OAuthService).
   async create(
     businessId: string,
     userId: string,
     name: string,
+    clientId?: string,
   ): Promise<CreatedMcpTokenResponse> {
     const rawToken = randomBytes(32).toString("hex");
     const record = await mcpTokenRepo.create({
@@ -43,6 +45,7 @@ export class McpTokenService {
       name,
       tokenHash: hashToken(rawToken),
       expiresAt: new Date(Date.now() + TOKEN_LIFETIME_MS),
+      ...(clientId ? { clientId } : {}),
     });
 
     return { ...mapToMcpTokenResponse(record), token: rawToken };

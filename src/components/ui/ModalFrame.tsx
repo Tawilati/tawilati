@@ -14,12 +14,15 @@ export function ModalFrame({
   children,
   role = "dialog",
   locked = false,
+  wide = false,
   onClose,
 }: {
   title: string;
   children: ReactNode;
   role?: "dialog" | "alertdialog";
   locked?: boolean;
+  // A wider panel, for reading (step-by-step help) rather than a short form.
+  wide?: boolean;
   onClose: () => void;
 }) {
   const titleId = useId();
@@ -82,7 +85,7 @@ export function ModalFrame({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="my-auto flex w-full max-w-md flex-col gap-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-raised)]"
+        className={`my-auto flex w-full ${wide ? "max-w-2xl" : "max-w-md"} flex-col gap-4 rounded-2xl bg-surface p-5 shadow-[var(--shadow-raised)]`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

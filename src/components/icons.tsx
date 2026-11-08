@@ -63,6 +63,15 @@ export function CheckIcon(props: IconProps) {
   );
 }
 
+// brand/icons/ui/chevron-down.svg
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </Icon>
+  );
+}
+
 // brand/icons/ui/chevron-right.svg
 export function ChevronRightIcon(props: IconProps) {
   return (
@@ -89,6 +98,17 @@ export function CircleCheckIcon(props: IconProps) {
     <Icon {...props}>
       <circle cx="12" cy="12" r="10" />
       <path d="m9 12 2 2 4-4" />
+    </Icon>
+  );
+}
+
+// brand/icons/ui/circle-help.svg
+export function CircleHelpIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
     </Icon>
   );
 }
@@ -174,6 +194,16 @@ export function ImageIcon(props: IconProps) {
       <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
       <circle cx="9" cy="9" r="2" />
       <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+    </Icon>
+  );
+}
+
+// brand/icons/ui/key-round.svg
+export function KeyRoundIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" />
+      <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" />
     </Icon>
   );
 }
@@ -344,6 +374,16 @@ export function SettingsIcon(props: IconProps) {
   );
 }
 
+// brand/icons/ui/shield-check.svg
+export function ShieldCheckIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+      <path d="m9 12 2 2 4-4" />
+    </Icon>
+  );
+}
+
 // brand/icons/ui/sparkles.svg
 export function SparklesIcon(props: IconProps) {
   return (
@@ -376,6 +416,16 @@ export function TablesIcon(props: IconProps) {
       <path d="M5.5 10.4 4.6 19" />
       <path d="M18.5 10.4l.9 8.6" />
       <path d="M12 11v8" />
+    </Icon>
+  );
+}
+
+// brand/icons/ui/terminal.svg
+export function TerminalIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m4 17 6-6-6-6" />
+      <path d="M12 19h8" />
     </Icon>
   );
 }

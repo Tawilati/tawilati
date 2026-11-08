@@ -5,7 +5,7 @@ import {
   connectionStatus,
   integrationSentenceFor,
   integrationsApi,
-  mcpKeyUrl,
+  authorizationHeader,
   mcpUrl,
   type Connection,
 } from "@/components/dashboard/integrations/integrationsApi";
@@ -105,8 +105,7 @@ describe("connecting an assistant", () => {
     );
   });
 
-  it("puts the key at the end of the address for a connector set up without signing in", () => {
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://tawilati.app");
-    expect(mcpKeyUrl("http://localhost:3000", "abc")).toBe("https://tawilati.app/api/mcp/abc");
+  it("gives the Authorization header value for a connection made with a key", () => {
+    expect(authorizationHeader("abc")).toBe("Bearer abc");
   });
 });

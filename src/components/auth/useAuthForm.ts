@@ -8,6 +8,7 @@ import {
   destinationFor,
   errorsFromResponse,
   OFFLINE,
+  safeNext,
   type AuthErrors,
   type AuthField,
   type AuthMode,
@@ -52,7 +53,9 @@ export function useAuthForm(mode: AuthMode, schema: z.ZodType) {
 
     const body = await response.json().catch(() => null);
     if (response.ok) {
-      const destination = destinationFor(body?.data?.role);
+      // Back to an AI assistant's sign-in screen if that's where they came from, else their role's first screen.
+      const next = mode === "login" ? safeNext(new URLSearchParams(window.location.search).get("next")) : null;
+      const destination = next ?? destinationFor(body?.data?.role);
       if (destination) {
         // Stay "loading" until the next screen replaces this one. A full page load, not router.replace:
         // with cacheComponents the router keeps this page alive in the background, so going back to

@@ -30,6 +30,14 @@ const publicApiRoutes = [
   // Customer-facing (anonymous)
   "/api/menu",            // GET /api/menu?b=&t= — QR resolve
   "/api/guest-sessions",  // POST — issue guest credential
+
+  // AI assistants: the route checks its own Bearer token (McpToken), not the staff cookie.
+  // Exact path only: /api/mcp-tokens still needs the cookie. Also covers /api/mcp/<key>.
+  "/api/mcp",
+  // AI assistants signing in (OAuth): registering, and swapping the owner's code for a token.
+  // /api/oauth/authorize (the owner's Allow) is not here: it needs the owner's cookie.
+  "/api/oauth/register",
+  "/api/oauth/token",
 ];
 const guestApiRoutes = [
   "/api/orders",       // POST — guest submits order
@@ -59,9 +67,13 @@ const IDENTITY_HEADERS = ["x-user-id", "x-user-role", "x-business-id"];
 
 // The API answers JSON; a screen sends the person to sign in. Either way the dead cookies go.
 function unauthenticated(req: NextRequest): NextResponse {
-  const response = req.nextUrl.pathname.startsWith("/api/")
+  const { pathname, search } = req.nextUrl;
+  const login = new URL("/login?reason=unauthorized", req.url);
+  // An assistant's sign-in screen comes back after signing in, with its whole request intact.
+  if (pathname.startsWith("/oauth/")) login.searchParams.set("next", `${pathname}${search}`);
+  const response = pathname.startsWith("/api/")
     ? NextResponse.json({ success: false, message: "unauthorized" }, { status: 401 })
-    : NextResponse.redirect(new URL("/login?reason=unauthorized", req.url));
+    : NextResponse.redirect(login);
   authService.clearAuthCookies(response);
   return response;
 }
@@ -157,9 +169,9 @@ if (isGuestApi(currentPath)) {
 }
 
 // ─────────────────────────────────────────────
-// Matcher — the API and the staff screens (`:path*` also matches the bare /dashboard)
+// Matcher — the API, the staff screens and the AI assistant sign-in screen (`:path*` also matches the bare /dashboard)
 // ─────────────────────────────────────────────
 
 export const config = {
-  matcher: ["/api/:path*", "/dashboard/:path*", "/kitchen/:path*", "/waiter/:path*"],
+  matcher: ["/api/:path*", "/dashboard/:path*", "/kitchen/:path*", "/waiter/:path*", "/oauth/:path*"],
 };

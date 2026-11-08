@@ -44,6 +44,10 @@ export enum PERMISSION{
   // Reports
   REPORT_DAILY_READ = "REPORT_DAILY_READ",
 
+  // MCP
+  MCP_TOKEN_WRITE = "MCP_TOKEN_WRITE",
+
+
 }
 // ============================================
 // ROLE PERMISSIONS MAPPING

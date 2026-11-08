@@ -62,6 +62,8 @@ async function openTab(statuses: OrderStatus[]) {
       sessionId: tab.id,
       token: randomBytes(32).toString("hex"),
       expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      // This phone already ordered on the tab, so a waiter confirmed it.
+      status: "ACTIVE",
     },
   });
   const orders = [];

@@ -1,0 +1,104 @@
+MCP TOKENS API - TEST GUIDE
+
+Routes
+  POST /api/mcp-tokens            - create a token; the raw token is shown once.
+  GET  /api/mcp-tokens            - list the tokens of the business.
+  POST /api/mcp-tokens/:id/revoke - stop a token working.
+
+Authentication and permissions
+  All routes require a valid staff session.
+  All routes need MCP_TOKEN_WRITE (OWNER only).
+  The businessId and userId are always taken from the authenticated identity headers.
+  :id must be a UUID; anything else is 400 validation_error before any query.
+  Only the SHA-256 hash of a token is stored. tokenHash is never returned.
+
+POST /api/mcp-tokens
+
+Request
+  { "name": "Claude Code" }
+
+Success
+  Status: 201
+  { "success": true, "message": "mcp token created", "data": {
+      "id": "...", "name": "Claude Code", "expiresAt": "ISO date, 90 days from now",
+      "revokedAt": null, "lastUsedAt": null, "createdAt": "ISO date",
+      "token": "64 hex characters"
+  } }
+
+POST TEST CASES
+
+1. OWNER creates a token
+  Expect 201 with "token" in the data. Copy it; it can't be shown again.
+
+2. WAITER or KITCHEN creates a token
+  Expect 403 forbidden.
+
+3. No session
+  Expect 401 unauthorized.
+
+4. Blank name
+  Send { "name": "   " }.
+  Expect 400 validation_error with details.name.
+
+5. Name longer than 100 characters
+  Expect 400 validation_error with details.name.
+
+6. businessId in the body
+  Send { "name": "Claude Code", "businessId": "another-id" }.
+  Expect 400 validation_error; nothing is created.
+
+7. Body that isn't JSON
+  Expect 400 invalid_json.
+
+GET /api/mcp-tokens
+
+Success
+  Status: 200
+  { "success": true, "message": "mcp tokens list", "data": [
+      { "id": "...", "name": "Claude Code", "expiresAt": "ISO date",
+        "revokedAt": null, "lastUsedAt": null, "createdAt": "ISO date" }
+  ] }
+
+GET TEST CASES
+
+1. OWNER lists the tokens
+  Expect 200, newest first, with neither "token" nor "tokenHash" on any entry.
+
+2. WAITER or KITCHEN lists the tokens
+  Expect 403 forbidden.
+
+3. Another business's tokens
+  Sign in as the owner of a different business.
+  Expect the first business's tokens to be absent from the list.
+
+POST /api/mcp-tokens/:id/revoke
+
+Success
+  Status: 200
+  { "success": true, "message": "mcp token revoked", "data": {
+      "id": "...", "name": "Claude Code", "expiresAt": "ISO date",
+      "revokedAt": "ISO date", "lastUsedAt": "ISO date or null", "createdAt": "ISO date"
+  } }
+
+REVOKE TEST CASES
+
+1. OWNER revokes a token
+  Expect 200; the token shows a revokedAt date in the list.
+
+2. Revoke the same token again
+  Expect 404 mcp_token_not_found.
+
+3. Another business's token
+  Use a token id that belongs to a different business.
+  Expect 404 mcp_token_not_found; the token keeps working.
+
+4. Unknown id
+  Use a random UUID.
+  Expect 404 mcp_token_not_found.
+
+5. Malformed id
+  Use "abc" as the id.
+  Expect 400 validation_error with details.id.
+
+6. WAITER or KITCHEN revokes a token
+  Expect 403 forbidden.

@@ -10,6 +10,7 @@ const { verify, services } = vi.hoisted(() => ({
     category: { listCategories: vi.fn(), createCategory: vi.fn() },
     kitchen: { getKitchenOrders: vi.fn() },
     menuItem: { getAll: vi.fn(), create: vi.fn(), update: vi.fn(), archive: vi.fn(), unarchive: vi.fn() },
+    report: { getDailyReport: vi.fn() },
     table: { listTables: vi.fn(), createTable: vi.fn(), disableTable: vi.fn(), enableTable: vi.fn() },
     waiter: { getActiveTables: vi.fn() },
   },
@@ -20,7 +21,8 @@ vi.mock("@/service/BusinessService", () => ({ businessService: services.business
 vi.mock("@/service/CategoryService", () => ({ categoryService: services.category }));
 vi.mock("@/service/KitchenService", () => ({ kitchenService: services.kitchen }));
 vi.mock("@/service/MenuItemsService", () => ({ menuItemService: services.menuItem }));
-vi.mock("@/service/TableService", () => ({ tableService: services.table }));
+vi.mock("@/service/ReportService", () => ({ reportService: services.report }));
+vi.mock("@/service/TableService",() => ({ tableService: services.table }));
 vi.mock("@/service/WaiterService", () => ({ waiterService: services.waiter }));
 
 import { POST } from "@/app/api/mcp/route";
@@ -105,6 +107,7 @@ describe("tools/list", () => {
       "create_menu_item",
       "create_table",
       "get_business",
+      "get_daily_report",
       "get_kitchen_orders",
       "list_active_tables",
       "list_categories",
@@ -186,6 +189,40 @@ describe("tools/call", () => {
 
     expect(isError).toBe(false);
     expect(services.menuItem.update).toHaveBeenCalledWith(businessId, itemId, { soldOut: true });
+  });
+
+  it("reads the daily report for the asked day in the token's business", async () => {
+    services.report.getDailyReport.mockResolvedValue({ date: "2026-11-04", totalUSD: "42.00" });
+
+    const { isError, body } = await callTool("get_daily_report", { date: "2026-11-04" });
+
+    expect(isError).toBe(false);
+    expect(body).toEqual({ date: "2026-11-04", totalUSD: "42.00" });
+    expect(services.report.getDailyReport).toHaveBeenCalledWith(businessId, "2026-11-04");
+  });
+
+  it("reads today's report when no date is given", async () => {
+    services.report.getDailyReport.mockResolvedValue({ date: "2026-11-12" });
+
+    await callTool("get_daily_report");
+
+    expect(services.report.getDailyReport).toHaveBeenCalledWith(businessId, undefined);
+  });
+
+  it("rejects a date that isn't a real day without calling the service", async () => {
+    const { isError, body } = await callTool("get_daily_report", { date: "2026-02-30" });
+
+    expect(isError).toBe(true);
+    expect(body).toMatch(/^Input validation error/);
+    expect(services.report.getDailyReport).not.toHaveBeenCalled();
+  });
+
+  it.each(["waiter-token", "kitchen-token"])("refuses %s on the daily report with forbidden", async (token) => {
+    const { isError, body } = await callTool("get_daily_report", {}, token);
+
+    expect(isError).toBe(true);
+    expect(body).toEqual({ success: false, message: "forbidden" });
+    expect(services.report.getDailyReport).not.toHaveBeenCalled();
   });
 
   it.each([

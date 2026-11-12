@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Session notes written by the Remember plugin, not app code.
     ".remember/**",
+    // The Remotion demo video is its own project with its own dependencies.
+    "demo-video/**",
   ]),
 ]);
 

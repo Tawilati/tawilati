@@ -8,9 +8,11 @@ import { businessService } from "@/service/BusinessService";
 import { categoryService } from "@/service/CategoryService";
 import { kitchenService } from "@/service/KitchenService";
 import { menuItemService } from "@/service/MenuItemsService";
+import { reportService } from "@/service/ReportService";
 import { tableService } from "@/service/TableService";
 import { waiterService } from "@/service/WaiterService";
 import { PERMISSION } from "@/types/Roles";
+import { isCalendarDate } from "@/utils/timezone";
 import { updateBusinessSchema } from "@/validation/businessSchemas";
 import { createCategorySchema } from "@/validation/categorySchemas";
 import { createMenuItemSchema, updateMenuItemSchema } from "@/validation/menuItemsSchemas";
@@ -70,6 +72,18 @@ export function registerTawilatiTools(server: McpServer): void {
     permission: PERMISSION.WAITER_TABLES_READ,
     readOnly: true,
   }, (_input, { businessId }) => waiterService.getActiveTables(businessId));
+
+  registerTool(server, "get_daily_report", {
+    title: "Daily sales report",
+    description:
+      "One day's sales: totals in USD and LBP, what was received per currency, bills closed, orders, items sold, top items, cash vs card and sales by waiter. The day runs midnight to midnight on the café's clock. Leave date out for today.",
+    inputSchema: z.object({
+      date: z.string().refine(isCalendarDate, "Use a real date as YYYY-MM-DD").optional()
+        .describe("The day as YYYY-MM-DD. Defaults to today in the café's timezone."),
+    }),
+    permission: PERMISSION.REPORT_DAILY_READ,
+    readOnly: true,
+  }, ({ date }, { businessId }) => reportService.getDailyReport(businessId, date));
 
   // ── Write ─────────────────────────────────────────────
 
